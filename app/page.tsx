@@ -77,6 +77,7 @@ function Panel({
 export default function Home() {
   const [selectedManeuver, setSelectedManeuver] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [phase, setPhase] = useState("Pre-ablation");
   const [rhythm, setRhythm] = useState("Tachycardia");
   const [sedation, setSedation] = useState("Awake");
   const [isoproterenol, setIsoproterenol] = useState("");
@@ -169,6 +170,21 @@ export default function Home() {
             <div>
               <small>Current state</small>
             </div>
+          </div>
+
+          <div className="toolbarField phaseField">
+            <label htmlFor="phase">Phase</label>
+            <select
+              id="phase"
+              value={phase}
+              onChange={(event) => {
+                setPhase(event.target.value);
+                logStateChange("Phase", event.target.value);
+              }}
+            >
+              <option>Pre-ablation</option>
+              <option>Post-ablation</option>
+            </select>
           </div>
 
           <div className="toolbarField rhythmField">
@@ -295,7 +311,7 @@ export default function Home() {
       </section>
 
       <section className="workspace">
-        <Panel eyebrow="Diagnostic state" title="Working differential">
+        <Panel eyebrow="Differential diagnosis" title="">
           <div className="diagnosisList">
             {diagnoses.map((diagnosis) => (
               <article className="diagnosisCard" key={diagnosis.abbreviation}>
@@ -327,7 +343,7 @@ export default function Home() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Recommended action" title="Next diagnostic maneuver">
+        <Panel eyebrow="Pacing maneuvers" title="">
           <article className="recommendation">
             <span className="stepNumber">
               {String(selectedManeuver + 1).padStart(2, "0")}

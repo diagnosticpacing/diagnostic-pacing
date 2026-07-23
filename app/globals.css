@@ -215,6 +215,7 @@ button {
   display: grid;
   grid-template-columns:
     minmax(135px, 0.72fr)
+    minmax(155px, 0.82fr)
     minmax(205px, 1.2fr)
     minmax(205px, 1.12fr)
     minmax(145px, 0.78fr)
@@ -949,11 +950,11 @@ button {
   }
 
   .stateToolbarRow {
-    min-width: 980px;
+    min-width: 1135px;
   }
 
   .intervalsToolbarRow {
-    min-width: 980px;
+    min-width: 1135px;
   }
 }
 
