@@ -53,6 +53,7 @@ button {
   backdrop-filter: blur(18px);
 }
 
+.brandArea,
 .brand,
 .topActions,
 .activeCase,
@@ -62,6 +63,10 @@ button {
 .statusbar > div {
   display: flex;
   align-items: center;
+}
+
+.brandArea {
+  gap: 14px;
 }
 
 .brand {
@@ -81,9 +86,9 @@ button {
   font-weight: 800;
 }
 
-.brand p,
 .panelHeader p,
-.sectionLabel {
+.sectionLabel,
+.modalHeader p {
   margin: 0;
   color: var(--muted);
   font-size: 10px;
@@ -93,8 +98,27 @@ button {
 }
 
 .brand h1 {
-  margin: 3px 0 0;
+  margin: 0;
   font-size: 18px;
+  white-space: nowrap;
+}
+
+.aboutButton {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.aboutButton:hover {
+  border-color: rgba(91, 214, 220, 0.34);
+  background: rgba(91, 214, 220, 0.08);
+  color: var(--text);
 }
 
 .tabs {
@@ -155,8 +179,7 @@ button {
 }
 
 .primaryButton,
-.secondaryButton,
-.editButton {
+.secondaryButton {
   min-height: 35px;
   padding: 0 14px;
   border-radius: 9px;
@@ -177,30 +200,134 @@ button {
   color: var(--text);
 }
 
-.editButton {
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-}
-
 .caseStrip {
-  display: flex;
-  min-height: 64px;
+  display: grid;
+  grid-template-columns:
+    minmax(145px, 0.72fr)
+    minmax(205px, 1.25fr)
+    minmax(145px, 0.8fr)
+    minmax(200px, 1.15fr)
+    minmax(145px, 0.8fr)
+    minmax(180px, 1fr);
+  min-height: 82px;
   margin: 18px 24px 0;
-  padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: rgba(13, 24, 34, 0.86);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.16);
 }
 
-.metric {
+.toolbarHeading,
+.toolbarField,
+.stateLogSummary {
   display: flex;
-  min-width: 140px;
+  min-width: 0;
   flex-direction: column;
   justify-content: center;
-  padding: 0 20px;
+  padding: 13px 17px;
   border-right: 1px solid var(--border);
+}
+
+.toolbarHeading {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.toolbarHeading div,
+.stateLogSummary {
+  min-width: 0;
+}
+
+.toolbarHeading small,
+.stateLogSummary small {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.toolbarHeading strong,
+.stateLogSummary strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.liveIndicator {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(105, 211, 158, 0.09);
+}
+
+.toolbarField label {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.toolbarField input,
+.toolbarField select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.toolbarField input:focus,
+.toolbarField select:focus {
+  border-color: rgba(91, 214, 220, 0.62);
+  box-shadow: 0 0 0 3px rgba(91, 214, 220, 0.08);
+}
+
+.toolbarField select {
+  cursor: pointer;
+}
+
+.unitInput {
+  position: relative;
+}
+
+.unitInput input {
+  padding-right: 35px;
+}
+
+.unitInput span {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.stateLogSummary {
+  border-right: 0;
+}
+
+.stateLogSummary span {
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--quiet);
+  font-size: 8px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace {
@@ -568,6 +695,125 @@ button {
   color: var(--text);
 }
 
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 8, 12, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.aboutModal {
+  width: min(620px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--strong-border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalHeader h2 {
+  margin: 6px 0 0;
+  font-size: 20px;
+}
+
+.modalClose {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.modalClose:hover {
+  color: var(--text);
+}
+
+.modalBody {
+  padding: 22px;
+}
+
+.modalBody > p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.downloadSection {
+  margin: 22px 0;
+}
+
+.downloadSection h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.downloadCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.downloadCard + .downloadCard {
+  margin-top: 8px;
+}
+
+.downloadCard strong,
+.downloadCard span {
+  display: block;
+}
+
+.downloadCard strong {
+  font-size: 11px;
+}
+
+.downloadCard span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.downloadCard button {
+  min-width: 96px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.modalNotice {
+  margin-bottom: 0 !important;
+  padding: 11px 12px;
+  border: 1px solid rgba(240, 185, 106, 0.18);
+  border-radius: 9px;
+  background: rgba(240, 185, 106, 0.08);
+}
+
 @media (max-width: 1100px) {
   .topbar {
     grid-template-columns: 1fr auto;
@@ -590,7 +836,18 @@ button {
   }
 
   .caseStrip {
+    grid-template-columns:
+      minmax(145px, 0.75fr)
+      minmax(200px, 1.2fr)
+      minmax(145px, 0.8fr)
+      minmax(195px, 1.1fr)
+      minmax(145px, 0.8fr)
+      minmax(175px, 1fr);
     overflow-x: auto;
+  }
+
+  .caseStrip > * {
+    min-width: 145px;
   }
 }
 
@@ -601,6 +858,15 @@ button {
 
   .activeCase,
   .topActions .secondaryButton {
+    display: none;
+  }
+
+  .brand h1 {
+    font-size: 15px;
+    white-space: normal;
+  }
+
+  .aboutButton {
     display: none;
   }
 

@@ -76,17 +76,43 @@ function Panel({
 
 export default function Home() {
   const [selectedManeuver, setSelectedManeuver] = useState(0);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [rhythm, setRhythm] = useState("Tachycardia");
+  const [cycleLength, setCycleLength] = useState("330");
+  const [sedation, setSedation] = useState("Awake");
+  const [isoproterenol, setIsoproterenol] = useState("0");
+  const [stateChanges, setStateChanges] = useState<string[]>([]);
+
   const currentManeuver = maneuvers[selectedManeuver];
+
+  function logStateChange(field: string, value: string) {
+    const timestamp = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    setStateChanges((current) => [
+      ...current,
+      `${timestamp} — ${field}: ${value || "blank"}`,
+    ]);
+  }
 
   return (
     <main className="appShell">
       <header className="topbar">
-        <div className="brand">
-          <div className="brandMark">DP</div>
-          <div>
-            <p>EP decision workspace</p>
-            <h1>Diagnostic Pacing</h1>
+        <div className="brandArea">
+          <div className="brand">
+            <div className="brandMark">DP</div>
+            <h1>Diagnostic Pacing Maneuvers</h1>
           </div>
+
+          <button
+            className="aboutButton"
+            onClick={() => setAboutOpen(true)}
+            type="button"
+          >
+            About
+          </button>
         </div>
 
         <nav className="tabs">
@@ -102,25 +128,99 @@ export default function Home() {
               <strong>Untitled study</strong>
             </div>
           </div>
-          <button className="secondaryButton">New case</button>
-          <button className="primaryButton">Save case</button>
+          <button className="secondaryButton" type="button">
+            New case
+          </button>
+          <button className="primaryButton" type="button">
+            Save case
+          </button>
+          <button className="secondaryButton" type="button">
+            Report
+          </button>
         </div>
       </header>
 
-      <section className="caseStrip">
-        {[
-          ["Rhythm", "Regular SVT"],
-          ["Tachycardia CL", "330 ms"],
-          ["VA interval", "42 ms"],
-          ["Induction state", "Baseline"],
-          ["Isoproterenol", "Off"],
-        ].map(([label, value]) => (
-          <div className="metric" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
+      <section className="caseStrip" aria-label="Current rhythm state">
+        <div className="toolbarHeading">
+          <span className="liveIndicator" />
+          <div>
+            <small>Current state</small>
+            <strong>Rhythm conditions</strong>
           </div>
-        ))}
-        <button className="editButton">Edit case details</button>
+        </div>
+
+        <div className="toolbarField rhythmField">
+          <label htmlFor="rhythm">Rhythm</label>
+          <select
+            id="rhythm"
+            value={rhythm}
+            onChange={(event) => {
+              setRhythm(event.target.value);
+              logStateChange("Rhythm", event.target.value);
+            }}
+          >
+            <option>Normal Sinus Rhythm</option>
+            <option>Tachycardia</option>
+            <option>A-paced V-sensed</option>
+            <option>AV-paced</option>
+            <option>A-sensed V-paced</option>
+          </select>
+        </div>
+
+        <div className="toolbarField">
+          <label htmlFor="cycle-length">Cycle Length</label>
+          <div className="unitInput">
+            <input
+              id="cycle-length"
+              inputMode="decimal"
+              value={cycleLength}
+              onChange={(event) => setCycleLength(event.target.value)}
+              onBlur={() => logStateChange("Cycle Length", `${cycleLength} ms`)}
+              aria-label="Cycle length in milliseconds"
+            />
+            <span>ms</span>
+          </div>
+        </div>
+
+        <div className="toolbarField sedationField">
+          <label htmlFor="sedation">Sedation</label>
+          <select
+            id="sedation"
+            value={sedation}
+            onChange={(event) => {
+              setSedation(event.target.value);
+              logStateChange("Sedation", event.target.value);
+            }}
+          >
+            <option>Awake</option>
+            <option>Conscious sedation</option>
+            <option>General Anesthesia</option>
+          </select>
+        </div>
+
+        <div className="toolbarField">
+          <label htmlFor="isoproterenol">Isoproterenol</label>
+          <input
+            id="isoproterenol"
+            inputMode="decimal"
+            value={isoproterenol}
+            onChange={(event) => setIsoproterenol(event.target.value)}
+            onBlur={() =>
+              logStateChange("Isoproterenol", isoproterenol)
+            }
+            aria-label="Isoproterenol value"
+          />
+        </div>
+
+        <div className="stateLogSummary">
+          <small>State log</small>
+          <strong>{stateChanges.length} changes</strong>
+          <span>
+            {stateChanges.length
+              ? stateChanges[stateChanges.length - 1]
+              : "No changes recorded"}
+          </span>
+        </div>
       </section>
 
       <section className="workspace">
@@ -287,6 +387,86 @@ export default function Home() {
           </div>
         </Panel>
       </section>
+
+      {aboutOpen ? (
+        <div
+          className="modalBackdrop"
+          role="presentation"
+          onMouseDown={() => setAboutOpen(false)}
+        >
+          <section
+            aria-labelledby="about-title"
+            aria-modal="true"
+            className="aboutModal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modalHeader">
+              <div>
+                <p>Open-source project</p>
+                <h2 id="about-title">About Diagnostic Pacing Maneuvers</h2>
+              </div>
+
+              <button
+                aria-label="Close About window"
+                className="modalClose"
+                onClick={() => setAboutOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="modalBody">
+              <p>
+                Diagnostic Pacing Maneuvers is an interactive educational and
+                clinical decision-support workspace for organizing pacing
+                maneuvers, observations, diagnostic reasoning, and case
+                reports.
+              </p>
+
+              <p>
+                The diagnostic engines and logic will be maintained as
+                separate open-source packages so they can be inspected,
+                tested, and used independently of this interface.
+              </p>
+
+              <div className="downloadSection">
+                <h3>Open-source downloads</h3>
+
+                <div className="downloadCard">
+                  <div>
+                    <strong>Diagnostic engine package</strong>
+                    <span>
+                      Framework-independent TypeScript reasoning engine
+                    </span>
+                  </div>
+                  <button disabled type="button">
+                    Coming soon
+                  </button>
+                </div>
+
+                <div className="downloadCard">
+                  <div>
+                    <strong>Clinical logic and rules</strong>
+                    <span>
+                      Versioned maneuver definitions and diagnostic rules
+                    </span>
+                  </div>
+                  <button disabled type="button">
+                    Coming soon
+                  </button>
+                </div>
+              </div>
+
+              <p className="modalNotice">
+                This early GUI draft contains demonstration content only. The
+                clinical reasoning engine has not yet been connected.
+              </p>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <footer className="statusbar">
         <div>
