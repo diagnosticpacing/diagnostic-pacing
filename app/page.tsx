@@ -78,9 +78,18 @@ export default function Home() {
   const [selectedManeuver, setSelectedManeuver] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [rhythm, setRhythm] = useState("Tachycardia");
-  const [cycleLength, setCycleLength] = useState("330");
   const [sedation, setSedation] = useState("Awake");
-  const [isoproterenol, setIsoproterenol] = useState("0");
+  const [isoproterenol, setIsoproterenol] = useState("");
+  const [adenosine, setAdenosine] = useState("");
+  const [epinephrin, setEpinephrin] = useState("");
+  const [intervals, setIntervals] = useState({
+    rr: "",
+    pr: "",
+    ah: "",
+    hv: "",
+    qrsDuration: "",
+    qt: "",
+  });
   const [stateChanges, setStateChanges] = useState<string[]>([]);
 
   const currentManeuver = maneuvers[selectedManeuver];
@@ -95,6 +104,19 @@ export default function Home() {
       ...current,
       `${timestamp} — ${field}: ${value || "blank"}`,
     ]);
+  }
+
+  function updateInterval(
+    key: keyof typeof intervals,
+    label: string,
+    value: string,
+  ) {
+    setIntervals((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
+    logStateChange(label, value ? `${value} ms` : "");
   }
 
   return (
@@ -141,85 +163,134 @@ export default function Home() {
       </header>
 
       <section className="caseStrip" aria-label="Current rhythm state">
-        <div className="toolbarHeading">
-          <span className="liveIndicator" />
-          <div>
-            <small>Current state</small>
-            <strong>Rhythm conditions</strong>
+        <div className="stateToolbarRow">
+          <div className="toolbarHeading">
+            <span className="liveIndicator" />
+            <div>
+              <small>Current state</small>
+            </div>
           </div>
-        </div>
 
-        <div className="toolbarField rhythmField">
-          <label htmlFor="rhythm">Rhythm</label>
-          <select
-            id="rhythm"
-            value={rhythm}
-            onChange={(event) => {
-              setRhythm(event.target.value);
-              logStateChange("Rhythm", event.target.value);
-            }}
-          >
-            <option>Normal Sinus Rhythm</option>
-            <option>Tachycardia</option>
-            <option>A-paced V-sensed</option>
-            <option>AV-paced</option>
-            <option>A-sensed V-paced</option>
-          </select>
-        </div>
+          <div className="toolbarField rhythmField">
+            <label htmlFor="rhythm">Rhythm</label>
+            <select
+              id="rhythm"
+              value={rhythm}
+              onChange={(event) => {
+                setRhythm(event.target.value);
+                logStateChange("Rhythm", event.target.value);
+              }}
+            >
+              <option>Normal Sinus Rhythm</option>
+              <option>Tachycardia</option>
+              <option>A-paced V-sensed</option>
+              <option>AV-paced</option>
+              <option>A-sensed V-paced</option>
+            </select>
+          </div>
 
-        <div className="toolbarField">
-          <label htmlFor="cycle-length">Cycle Length</label>
-          <div className="unitInput">
+          <div className="toolbarField sedationField">
+            <label htmlFor="sedation">Sedation</label>
+            <select
+              id="sedation"
+              value={sedation}
+              onChange={(event) => {
+                setSedation(event.target.value);
+                logStateChange("Sedation", event.target.value);
+              }}
+            >
+              <option>Awake</option>
+              <option>Conscious sedation</option>
+              <option>General Anesthesia</option>
+            </select>
+          </div>
+
+          <div className="toolbarField">
+            <label htmlFor="isoproterenol">Isoproterenol</label>
             <input
-              id="cycle-length"
+              id="isoproterenol"
               inputMode="decimal"
-              value={cycleLength}
-              onChange={(event) => setCycleLength(event.target.value)}
-              onBlur={() => logStateChange("Cycle Length", `${cycleLength} ms`)}
-              aria-label="Cycle length in milliseconds"
+              value={isoproterenol}
+              onChange={(event) => setIsoproterenol(event.target.value)}
+              onBlur={() =>
+                logStateChange("Isoproterenol", isoproterenol)
+              }
+              aria-label="Isoproterenol value"
             />
-            <span>ms</span>
+          </div>
+
+          <div className="toolbarField">
+            <label htmlFor="adenosine">Adenosine</label>
+            <input
+              id="adenosine"
+              inputMode="decimal"
+              value={adenosine}
+              onChange={(event) => setAdenosine(event.target.value)}
+              onBlur={() => logStateChange("Adenosine", adenosine)}
+              aria-label="Adenosine value"
+            />
+          </div>
+
+          <div className="toolbarField">
+            <label htmlFor="epinephrin">Epinephrin</label>
+            <input
+              id="epinephrin"
+              inputMode="decimal"
+              value={epinephrin}
+              onChange={(event) => setEpinephrin(event.target.value)}
+              onBlur={() => logStateChange("Epinephrin", epinephrin)}
+              aria-label="Epinephrin value"
+            />
           </div>
         </div>
 
-        <div className="toolbarField sedationField">
-          <label htmlFor="sedation">Sedation</label>
-          <select
-            id="sedation"
-            value={sedation}
-            onChange={(event) => {
-              setSedation(event.target.value);
-              logStateChange("Sedation", event.target.value);
-            }}
-          >
-            <option>Awake</option>
-            <option>Conscious sedation</option>
-            <option>General Anesthesia</option>
-          </select>
-        </div>
+        <div className="intervalsToolbarRow">
+          <div className="intervalsHeading">
+            <span>Intervals</span>
+          </div>
 
-        <div className="toolbarField">
-          <label htmlFor="isoproterenol">Isoproterenol</label>
-          <input
-            id="isoproterenol"
-            inputMode="decimal"
-            value={isoproterenol}
-            onChange={(event) => setIsoproterenol(event.target.value)}
-            onBlur={() =>
-              logStateChange("Isoproterenol", isoproterenol)
-            }
-            aria-label="Isoproterenol value"
-          />
-        </div>
-
-        <div className="stateLogSummary">
-          <small>State log</small>
-          <strong>{stateChanges.length} changes</strong>
-          <span>
-            {stateChanges.length
-              ? stateChanges[stateChanges.length - 1]
-              : "No changes recorded"}
-          </span>
+          {rhythm === "Normal Sinus Rhythm" ? (
+            <div className="intervalFields">
+              {[
+                ["rr", "RR"],
+                ["pr", "PR"],
+                ["ah", "AH"],
+                ["hv", "HV"],
+                ["qrsDuration", "QRS duration"],
+                ["qt", "QT"],
+              ].map(([key, label]) => (
+                <div className="toolbarField intervalField" key={key}>
+                  <label htmlFor={`interval-${key}`}>{label}</label>
+                  <div className="unitInput">
+                    <input
+                      id={`interval-${key}`}
+                      inputMode="decimal"
+                      value={intervals[key as keyof typeof intervals]}
+                      onChange={(event) =>
+                        setIntervals((current) => ({
+                          ...current,
+                          [key]: event.target.value,
+                        }))
+                      }
+                      onBlur={(event) =>
+                        updateInterval(
+                          key as keyof typeof intervals,
+                          label,
+                          event.target.value,
+                        )
+                      }
+                      aria-label={`${label} interval in milliseconds`}
+                    />
+                    <span>ms</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="intervalPlaceholder">
+              Interval fields for the selected rhythm will be added here.
+            </div>
+          )}
         </div>
       </section>
 
@@ -384,6 +455,35 @@ export default function Home() {
               <span>Concentric; earliest at the His region</span>
               <span>AVNRT favored</span>
             </div>
+          </div>
+
+          <div className="stateLogPanel">
+            <div className="stateLogHeader">
+              <div>
+                <small>Current-state history</small>
+                <h3>State log</h3>
+              </div>
+              <span>{stateChanges.length} changes</span>
+            </div>
+
+            {stateChanges.length ? (
+              <div className="stateLogList">
+                {[...stateChanges]
+                  .reverse()
+                  .slice(0, 8)
+                  .map((change, index) => (
+                    <div className="stateLogEntry" key={`${change}-${index}`}>
+                      <span>{String(stateChanges.length - index).padStart(2, "0")}</span>
+                      <p>{change}</p>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <div className="stateLogEmpty">
+                State changes will appear here as rhythm conditions,
+                medications, and intervals are updated.
+              </div>
+            )}
           </div>
         </Panel>
       </section>
