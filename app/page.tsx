@@ -78,7 +78,7 @@ export default function Home() {
   const [selectedManeuver, setSelectedManeuver] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [phase, setPhase] = useState("Pre-ablation");
-  const [rhythm, setRhythm] = useState("Tachycardia");
+  const [rhythm, setRhythm] = useState("Normal Sinus Rhythm");
   const [sedation, setSedation] = useState("Awake");
   const [isoproterenol, setIsoproterenol] = useState("");
   const [adenosine, setAdenosine] = useState("");
@@ -90,6 +90,16 @@ export default function Home() {
     hv: "",
     qrsDuration: "",
     qt: "",
+  });
+  const [refractoryPeriods, setRefractoryPeriods] = useState({
+    atrial: "",
+    fastPathway: "",
+    slowPathway: "",
+    accessoryPathway1: "",
+    accessoryPathway2: "",
+    avNode: "",
+    ventricular: "",
+    retrograde: "",
   });
   const [stateChanges, setStateChanges] = useState<string[]>([]);
 
@@ -118,6 +128,19 @@ export default function Home() {
     }));
 
     logStateChange(label, value ? `${value} ms` : "");
+  }
+
+  function updateRefractoryPeriod(
+    key: keyof typeof refractoryPeriods,
+    label: string,
+    value: string,
+  ) {
+    setRefractoryPeriods((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
+    logStateChange(`${label} refractory period`, value ? `${value} ms` : "");
   }
 
   return (
@@ -307,6 +330,55 @@ export default function Home() {
               Interval fields for the selected rhythm will be added here.
             </div>
           )}
+        </div>
+
+        <div className="refractoryPeriodsToolbarRow">
+          <div className="intervalsHeading">
+            <span>Refractory Periods</span>
+          </div>
+
+          <div className="refractoryPeriodFields">
+            {[
+              ["atrial", "Atrial"],
+              ["fastPathway", "Fast Pathway"],
+              ["slowPathway", "Slow Pathway"],
+              ["accessoryPathway1", "Accessory Pathway 1"],
+              ["accessoryPathway2", "Accessory Pathway 2"],
+              ["avNode", "AV Node"],
+              ["ventricular", "Ventricular"],
+              ["retrograde", "Retrograde"],
+            ].map(([key, label]) => (
+              <div className="toolbarField intervalField" key={key}>
+                <label htmlFor={`refractory-period-${key}`}>{label}</label>
+                <div className="unitInput">
+                  <input
+                    id={`refractory-period-${key}`}
+                    inputMode="decimal"
+                    value={
+                      refractoryPeriods[
+                        key as keyof typeof refractoryPeriods
+                      ]
+                    }
+                    onChange={(event) =>
+                      setRefractoryPeriods((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
+                    onBlur={(event) =>
+                      updateRefractoryPeriod(
+                        key as keyof typeof refractoryPeriods,
+                        label,
+                        event.target.value,
+                      )
+                    }
+                    aria-label={`${label} refractory period in milliseconds`}
+                  />
+                  <span>ms</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

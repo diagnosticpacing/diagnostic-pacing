@@ -318,7 +318,8 @@ button {
   pointer-events: none;
 }
 
-.intervalsToolbarRow {
+.intervalsToolbarRow,
+.refractoryPeriodsToolbarRow {
   display: grid;
   grid-template-columns: minmax(135px, 0.72fr) 1fr;
   min-height: 82px;
@@ -345,11 +346,17 @@ button {
   grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
 
+.refractoryPeriodFields {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(120px, 1fr));
+}
+
 .intervalField {
   border-right: 1px solid var(--border);
 }
 
-.intervalFields > :last-child {
+.intervalFields > :last-child,
+.refractoryPeriodFields > :last-child {
   border-right: 0;
 }
 
@@ -953,7 +960,8 @@ button {
     min-width: 1135px;
   }
 
-  .intervalsToolbarRow {
+  .intervalsToolbarRow,
+  .refractoryPeriodsToolbarRow {
     min-width: 1135px;
   }
 }
