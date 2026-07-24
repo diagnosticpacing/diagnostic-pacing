@@ -91,6 +91,14 @@ export default function Home() {
     qrsDuration: "",
     qt: "",
   });
+  const [functionalRefractoryPeriods, setFunctionalRefractoryPeriods] =
+    useState({
+      fastPathway: "",
+      slowPathway: "",
+      avNode: "",
+      retrograde: "",
+    });
+
   const [refractoryPeriods, setRefractoryPeriods] = useState({
     atrial: "",
     fastPathway: "",
@@ -128,6 +136,22 @@ export default function Home() {
     }));
 
     logStateChange(label, value ? `${value} ms` : "");
+  }
+
+  function updateFunctionalRefractoryPeriod(
+    key: keyof typeof functionalRefractoryPeriods,
+    label: string,
+    value: string,
+  ) {
+    setFunctionalRefractoryPeriods((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
+    logStateChange(
+      `${label} functional refractory period`,
+      value ? `${value} ms` : "",
+    );
   }
 
   function updateRefractoryPeriod(
@@ -332,9 +356,57 @@ export default function Home() {
           )}
         </div>
 
+        <div className="functionalRefractoryPeriodsToolbarRow">
+          <div className="intervalsHeading">
+            <span>Functional Refractory Periods</span>
+          </div>
+
+          <div className="refractoryPeriodFields">
+            {[
+              ["fastPathway", "Fast Pathway"],
+              ["slowPathway", "Slow Pathway"],
+              ["avNode", "AV Node"],
+              ["retrograde", "Retrograde"],
+            ].map(([key, label]) => (
+              <div className="toolbarField intervalField" key={key}>
+                <label htmlFor={`functional-refractory-period-${key}`}>
+                  {label}
+                </label>
+
+                <div className="unitInput">
+                  <input
+                    id={`functional-refractory-period-${key}`}
+                    inputMode="decimal"
+                    value={
+                      functionalRefractoryPeriods[
+                        key as keyof typeof functionalRefractoryPeriods
+                      ]
+                    }
+                    onChange={(event) =>
+                      setFunctionalRefractoryPeriods((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
+                    onBlur={(event) =>
+                      updateFunctionalRefractoryPeriod(
+                        key as keyof typeof functionalRefractoryPeriods,
+                        label,
+                        event.target.value,
+                      )
+                    }
+                    aria-label={`${label} functional refractory period in milliseconds`}
+                  />
+                  <span>ms</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="refractoryPeriodsToolbarRow">
           <div className="intervalsHeading">
-            <span>Refractory Periods</span>
+            <span>Effective Refractory Periods</span>
           </div>
 
           <div className="refractoryPeriodFields">

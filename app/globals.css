@@ -214,7 +214,7 @@ button {
 .stateToolbarRow {
   display: grid;
   grid-template-columns:
-    minmax(135px, 0.72fr)
+    165px
     minmax(155px, 0.82fr)
     minmax(205px, 1.2fr)
     minmax(205px, 1.12fr)
@@ -319,25 +319,53 @@ button {
 }
 
 .intervalsToolbarRow,
+.functionalRefractoryPeriodsToolbarRow,
 .refractoryPeriodsToolbarRow {
   display: grid;
-  grid-template-columns: minmax(135px, 0.72fr) 1fr;
+  grid-template-columns: 165px minmax(0, 1fr);
   min-height: 82px;
   border-top: 1px solid var(--border);
 }
 
 .intervalsHeading {
   display: flex;
-  align-items: flex-start;
-  padding: 16px 17px;
-  border-right: 1px solid var(--border);
+  align-items: center;
 }
 
+.toolbarHeading,
+.intervalsHeading {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 165px;
+  padding: 16px 17px;
+  border-right: 1px solid var(--border);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(91, 214, 220, 0.09),
+      rgba(91, 214, 220, 0.025)
+    );
+}
+
+.toolbarHeading::before,
+.intervalsHeading::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(91, 214, 220, 0.72);
+  content: "";
+}
+
+.toolbarHeading small,
 .intervalsHeading span {
-  color: var(--muted);
+  color: var(--text);
   font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-weight: 850;
+  line-height: 1.45;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -349,6 +377,10 @@ button {
 .refractoryPeriodFields {
   display: grid;
   grid-template-columns: repeat(8, minmax(120px, 1fr));
+}
+
+.functionalRefractoryPeriodsToolbarRow .refractoryPeriodFields {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
 }
 
 .intervalField {
@@ -961,6 +993,7 @@ button {
   }
 
   .intervalsToolbarRow,
+  .functionalRefractoryPeriodsToolbarRow,
   .refractoryPeriodsToolbarRow {
     min-width: 1135px;
   }
