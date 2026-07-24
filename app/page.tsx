@@ -2,6 +2,17 @@
 
 import { useState } from "react";
 
+import {
+  createClinicalState,
+  createInitialCase,
+  medicationSummary,
+  phaseOptions,
+  rhythmOptions,
+  sedationOptions,
+  workspaceConfigurations,
+  type ClinicalStateContext,
+} from "./clinical/model";
+
 const diagnoses = [
   {
     abbreviation: "AVNRT",
@@ -77,41 +88,28 @@ function Panel({
 export default function Home() {
   const [selectedManeuver, setSelectedManeuver] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [phase, setPhase] = useState("Pre-ablation");
-  const [rhythm, setRhythm] = useState("Normal Sinus Rhythm");
-  const [sedation, setSedation] = useState("Awake");
-  const [isoproterenol, setIsoproterenol] = useState("");
-  const [adenosine, setAdenosine] = useState("");
-  const [epinephrin, setEpinephrin] = useState("");
-  const [intervals, setIntervals] = useState({
-    rr: "",
-    pr: "",
-    ah: "",
-    hv: "",
-    qrsDuration: "",
-    qt: "",
-  });
-  const [functionalRefractoryPeriods, setFunctionalRefractoryPeriods] =
-    useState({
-      fastPathway: "",
-      slowPathway: "",
-      avNode: "",
-      retrograde: "",
-    });
-
-  const [refractoryPeriods, setRefractoryPeriods] = useState({
-    atrial: "",
-    fastPathway: "",
-    slowPathway: "",
-    accessoryPathway1: "",
-    accessoryPathway2: "",
-    avNode: "",
-    ventricular: "",
-    retrograde: "",
-  });
+  const [caseRecord, setCaseRecord] = useState(createInitialCase);
+  const [activeClinicalStateId, setActiveClinicalStateId] = useState(
+    "clinical-state-1",
+  );
   const [stateChanges, setStateChanges] = useState<string[]>([]);
 
   const currentManeuver = maneuvers[selectedManeuver];
+
+  const activeClinicalState =
+    caseRecord.clinicalStates.find(
+      (clinicalState) => clinicalState.id === activeClinicalStateId,
+    ) ?? caseRecord.clinicalStates[0];
+
+  const activeWorkspace =
+    workspaceConfigurations[activeClinicalState.context.rhythm];
+
+  const enteredMeasurementCount = (
+    clinicalState: (typeof caseRecord.clinicalStates)[number],
+  ) =>
+    Object.values(clinicalState.measurements).filter(
+      (value) => value.trim() !== "",
+    ).length;
 
   function logStateChange(field: string, value: string) {
     const timestamp = new Date().toLocaleTimeString([], {
@@ -125,46 +123,67 @@ export default function Home() {
     ]);
   }
 
-  function updateInterval(
-    key: keyof typeof intervals,
-    label: string,
-    value: string,
+  function updateActiveClinicalState(
+    updater: (
+      current: (typeof caseRecord.clinicalStates)[number],
+    ) => (typeof caseRecord.clinicalStates)[number],
   ) {
-    setIntervals((current) => ({
+    setCaseRecord((currentCase) => ({
+      ...currentCase,
+      clinicalStates: currentCase.clinicalStates.map((clinicalState) =>
+        clinicalState.id === activeClinicalStateId
+          ? updater(clinicalState)
+          : clinicalState,
+      ),
+    }));
+  }
+
+  function updateContext<K extends keyof ClinicalStateContext>(
+    key: K,
+    value: ClinicalStateContext[K],
+    label: string,
+  ) {
+    updateActiveClinicalState((current) => ({
       ...current,
-      [key]: value,
+      context: {
+        ...current.context,
+        [key]: value,
+      },
+    }));
+
+    logStateChange(label, String(value));
+  }
+
+  function updateMeasurement(
+    measurementId: string,
+    value: string,
+    label: string,
+  ) {
+    updateActiveClinicalState((current) => ({
+      ...current,
+      measurements: {
+        ...current.measurements,
+        [measurementId]: value,
+      },
     }));
 
     logStateChange(label, value ? `${value} ms` : "");
   }
 
-  function updateFunctionalRefractoryPeriod(
-    key: keyof typeof functionalRefractoryPeriods,
-    label: string,
-    value: string,
-  ) {
-    setFunctionalRefractoryPeriods((current) => ({
+  function addClinicalState() {
+    const nextNumber = caseRecord.clinicalStates.length + 1;
+    const id = `clinical-state-${Date.now()}`;
+    const nextState = createClinicalState(id, {
+      phase: activeClinicalState.context.phase,
+      sedation: activeClinicalState.context.sedation,
+    });
+
+    setCaseRecord((current) => ({
       ...current,
-      [key]: value,
+      clinicalStates: [...current.clinicalStates, nextState],
     }));
-
-    logStateChange(
-      `${label} functional refractory period`,
-      value ? `${value} ms` : "",
-    );
-  }
-
-  function updateRefractoryPeriod(
-    key: keyof typeof refractoryPeriods,
-    label: string,
-    value: string,
-  ) {
-    setRefractoryPeriods((current) => ({
-      ...current,
-      [key]: value,
-    }));
-
-    logStateChange(`${label} refractory period`, value ? `${value} ms` : "");
+    setActiveClinicalStateId(id);
+    logStateChange("Clinical state", `Added state ${nextNumber}`);
   }
 
   return (
@@ -195,7 +214,7 @@ export default function Home() {
             <span />
             <div>
               <small>Active case</small>
-              <strong>Untitled study</strong>
+              <strong>{caseRecord.title}</strong>
             </div>
           </div>
           <button className="secondaryButton" type="button">
@@ -210,12 +229,68 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="caseStrip" aria-label="Current rhythm state">
+      <aside className="clinicalStatesRail" aria-label="Clinical states">
+        <div className="clinicalStatesRailHeader">
+          <div>
+            <p>Case structure</p>
+            <h2>Clinical States</h2>
+          </div>
+
+          <span>{caseRecord.clinicalStates.length}</span>
+        </div>
+
+        <div className="clinicalStateCards">
+          {caseRecord.clinicalStates.map((clinicalState, index) => {
+            const isActive = clinicalState.id === activeClinicalStateId;
+
+            return (
+              <button
+                className={`clinicalStateCard${isActive ? " active" : ""}`}
+                key={clinicalState.id}
+                onClick={() => setActiveClinicalStateId(clinicalState.id)}
+                type="button"
+              >
+                <div className="clinicalStateCardTop">
+                  <span className="clinicalStateNumber">{index + 1}</span>
+                  <span className="clinicalStateStatus">
+                    {isActive ? "Active" : "Recorded"}
+                  </span>
+                </div>
+
+                <strong>{clinicalState.context.phase}</strong>
+                <p>{clinicalState.context.rhythm}</p>
+
+                <div className="clinicalStateMeta">
+                  <span>
+                    {medicationSummary(
+                      clinicalState.context.isoproterenol,
+                    )}
+                  </span>
+                  <span>
+                    {enteredMeasurementCount(clinicalState)} measurements
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          className="addClinicalStateButton"
+          onClick={addClinicalState}
+          type="button"
+        >
+          <span>+</span>
+          Add Clinical State
+        </button>
+      </aside>
+
+      <section className="caseStrip" aria-label="Active clinical state">
         <div className="stateToolbarRow">
           <div className="toolbarHeading">
             <span className="liveIndicator" />
             <div>
-              <small>Current state</small>
+              <small>Active Clinical State</small>
             </div>
           </div>
 
@@ -223,14 +298,18 @@ export default function Home() {
             <label htmlFor="phase">Phase</label>
             <select
               id="phase"
-              value={phase}
-              onChange={(event) => {
-                setPhase(event.target.value);
-                logStateChange("Phase", event.target.value);
-              }}
+              value={activeClinicalState.context.phase}
+              onChange={(event) =>
+                updateContext(
+                  "phase",
+                  event.target.value as ClinicalStateContext["phase"],
+                  "Phase",
+                )
+              }
             >
-              <option>Pre-ablation</option>
-              <option>Post-ablation</option>
+              {phaseOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </div>
 
@@ -238,17 +317,18 @@ export default function Home() {
             <label htmlFor="rhythm">Rhythm</label>
             <select
               id="rhythm"
-              value={rhythm}
-              onChange={(event) => {
-                setRhythm(event.target.value);
-                logStateChange("Rhythm", event.target.value);
-              }}
+              value={activeClinicalState.context.rhythm}
+              onChange={(event) =>
+                updateContext(
+                  "rhythm",
+                  event.target.value as ClinicalStateContext["rhythm"],
+                  "Rhythm",
+                )
+              }
             >
-              <option>Normal Sinus Rhythm</option>
-              <option>Tachycardia</option>
-              <option>A-paced V-sensed</option>
-              <option>AV-paced</option>
-              <option>A-sensed V-paced</option>
+              {rhythmOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </div>
 
@@ -256,15 +336,18 @@ export default function Home() {
             <label htmlFor="sedation">Sedation</label>
             <select
               id="sedation"
-              value={sedation}
-              onChange={(event) => {
-                setSedation(event.target.value);
-                logStateChange("Sedation", event.target.value);
-              }}
+              value={activeClinicalState.context.sedation}
+              onChange={(event) =>
+                updateContext(
+                  "sedation",
+                  event.target.value as ClinicalStateContext["sedation"],
+                  "Sedation",
+                )
+              }
             >
-              <option>Awake</option>
-              <option>Conscious sedation</option>
-              <option>General Anesthesia</option>
+              {sedationOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </div>
 
@@ -273,10 +356,18 @@ export default function Home() {
             <input
               id="isoproterenol"
               inputMode="decimal"
-              value={isoproterenol}
-              onChange={(event) => setIsoproterenol(event.target.value)}
-              onBlur={() =>
-                logStateChange("Isoproterenol", isoproterenol)
+              value={activeClinicalState.context.isoproterenol}
+              onChange={(event) =>
+                updateActiveClinicalState((current) => ({
+                  ...current,
+                  context: {
+                    ...current.context,
+                    isoproterenol: event.target.value,
+                  },
+                }))
+              }
+              onBlur={(event) =>
+                logStateChange("Isoproterenol", event.target.value)
               }
               aria-label="Isoproterenol value"
             />
@@ -287,9 +378,19 @@ export default function Home() {
             <input
               id="adenosine"
               inputMode="decimal"
-              value={adenosine}
-              onChange={(event) => setAdenosine(event.target.value)}
-              onBlur={() => logStateChange("Adenosine", adenosine)}
+              value={activeClinicalState.context.adenosine}
+              onChange={(event) =>
+                updateActiveClinicalState((current) => ({
+                  ...current,
+                  context: {
+                    ...current.context,
+                    adenosine: event.target.value,
+                  },
+                }))
+              }
+              onBlur={(event) =>
+                logStateChange("Adenosine", event.target.value)
+              }
               aria-label="Adenosine value"
             />
           </div>
@@ -299,159 +400,81 @@ export default function Home() {
             <input
               id="epinephrin"
               inputMode="decimal"
-              value={epinephrin}
-              onChange={(event) => setEpinephrin(event.target.value)}
-              onBlur={() => logStateChange("Epinephrin", epinephrin)}
+              value={activeClinicalState.context.epinephrin}
+              onChange={(event) =>
+                updateActiveClinicalState((current) => ({
+                  ...current,
+                  context: {
+                    ...current.context,
+                    epinephrin: event.target.value,
+                  },
+                }))
+              }
+              onBlur={(event) =>
+                logStateChange("Epinephrin", event.target.value)
+              }
               aria-label="Epinephrin value"
             />
           </div>
         </div>
 
-        <div className="intervalsToolbarRow">
-          <div className="intervalsHeading">
-            <span>Intervals</span>
-          </div>
+        {activeWorkspace.sections.map((section) => (
+          <div className="clinicalMeasurementRow" key={section.id}>
+            <div className="intervalsHeading">
+              <span>{section.title}</span>
+            </div>
 
-          {rhythm === "Normal Sinus Rhythm" ? (
-            <div className="intervalFields">
-              {[
-                ["rr", "RR"],
-                ["pr", "PR"],
-                ["ah", "AH"],
-                ["hv", "HV"],
-                ["qrsDuration", "QRS duration"],
-                ["qt", "QT"],
-              ].map(([key, label]) => (
-                <div className="toolbarField intervalField" key={key}>
-                  <label htmlFor={`interval-${key}`}>{label}</label>
+            <div
+              className="clinicalMeasurementFields"
+              style={{
+                gridTemplateColumns: `repeat(${section.fields.length}, minmax(120px, 1fr))`,
+              }}
+            >
+              {section.fields.map((field) => (
+                <div className="toolbarField intervalField" key={field.id}>
+                  <label htmlFor={`measurement-${field.id}`}>
+                    {field.label}
+                  </label>
+
                   <div className="unitInput">
                     <input
-                      id={`interval-${key}`}
+                      id={`measurement-${field.id}`}
                       inputMode="decimal"
-                      value={intervals[key as keyof typeof intervals]}
+                      value={
+                        activeClinicalState.measurements[field.id] ?? ""
+                      }
                       onChange={(event) =>
-                        setIntervals((current) => ({
+                        updateActiveClinicalState((current) => ({
                           ...current,
-                          [key]: event.target.value,
+                          measurements: {
+                            ...current.measurements,
+                            [field.id]: event.target.value,
+                          },
                         }))
                       }
                       onBlur={(event) =>
-                        updateInterval(
-                          key as keyof typeof intervals,
-                          label,
+                        updateMeasurement(
+                          field.id,
                           event.target.value,
+                          field.label,
                         )
                       }
-                      aria-label={`${label} interval in milliseconds`}
+                      aria-label={`${field.label} in milliseconds`}
                     />
-                    <span>ms</span>
+                    <span>{field.unit}</span>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="intervalPlaceholder">
-              Interval fields for the selected rhythm will be added here.
-            </div>
-          )}
-        </div>
-
-        <div className="functionalRefractoryPeriodsToolbarRow">
-          <div className="intervalsHeading">
-            <span>Functional Refractory Periods</span>
           </div>
+        ))}
 
-          <div className="refractoryPeriodFields">
-            {[
-              ["fastPathway", "Fast Pathway"],
-              ["slowPathway", "Slow Pathway"],
-              ["avNode", "AV Node"],
-              ["retrograde", "Retrograde"],
-            ].map(([key, label]) => (
-              <div className="toolbarField intervalField" key={key}>
-                <label htmlFor={`functional-refractory-period-${key}`}>
-                  {label}
-                </label>
-
-                <div className="unitInput">
-                  <input
-                    id={`functional-refractory-period-${key}`}
-                    inputMode="decimal"
-                    value={
-                      functionalRefractoryPeriods[
-                        key as keyof typeof functionalRefractoryPeriods
-                      ]
-                    }
-                    onChange={(event) =>
-                      setFunctionalRefractoryPeriods((current) => ({
-                        ...current,
-                        [key]: event.target.value,
-                      }))
-                    }
-                    onBlur={(event) =>
-                      updateFunctionalRefractoryPeriod(
-                        key as keyof typeof functionalRefractoryPeriods,
-                        label,
-                        event.target.value,
-                      )
-                    }
-                    aria-label={`${label} functional refractory period in milliseconds`}
-                  />
-                  <span>ms</span>
-                </div>
-              </div>
-            ))}
+        {activeWorkspace.sections.length === 0 && (
+          <div className="clinicalWorkspacePlaceholder">
+            <strong>{activeClinicalState.context.rhythm}</strong>
+            <p>{activeWorkspace.placeholder}</p>
           </div>
-        </div>
-
-        <div className="refractoryPeriodsToolbarRow">
-          <div className="intervalsHeading">
-            <span>Effective Refractory Periods</span>
-          </div>
-
-          <div className="refractoryPeriodFields">
-            {[
-              ["atrial", "Atrial"],
-              ["fastPathway", "Fast Pathway"],
-              ["slowPathway", "Slow Pathway"],
-              ["accessoryPathway1", "Accessory Pathway 1"],
-              ["accessoryPathway2", "Accessory Pathway 2"],
-              ["avNode", "AV Node"],
-              ["ventricular", "Ventricular"],
-              ["retrograde", "Retrograde"],
-            ].map(([key, label]) => (
-              <div className="toolbarField intervalField" key={key}>
-                <label htmlFor={`refractory-period-${key}`}>{label}</label>
-                <div className="unitInput">
-                  <input
-                    id={`refractory-period-${key}`}
-                    inputMode="decimal"
-                    value={
-                      refractoryPeriods[
-                        key as keyof typeof refractoryPeriods
-                      ]
-                    }
-                    onChange={(event) =>
-                      setRefractoryPeriods((current) => ({
-                        ...current,
-                        [key]: event.target.value,
-                      }))
-                    }
-                    onBlur={(event) =>
-                      updateRefractoryPeriod(
-                        key as keyof typeof refractoryPeriods,
-                        label,
-                        event.target.value,
-                      )
-                    }
-                    aria-label={`${label} refractory period in milliseconds`}
-                  />
-                  <span>ms</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </section>
 
       <section className="workspace">

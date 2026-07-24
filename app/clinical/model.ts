@@ -1,0 +1,183 @@
+export const phaseOptions = [
+  "Pre-ablation",
+  "Post-ablation",
+  "Post-ablation 2",
+] as const;
+
+export const rhythmOptions = [
+  "Normal Sinus Rhythm",
+  "Tachycardia",
+  "Atrial Pacing",
+  "Ventricular Pacing",
+  "AV Pacing",
+] as const;
+
+export const sedationOptions = [
+  "Awake",
+  "Conscious sedation",
+  "General Anesthesia",
+] as const;
+
+export type Phase = (typeof phaseOptions)[number];
+export type Rhythm = (typeof rhythmOptions)[number];
+export type Sedation = (typeof sedationOptions)[number];
+
+export type MeasurementField = {
+  id: string;
+  label: string;
+  unit: "ms";
+};
+
+export type MeasurementSection = {
+  id: string;
+  title: string;
+  fields: MeasurementField[];
+};
+
+export type ClinicalStateContext = {
+  phase: Phase;
+  rhythm: Rhythm;
+  sedation: Sedation;
+  isoproterenol: string;
+  adenosine: string;
+  epinephrin: string;
+};
+
+export type ManeuverPlaceholder = {
+  performed: string[];
+  suggested: string[];
+};
+
+export type ClinicalState = {
+  id: string;
+  context: ClinicalStateContext;
+  measurements: Record<string, string>;
+  maneuvers: ManeuverPlaceholder;
+};
+
+export type CaseRecord = {
+  id: string;
+  title: string;
+  clinicalStates: ClinicalState[];
+};
+
+export type WorkspaceConfiguration = {
+  sections: MeasurementSection[];
+  placeholder?: string;
+};
+
+const interval = (id: string, label: string): MeasurementField => ({
+  id: `interval.${id}`,
+  label,
+  unit: "ms",
+});
+
+const functionalRp = (id: string, label: string): MeasurementField => ({
+  id: `frp.${id}`,
+  label,
+  unit: "ms",
+});
+
+export const workspaceConfigurations: Record<
+  Rhythm,
+  WorkspaceConfiguration
+> = {
+  "Normal Sinus Rhythm": {
+    sections: [
+      {
+        id: "intervals",
+        title: "Intervals",
+        fields: [
+          interval("rr", "RR"),
+          interval("pr", "PR"),
+          interval("ah", "AH"),
+          interval("hv", "HV"),
+          interval("qrs", "QRS"),
+          interval("qt", "QT"),
+        ],
+      },
+      {
+        id: "functional-refractory-periods",
+        title: "Functional Refractory Periods",
+        fields: [
+          functionalRp("fast-pathway", "Fast Pathway"),
+          functionalRp("slow-pathway", "Slow Pathway"),
+          functionalRp("av-node", "AV Node"),
+          functionalRp("retrograde", "Retrograde"),
+        ],
+      },
+    ],
+  },
+
+  Tachycardia: {
+    sections: [
+      {
+        id: "intervals",
+        title: "Intervals",
+        fields: [
+          interval("aa", "AA"),
+          interval("vv", "VV"),
+          interval("va", "VA"),
+          interval("pr", "PR"),
+          interval("ah", "AH"),
+          interval("hv", "HV"),
+          interval("qrs", "QRS"),
+          interval("qt", "QT"),
+        ],
+      },
+    ],
+  },
+
+  "Atrial Pacing": {
+    sections: [],
+    placeholder:
+      "Atrial pacing measurements will be configured in a later workflow pass.",
+  },
+
+  "Ventricular Pacing": {
+    sections: [],
+    placeholder:
+      "Ventricular pacing measurements will be configured in a later workflow pass.",
+  },
+
+  "AV Pacing": {
+    sections: [],
+    placeholder:
+      "AV pacing measurements will be configured in a later workflow pass.",
+  },
+};
+
+export function createClinicalState(
+  id: string,
+  overrides: Partial<ClinicalStateContext> = {},
+): ClinicalState {
+  return {
+    id,
+    context: {
+      phase: "Pre-ablation",
+      rhythm: "Normal Sinus Rhythm",
+      sedation: "Awake",
+      isoproterenol: "",
+      adenosine: "",
+      epinephrin: "",
+      ...overrides,
+    },
+    measurements: {},
+    maneuvers: {
+      performed: [],
+      suggested: [],
+    },
+  };
+}
+
+export function createInitialCase(): CaseRecord {
+  return {
+    id: "case-1",
+    title: "Untitled study",
+    clinicalStates: [createClinicalState("clinical-state-1")],
+  };
+}
+
+export function medicationSummary(value: string): string {
+  return value.trim() ? `Iso ${value.trim()}` : "Iso off";
+}
