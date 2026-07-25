@@ -403,52 +403,6 @@ export default function Home() {
 
       </aside>
 
-      <aside
-        className="differentialDiagnosisRail"
-        aria-label="Differential diagnosis monitor"
-      >
-        <Panel eyebrow="Differential diagnosis" title="">
-          <div className="diagnosisList">
-            {diagnoses.map((diagnosis) => (
-              <article className="diagnosisCard" key={diagnosis.abbreviation}>
-                <div className="diagnosisTop">
-                  <span className="abbreviation">
-                    {diagnosis.abbreviation}
-                  </span>
-                  <div className="diagnosisText">
-                    <h3>{diagnosis.name}</h3>
-                    <p>{diagnosis.reason}</p>
-                  </div>
-                  <span
-                    className={`status ${diagnosis.status
-                      .toLowerCase()
-                      .replace(" ", "-")}`}
-                  >
-                    {diagnosis.status}
-                  </span>
-
-                  <button
-                    className="diagnosisWhyButton"
-                    type="button"
-                    title="Show justification"
-                    onClick={() => window.alert(diagnosis.reason)}
-                  >
-                    Why?
-                  </button>
-                </div>
-
-                <div className="confidence">
-                  <div>
-                    <span style={{ width: `${diagnosis.confidence}%` }} />
-                  </div>
-                  <small>{diagnosis.confidence}%</small>
-                </div>
-              </article>
-            ))}
-          </div>
-        </Panel>
-      </aside>
-
       <section className="caseStrip" aria-label="Active clinical state">
         <div className="stateToolbarRow">
           <div className="toolbarHeading activeClinicalStateHeading">
@@ -829,7 +783,37 @@ export default function Home() {
       )}
 
       <section className="workspace">
+        <Panel eyebrow="Differential diagnosis" title="">
+          <div className="diagnosisList">
+            {diagnoses.map((diagnosis) => (
+              <article className="diagnosisCard" key={diagnosis.abbreviation}>
+                <div className="diagnosisTop">
+                  <span className="abbreviation">
+                    {diagnosis.abbreviation}
+                  </span>
+                  <div className="diagnosisText">
+                    <h3>{diagnosis.name}</h3>
+                    <p>{diagnosis.reason}</p>
+                  </div>
+                  <span
+                    className={`status ${diagnosis.status
+                      .toLowerCase()
+                      .replace(" ", "-")}`}
+                  >
+                    {diagnosis.status}
+                  </span>
+                </div>
 
+                <div className="confidence">
+                  <div>
+                    <span style={{ width: `${diagnosis.confidence}%` }} />
+                  </div>
+                  <small>{diagnosis.confidence}%</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Panel>
 
         <Panel eyebrow="Pacing maneuvers" title="">
           <article className="recommendation">
