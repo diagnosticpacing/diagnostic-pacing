@@ -1300,11 +1300,11 @@ button {
 
 .effectiveRefractoryPeriodCardHeader {
   display: flex;
-  min-height: 58px;
+  min-height: 72px;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 11px 16px;
+  gap: 18px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1335,56 +1335,28 @@ button {
 
 .effectiveRefractoryPeriodGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(245px, 1fr));
+  grid-template-columns: repeat(2, minmax(340px, 1fr));
 }
 
 .effectiveRefractoryPeriodItem {
   min-width: 0;
-  padding: 10px 13px 11px;
+  padding: 17px 18px 18px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
-.effectiveRefractoryPeriodItem:nth-child(4n) {
+.effectiveRefractoryPeriodItem:nth-child(2n) {
   border-right: 0;
 }
 
-.effectiveRefractoryPeriodItem:nth-last-child(-n + 4) {
+.effectiveRefractoryPeriodItem:nth-last-child(-n + 2) {
   border-bottom: 0;
-}
-
-.effectiveRefractoryPeriodItemHeader {
-  display: flex;
-  min-height: 22px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.addAccessoryPathwayButton {
-  flex: 0 0 auto;
-  height: 23px;
-  padding: 0 9px;
-  border: 1px solid rgba(91, 214, 220, 0.34);
-  border-radius: 6px;
-  background: rgba(91, 214, 220, 0.06);
-  color: var(--cyan);
-  cursor: pointer;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
-.addAccessoryPathwayButton:hover {
-  border-color: rgba(91, 214, 220, 0.6);
-  background: rgba(91, 214, 220, 0.11);
 }
 
 .effectiveRefractoryPeriodLabel {
   display: block;
-  min-height: 0;
-  margin-bottom: 0;
+  min-height: 16px;
+  margin-bottom: 10px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 750;
@@ -1405,34 +1377,16 @@ button {
 
 .effectiveRefractoryPeriodComponent input {
   box-sizing: border-box;
-  width: 62px;
-  min-width: 62px;
+  width: 72px;
+  min-width: 72px;
   height: 34px;
-  padding: 0 7px;
-  border: 1px solid rgba(139, 168, 188, 0.32);
-  border-radius: 8px;
-  outline: none;
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 0 8px;
   text-align: center;
-}
-
-.effectiveRefractoryPeriodComponent input:hover {
-  border-color: rgba(91, 214, 220, 0.42);
-}
-
-.effectiveRefractoryPeriodComponent input:focus {
-  border-color: rgba(91, 214, 220, 0.9);
-  background: rgba(91, 214, 220, 0.055);
-  box-shadow: 0 0 0 3px rgba(91, 214, 220, 0.1);
 }
 
 .effectiveRefractoryPeriodSeparator {
   flex: 0 0 auto;
-  margin: 0 5px;
+  margin: 0 8px;
   color: var(--muted);
   font-size: 14px;
   font-weight: 750;
@@ -1440,7 +1394,7 @@ button {
 
 .effectiveRefractoryPeriodUnit {
   flex: 0 0 auto;
-  margin-left: 7px;
+  margin-left: 10px;
   color: var(--muted);
   font-size: 10px;
   pointer-events: none;
@@ -1464,28 +1418,7 @@ button {
   line-height: 1.55;
 }
 
-@media (max-width: 980px) {
-  .effectiveRefractoryPeriodGrid {
-    grid-template-columns: repeat(2, minmax(290px, 1fr));
-  }
-
-  .effectiveRefractoryPeriodItem,
-  .effectiveRefractoryPeriodItem:nth-child(4n),
-  .effectiveRefractoryPeriodItem:nth-last-child(-n + 4) {
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .effectiveRefractoryPeriodItem:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .effectiveRefractoryPeriodItem:nth-last-child(-n + 2) {
-    border-bottom: 0;
-  }
-}
-
-@media (max-width: 620px) {
+@media (max-width: 900px) {
   .effectiveRefractoryPeriodGrid {
     grid-template-columns: 1fr;
   }

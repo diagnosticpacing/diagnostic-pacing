@@ -53,9 +53,6 @@ export type ClinicalState = {
   id: string;
   context: ClinicalStateContext;
   measurements: Record<string, string>;
-  erpDisplay: {
-    showAccessoryPathway2: boolean;
-  };
   maneuvers: ManeuverPlaceholder;
 };
 
@@ -238,9 +235,6 @@ export function createClinicalState(
       ...overrides,
     },
     measurements: {},
-    erpDisplay: {
-      showAccessoryPathway2: false,
-    },
     maneuvers: {
       performed: [],
       suggested: [],

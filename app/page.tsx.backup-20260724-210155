@@ -112,51 +112,6 @@ export default function Home() {
       section.fields.some((field) => field.effectiveRefractoryPeriod),
     );
 
-  const effectiveRefractoryPeriodBadge =
-    activeClinicalState.context.rhythm === "Atrial Pacing"
-      ? "Antegrade"
-      : activeClinicalState.context.rhythm === "Ventricular Pacing"
-        ? "Retrograde"
-        : activeClinicalState.context.rhythm;
-
-  const effectiveRefractoryPeriodFieldOrder =
-    activeClinicalState.context.rhythm === "Atrial Pacing"
-      ? [
-          "erp.fast-pathway",
-          "erp.slow-pathway",
-          "erp.accessory-pathway-1",
-          ...(activeClinicalState.erpDisplay.showAccessoryPathway2
-            ? ["erp.accessory-pathway-2"]
-            : []),
-          "erp.av-node",
-          "erp.atrial",
-        ]
-      : activeClinicalState.context.rhythm === "Ventricular Pacing"
-        ? [
-            "erp.accessory-pathway-1",
-            ...(activeClinicalState.erpDisplay.showAccessoryPathway2
-              ? ["erp.accessory-pathway-2"]
-              : []),
-            "erp.retrograde",
-            "erp.ventricular",
-          ]
-        : [];
-
-  const visibleEffectiveRefractoryPeriodFields =
-    effectiveRefractoryPeriodFieldOrder
-      .map((fieldId) =>
-        effectiveRefractoryPeriodSection?.fields.find(
-          (field) => field.id === fieldId,
-        ),
-      )
-      .filter(
-        (
-          field,
-        ): field is NonNullable<
-          typeof effectiveRefractoryPeriodSection
-        >["fields"][number] => Boolean(field),
-      );
-
   const standardMeasurementSections =
     activeWorkspace.sections.filter(
       (section) =>
@@ -282,18 +237,6 @@ export default function Home() {
       label,
       formattedValue ? `${formattedValue} ms` : "",
     );
-  }
-
-  function addAccessoryPathway2() {
-    updateActiveClinicalState((current) => ({
-      ...current,
-      erpDisplay: {
-        ...current.erpDisplay,
-        showAccessoryPathway2: true,
-      },
-    }));
-
-    logStateChange("ERP display", "Added Accessory Pathway 2");
   }
 
   function addClinicalState() {
@@ -691,12 +634,12 @@ export default function Home() {
             </div>
 
             <span className="effectiveRefractoryPeriodStateLabel">
-              {effectiveRefractoryPeriodBadge}
+              {activeClinicalState.context.rhythm}
             </span>
           </header>
 
           <div className="effectiveRefractoryPeriodGrid">
-            {visibleEffectiveRefractoryPeriodFields.map((field) => {
+            {effectiveRefractoryPeriodSection.fields.map((field) => {
               const values = effectiveRefractoryPeriodValues(
                 activeClinicalState.measurements,
                 field.id,
@@ -704,22 +647,9 @@ export default function Home() {
 
               return (
                 <div className="effectiveRefractoryPeriodItem" key={field.id}>
-                  <div className="effectiveRefractoryPeriodItemHeader">
-                    <label className="effectiveRefractoryPeriodLabel">
-                      {field.label}
-                    </label>
-
-                    {field.id === "erp.accessory-pathway-1" &&
-                      !activeClinicalState.erpDisplay.showAccessoryPathway2 && (
-                        <button
-                          className="addAccessoryPathwayButton"
-                          onClick={addAccessoryPathway2}
-                          type="button"
-                        >
-                          Add
-                        </button>
-                      )}
-                  </div>
+                  <label className="effectiveRefractoryPeriodLabel">
+                    {field.label}
+                  </label>
 
                   <div className="effectiveRefractoryPeriodInputs">
                     {values.map((value, index) => {

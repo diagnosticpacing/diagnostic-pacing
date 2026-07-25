@@ -1353,38 +1353,10 @@ button {
   border-bottom: 0;
 }
 
-.effectiveRefractoryPeriodItemHeader {
-  display: flex;
-  min-height: 22px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.addAccessoryPathwayButton {
-  flex: 0 0 auto;
-  height: 23px;
-  padding: 0 9px;
-  border: 1px solid rgba(91, 214, 220, 0.34);
-  border-radius: 6px;
-  background: rgba(91, 214, 220, 0.06);
-  color: var(--cyan);
-  cursor: pointer;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
-.addAccessoryPathwayButton:hover {
-  border-color: rgba(91, 214, 220, 0.6);
-  background: rgba(91, 214, 220, 0.11);
-}
-
 .effectiveRefractoryPeriodLabel {
   display: block;
-  min-height: 0;
-  margin-bottom: 0;
+  min-height: 13px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 750;
