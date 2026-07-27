@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Local patch safety backups
 *.backup-*
+
+# Local knowledge repository and patch backups
+.data/
+.patch-backups/

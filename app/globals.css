@@ -2703,3 +2703,724 @@ button {
   }
 }
 
+
+
+/* =========================================================
+   Diagnostic Pacing Administration v1
+   Isolated spreadsheet-style knowledge-base editor.
+   ========================================================= */
+
+.adminShell {
+  min-height: 100vh;
+  padding-bottom: 40px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(35, 101, 117, 0.14),
+      transparent 34rem
+    ),
+    var(--background);
+}
+
+.adminTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 26px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7, 16, 24, 0.96);
+  backdrop-filter: blur(18px);
+}
+
+.adminBrand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminBrandMark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(91, 214, 220, 0.4);
+  border-radius: 11px;
+  background: rgba(91, 214, 220, 0.1);
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.adminBrand p,
+.adminWorkspaceHeader p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.adminBrand h1 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.adminWorkspaceLink {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.adminWorkspaceLink:hover {
+  border-color: rgba(91, 214, 220, 0.36);
+  background: rgba(91, 214, 220, 0.07);
+  color: var(--text);
+}
+
+.adminWorkspace {
+  margin: 22px 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(13, 24, 34, 0.94);
+  box-shadow: 0 24px 62px rgba(0, 0, 0, 0.22);
+}
+
+.adminWorkspaceHeader {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.adminWorkspaceHeader h2 {
+  margin: 5px 0 0;
+  font-size: 17px;
+}
+
+.adminStorageNotice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+.adminStorageNotice > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.adminTabs {
+  display: flex;
+  min-width: 0;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.adminTabs button {
+  position: relative;
+  display: flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.adminTabs button:hover {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+}
+
+.adminTabs button.active {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.adminTabs button.active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--cyan);
+  content: "";
+}
+
+.adminUnsavedDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.adminToolbar {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.adminToolbarMeta,
+.adminToolbarActions,
+.adminSaveStatus {
+  display: flex;
+  align-items: center;
+}
+
+.adminToolbarMeta {
+  gap: 15px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.adminSaveStatus {
+  gap: 7px;
+}
+
+.adminSaveStatus > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.adminSaveStatus.saved > span {
+  background: var(--green);
+}
+
+.adminSaveStatus.unsaved > span {
+  background: var(--amber);
+}
+
+.adminSaveStatus.saving > span {
+  background: var(--cyan);
+}
+
+.adminToolbarActions {
+  gap: 8px;
+}
+
+.adminPrimaryButton,
+.adminSecondaryButton {
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.adminPrimaryButton {
+  border: 1px solid rgba(91, 214, 220, 0.38);
+  background: var(--cyan);
+  color: #042026;
+}
+
+.adminPrimaryButton:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.adminSecondaryButton {
+  border: 1px solid var(--strong-border);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+}
+
+.adminSecondaryButton:hover {
+  border-color: rgba(91, 214, 220, 0.38);
+  background: rgba(91, 214, 220, 0.06);
+}
+
+.adminTableFrame {
+  min-height: calc(100vh - 306px);
+  background:
+    linear-gradient(
+      rgba(255, 255, 255, 0.008),
+      rgba(255, 255, 255, 0)
+    );
+}
+
+.adminTableViewport {
+  width: 100%;
+  overflow: auto;
+}
+
+.adminSpreadsheet {
+  display: grid;
+  min-width: max-content;
+  align-items: stretch;
+}
+
+.adminSpreadsheetRow {
+  display: contents;
+}
+
+.adminTableHeader {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 38px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--strong-border);
+  background: #12212d;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adminRowNumberHeader,
+.adminDeleteHeader {
+  text-align: center;
+}
+
+.adminRowNumber,
+.adminDeleteCell {
+  display: flex;
+  min-height: 45px;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.adminRowNumber {
+  color: var(--quiet);
+  font-size: 9px;
+  user-select: none;
+}
+
+.adminCell {
+  min-height: 45px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.adminCell input,
+.adminCell textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 11px 10px;
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.adminCell textarea {
+  min-height: 44px;
+}
+
+.adminCell input:hover,
+.adminCell textarea:hover {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.adminCell input:focus,
+.adminCell textarea:focus {
+  position: relative;
+  z-index: 2;
+  background: rgba(91, 214, 220, 0.055);
+  box-shadow: inset 0 0 0 2px rgba(91, 214, 220, 0.68);
+}
+
+.adminDeleteCell button {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--quiet);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.adminDeleteCell button:hover {
+  border-color: rgba(237, 127, 134, 0.28);
+  background: rgba(237, 127, 134, 0.09);
+  color: var(--red);
+}
+
+.adminEmptyTable,
+.adminLoadingState {
+  display: grid;
+  min-height: calc(100vh - 306px);
+  place-content: center;
+  padding: 36px;
+  text-align: center;
+}
+
+.adminEmptyIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 13px;
+  place-items: center;
+  border: 1px solid rgba(91, 214, 220, 0.25);
+  border-radius: 11px;
+  background: rgba(91, 214, 220, 0.07);
+  color: var(--cyan);
+  font-size: 20px;
+}
+
+.adminEmptyTable h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.adminEmptyTable p,
+.adminLoadingState {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.adminEmptyTable p {
+  margin: 7px 0 0;
+}
+
+.adminFooter {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 25;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 24px;
+  border-top: 1px solid var(--border);
+  background: rgba(7, 16, 24, 0.96);
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+@media (max-width: 760px) {
+  .adminTopbar {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .adminBrand h1 {
+    font-size: 14px;
+  }
+
+  .adminWorkspaceLink {
+    padding: 8px;
+    font-size: 9px;
+  }
+
+  .adminWorkspace {
+    margin: 12px;
+  }
+
+  .adminWorkspaceHeader,
+  .adminToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .adminToolbarActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .adminToolbarActions button {
+    flex: 1;
+  }
+
+  .adminFooter span:last-child {
+    display: none;
+  }
+}
+
+
+/* Administration column guidance v1 */
+
+.adminTableHeader {
+  display: flex;
+  min-height: 112px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  text-transform: none;
+}
+
+.adminRowNumberHeader,
+.adminDeleteHeader {
+  justify-content: flex-end;
+  min-height: 112px;
+  padding-bottom: 13px;
+  text-transform: uppercase;
+}
+
+.adminColumnModelUse {
+  display: block;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.45;
+}
+
+.adminColumnModelUse strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--cyan);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.adminColumnLabel {
+  display: block;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+
+/* Administration visible column guidance v2 */
+
+.adminTableHeader {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 12px;
+  white-space: normal;
+  text-transform: none;
+}
+
+.adminRowNumberHeader,
+.adminDeleteHeader {
+  min-height: 150px;
+  justify-content: flex-end;
+  padding-bottom: 14px;
+  text-align: center;
+}
+
+.adminColumnGuide {
+  min-width: 0;
+}
+
+.adminColumnGuide > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--cyan);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.adminColumnGuide p {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+.adminColumnLabel {
+  display: block;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adminCell input::placeholder,
+.adminCell textarea::placeholder {
+  color: rgba(143, 165, 178, 0.54);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.adminCell textarea {
+  min-height: 68px;
+}
+
+.adminRowNumber,
+.adminDeleteCell {
+  min-height: 69px;
+}
+
+.adminEmptySpreadsheetRow {
+  display: flex;
+  min-height: 210px;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(
+      rgba(91, 214, 220, 0.018),
+      rgba(255, 255, 255, 0)
+    );
+}
+
+.adminEmptySpreadsheetRow .adminEmptyIcon {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.adminEmptySpreadsheetRow h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.adminEmptySpreadsheetRow p {
+  max-width: 480px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .adminEmptySpreadsheetRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+
+/* Administration maneuver workbook v1 */
+
+.adminSubnav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.adminSubnav button {
+  display: flex;
+  min-height: 94px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adminSubnav button:hover {
+  border-color: rgba(91, 214, 220, 0.4);
+  background: rgba(91, 214, 220, 0.035);
+}
+
+.adminSubnav button.isActive {
+  border-color: var(--cyan);
+  background: rgba(91, 214, 220, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(91, 214, 220, 0.1);
+}
+
+.adminSubnav strong {
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.adminSubnav button.isActive strong {
+  color: var(--cyan);
+}
+
+.adminSubnav span {
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.adminSheetHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.adminSheetHeading h2 {
+  margin: 3px 0 5px;
+}
+
+.adminSheetHeading p {
+  max-width: 900px;
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .adminSubnav {
+    grid-template-columns: 1fr;
+  }
+
+  .adminSubnav button {
+    min-height: auto;
+  }
+}
