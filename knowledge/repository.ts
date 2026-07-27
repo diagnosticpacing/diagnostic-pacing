@@ -119,7 +119,19 @@ class LocalRepository implements KnowledgeRepository {
 }
 
 let instance: KnowledgeRepository | null = null;
+
+function shouldUseBlobRepository(): boolean {
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN ||
+    process.env.BLOB_STORE_ID ||
+    process.env.VERCEL
+  );
+}
+
 export function getKnowledgeRepository(): KnowledgeRepository {
-  instance ??= token() ? new BlobRepository() : new LocalRepository();
+  instance ??= shouldUseBlobRepository()
+    ? new BlobRepository()
+    : new LocalRepository();
+
   return instance;
 }
