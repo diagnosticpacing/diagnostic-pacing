@@ -3424,3 +3424,19 @@ button {
     min-height: auto;
   }
 }
+
+/* Admin Authentication v1 */
+.adminTopbarActions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: flex-end; }
+.adminTopbarActions button { border: 1px solid rgba(255,255,255,.34); border-radius: .55rem; background: transparent; color: inherit; padding: .58rem .9rem; font: inherit; cursor: pointer; }
+.adminTopbarActions button:hover { background: rgba(255,255,255,.08); }
+.adminLoginShell { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: radial-gradient(circle at top, rgba(54,94,122,.2), transparent 40%), #0d1821; }
+.adminLoginCard { width: min(100%, 28rem); border: 1px solid rgba(255,255,255,.14); border-radius: 1rem; background: #152530; color: #f5f8fa; padding: 2rem; box-shadow: 0 1.5rem 4rem rgba(0,0,0,.28); }
+.adminLoginCard h1 { margin: .35rem 0 0; font-size: clamp(1.65rem,4vw,2.2rem); line-height: 1.12; }
+.adminLoginIntro { margin: .85rem 0 1.5rem; color: rgba(245,248,250,.72); }
+.adminLoginForm { display: grid; gap: .75rem; }
+.adminLoginForm label { font-weight: 700; }
+.adminLoginForm input { width: 100%; border: 1px solid rgba(255,255,255,.24); border-radius: .55rem; background: #0d1821; color: #fff; padding: .8rem .9rem; font: inherit; }
+.adminLoginForm input:focus { outline: 2px solid #8ec5df; outline-offset: 2px; }
+.adminLoginForm button { margin-top: .35rem; border: 0; border-radius: .55rem; background: #dceef7; color: #10222e; padding: .82rem 1rem; font: inherit; font-weight: 800; cursor: pointer; }
+.adminLoginForm button:disabled { opacity: .55; cursor: not-allowed; }
+.adminLoginError { margin: 0; color: #ffb9b9; }
