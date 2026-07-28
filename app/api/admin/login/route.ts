@@ -30,33 +30,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { authenticated: true },
-      {
-        headers: { "Cache-Control": "no-store" },
-      },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("ADMIN LOGIN ERROR:", error);
-
-    const passwordHashStatus =
-      process.env.ADMIN_PASSWORD_HASH
-        ? `present, length ${process.env.ADMIN_PASSWORD_HASH.length}`
-        : "missing";
-
-    const sessionSecretStatus =
-      process.env.SESSION_SECRET
-        ? `present, length ${process.env.SESSION_SECRET.length}`
-        : "missing";
-
-    const underlyingMessage =
-      error instanceof Error ? error.message : "Unknown authentication error.";
+    console.error("Admin login failed.", error);
 
     return NextResponse.json(
       {
         error: "authentication_unavailable",
-        message:
-          `Authentication diagnostic: ${underlyingMessage} ` +
-          `[ADMIN_PASSWORD_HASH: ${passwordHashStatus}] ` +
-          `[SESSION_SECRET: ${sessionSecretStatus}]`,
+        message: "Administrator authentication is temporarily unavailable.",
       },
       {
         status: 500,
