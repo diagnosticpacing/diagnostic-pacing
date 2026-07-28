@@ -20,14 +20,12 @@ const INDEX = `${PREFIX}/index.json`;
 const revisionPath = (revision: number) =>
   `${PREFIX}/revisions/${String(revision).padStart(6, "0")}.json`;
 const encode = (value: unknown) => JSON.stringify(value, null, 2);
-const token = () => process.env.BLOB_READ_WRITE_TOKEN;
 
 async function readBlob<T>(pathname: string): Promise<{ value: T; etag: string } | null> {
   try {
-    const metadata = await head(pathname, { token: token() });
+    const metadata = await head(pathname);
     const response = await get(metadata.url, {
       access: "private",
-      token: token(),
     });
 
     if (!response || response.statusCode !== 200) {
@@ -60,13 +58,13 @@ class BlobRepository implements KnowledgeRepository {
   async writeRevision(revision: KnowledgeRevision) {
     await put(revisionPath(revision.metadata.revision), encode(revision), {
       access: "private", addRandomSuffix: false, contentType: "application/json",
-      cacheControlMaxAge: 60, token: token(),
+      cacheControlMaxAge: 60,
     });
   }
   async writeIndex(index: RevisionIndex) {
     await put(INDEX, encode(index), {
       access: "private", addRandomSuffix: false, allowOverwrite: true,
-      contentType: "application/json", cacheControlMaxAge: 60, token: token(),
+      contentType: "application/json", cacheControlMaxAge: 60,
     });
   }
   async writeCurrent(pointer: CurrentPointer, expectedEtag: string | null) {
@@ -74,7 +72,7 @@ class BlobRepository implements KnowledgeRepository {
       access: "private", addRandomSuffix: false,
       allowOverwrite: expectedEtag !== null,
       ...(expectedEtag ? { ifMatch: expectedEtag } : {}),
-      contentType: "application/json", cacheControlMaxAge: 60, token: token(),
+      contentType: "application/json", cacheControlMaxAge: 60,
     });
   }
 }
