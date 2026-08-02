@@ -46,6 +46,7 @@ next-env.d.ts
 # Local knowledge repository and patch backups
 .data/
 .patch-backups/
+.patch-backup-*/
 .env
 .env.local
 .env.*.local
