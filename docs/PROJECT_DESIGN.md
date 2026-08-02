@@ -91,3 +91,63 @@ must restore the ERP card exactly as it was configured for that state.
 The full ERP field definitions remain available in the domain model. The ERP
 card derives its visible fields and ordering through rhythm-specific display
 rules rather than deleting fields from the underlying model.
+
+<!-- INFRA-STATUS-2026-08-01 -->
+## Infrastructure Status (as of 2026-08-01)
+
+- Local project folder, GitHub (`diagnosticpacing/diagnostic-pacing`), and
+  Vercel are connected and verified in sync. Local `main` tracks
+  `origin/main`; pushes trigger live Vercel deploys.
+- `.env.local` includes `BLOB_READ_WRITE_TOKEN`, giving local scripts direct
+  read access to the production Vercel Blob knowledge store. See
+  `scripts/blob-status.mjs` for a read-only status check.
+- Production knowledge base (as of revision 8): clinicalTerms 1 row,
+  diagnoses 1 row, maneuverDefinitions 2 rows, maneuverResponseFields 1 row,
+  maneuverResponseOptions 0 rows, clinicalReasoning 0 rows, references 1 row.
+  Content is intentionally sparse/placeholder — the schema is still being
+  iterated before real data entry begins in earnest.
+- Known bug: the knowledge revision index (`index.json`) is missing entries
+  for revisions 5 and 7 even though `current.json` points to revision 8 —
+  likely a lost-update race when two saves land close together in
+  `knowledge/service.ts`'s `createRevision()`. The revision files for 5/7
+  are probably still intact in Blob; only the browsable history list is
+  affected. Not yet fixed.
+- Local `.data/knowledge/` (dev fallback storage) is stale test data from
+  2026-07-27 and can be ignored or discarded.
+
+<!-- KNOWLEDGE-ENGINE-DESIGN-2026-08-01 -->
+## Knowledge Base Rules Engine (design in progress, not yet built)
+
+The differential-diagnosis calculator and rules engine do not exist yet —
+`app/page.tsx` still renders hardcoded demo diagnoses and maneuvers. Design
+direction agreed so far:
+
+- The existing `clinicalReasoning` sheet's `effect` column (Supports /
+  Against / Remains Possible / Excludes / Confirms) already implies a hybrid
+  model: **hard rules** (Confirms/Excludes) decisively set a diagnosis's
+  status regardless of other evidence, while **soft rules**
+  (Supports/Against) contribute weighted evidence combined into a
+  confidence percentage among diagnoses not already excluded.
+- Real clinical reasoning is often conjunctive (finding A AND finding B
+  together imply something neither implies alone). Proposed fix: add a
+  rule-group id to `clinicalReasoning` rows. Rows sharing a group id must
+  all be true (AND) before that group's effect applies; separate groups
+  reaching the same diagnosis are alternative (OR) paths. This keeps the
+  table flat and Excel-editable rather than requiring an expression parser.
+- A related but separate concern: which maneuver to suggest next. This maps
+  to a note left in production data — replace the `category` column on
+  Maneuver Definitions with a "Diagnoses Effected" list (diagnosis IDs the
+  maneuver discriminates between); suggest whichever maneuver's list most
+  overlaps with diagnoses still active in the differential.
+- Two other production-data notes flagged specific columns as unnecessary:
+  `expansionNotes` on Maneuver Definitions (should instead be a
+  reference-ID link into the References sheet) and `helpText` on Response
+  Fields.
+- The schema is expected to keep changing as real cases are worked through
+  — this is intentionally iterative, not meant to be finalized up front.
+
+**Next step when resuming:** walk through discriminating AVNRT from
+orthodromic AVRT using a His-refractory PVC (the example already used in
+the GUI mockup) step by step, and map each piece of that reasoning onto
+hard-rule / soft-rule / rule-group-AND to pressure-test the model above
+before committing to a schema change.
