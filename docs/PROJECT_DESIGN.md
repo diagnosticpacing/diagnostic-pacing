@@ -151,3 +151,52 @@ orthodromic AVRT using a His-refractory PVC (the example already used in
 the GUI mockup) step by step, and map each piece of that reasoning onto
 hard-rule / soft-rule / rule-group-AND to pressure-test the model above
 before committing to a schema change.
+
+<!-- KNOWLEDGE-SCHEMA-V2-2026-08-02 -->
+## Knowledge Base Schema v2 (implemented 2026-08-02)
+
+Following a full revision pass (done in Numbers, exported to Excel, and
+reviewed together), the knowledge base schema was rebuilt in
+`app/admin/model.ts` and `knowledge/validation.ts`. Key changes from the
+original schema:
+
+- New **Clinical States** sheet (`clinicalStates`): a fixed vocabulary of
+  pharmacologic/rhythm conditions (NSR, Brady, Tachy, CRM Paced, Iso On,
+  Iso Washout, Iso Off, Adenosine) that a maneuver performance or
+  Clinical Reasoning condition can be scoped to.
+- **Diagnoses** gained `baseRank`: the fixed population-frequency fallback
+  sort order (see the differential-hierarchy decision above).
+- **Clinical Reasoning** gained `ruleGroupId` (rows sharing a group id must
+  all be true together — AND — before the Differential Action applies) and
+  `requiredClinicalState` (scopes a condition to results recorded under a
+  specific Clinical State; combined with `ruleGroupId` this is how
+  cross-state compound rules like "exclude if absent both on and off
+  isoproterenol" get expressed as two grouped rows).
+- `Differential Action` narrowed to three values: Supports, Excludes,
+  Confirms (previously five, including Against/Remains Possible/a
+  `strength` weight column). Confidence is no longer a percentage —
+  diagnoses are ranked by count of satisfied Supports rules, pegged above
+  by Confirmed and below by Excluded, with `baseRank` as the tiebreaker.
+  See the differential-hierarchy decision above for the full display
+  model.
+- `ColumnDefinition` (the type describing each sheet's columns) now
+  carries structured metadata — `required`, `idPrefix`, `options`,
+  `multiSelect`, `lookup` — instead of only free-text guidance. The admin
+  UI (`SpreadsheetTable.tsx`) currently uses this to render real
+  dropdowns for fixed-option columns and to highlight required-but-blank
+  cells in red. Cross-sheet lookups (e.g. "Maneuver Considered" picking a
+  name and auto-filling the hidden Maneuver ID column) and multi-select
+  controls are captured in the schema (`lookup`, `multiSelect`) but not
+  yet rendered as real dropdowns — those columns are still typed as
+  comma-separated free text until that UI is built.
+- Two things worth flagging that got dropped in the revision and haven't
+  been explicitly re-confirmed: the `enabled` Yes/No toggle (on Maneuver
+  Definitions and Clinical Reasoning, for disabling a row without
+  deleting it) and `storedValue` on Response Options (previously a
+  separate machine-readable value distinct from the display label — its
+  removal means Clinical Reasoning's `comparedValue` is free text with no
+  controlled vocabulary to validate against, so a typo there will
+  currently fail silently rather than error).
+- The knowledge base now starts empty (`initialData` = `emptyData()`) —
+  all content will be entered through the live admin site rather than
+  seeded in code.
