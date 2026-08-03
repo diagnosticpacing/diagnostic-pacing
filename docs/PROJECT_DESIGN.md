@@ -490,3 +490,16 @@ Two follow-ups to the Interval Considered addition above, same day:
   Diagnosis ID, Reference Title → Reference ID, etc.) doesn't set this,
   so all of them keep defaulting to the primary ID exactly as before —
   nothing about their existing behavior changed.
+
+**Bug found and fixed same day:** Diagnosis Affected and Required
+Clinical State both narrow their options via `filterBy` off the
+maneuver considered, but that `filterBy` unconditionally blocked the
+column ("Pick Maneuver ID first") whenever the prerequisite was blank
+— including on rows that correctly use Interval Considered instead,
+which has no maneuver and nothing to narrow by. Added
+`filterBy.optional`: a blank prerequisite now falls back to the full
+unfiltered list instead of blocking, so an interval-based reasoning row
+can affect any diagnosis and reference any Clinical State exactly as
+freely as a maneuver-based one. Response Field Prompt intentionally
+keeps the old blocking behavior, since it's only ever meaningful for a
+maneuver-based row.
