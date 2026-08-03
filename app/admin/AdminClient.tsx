@@ -17,6 +17,12 @@ import {
   type TopLevelTabId,
 } from "./model";
 
+const maneuverSheetIds = new Set<SheetId>([
+  "maneuverDefinitions",
+  "maneuverResponseFields",
+  "maneuverResponseOptions",
+]);
+
 const copyInitialData = () =>
   structuredClone(initialData) as Record<SheetId, SpreadsheetRow[]>;
 
@@ -37,6 +43,7 @@ export default function AdminPage() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [revision, setRevision] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [highlightRowId, setHighlightRowId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +125,23 @@ export default function AdminPage() {
 
     setIsDirty(true);
   };
+
+  const handleNavigateToReference = (sheetId: SheetId, rowId: string) => {
+    if (maneuverSheetIds.has(sheetId)) {
+      setActiveTab("maneuvers");
+      setActiveManeuverSheet(sheetId as ManeuverSheetId);
+    } else {
+      setActiveTab(sheetId as TopLevelTabId);
+    }
+
+    setHighlightRowId(rowId);
+  };
+
+  useEffect(() => {
+    if (!highlightRowId) return;
+    const timeout = window.setTimeout(() => setHighlightRowId(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [highlightRowId, activeSheetId]);
 
   const handleSave = async () => {
     if (revision === null || isSaving) return;
@@ -272,9 +296,12 @@ export default function AdminPage() {
           <SpreadsheetTable
             definition={activeDefinition}
             rows={activeRows}
+            allData={data}
             onAddRow={handleAddRow}
             onCellChange={handleCellChange}
             onDeleteRow={handleDeleteRow}
+            onNavigateToReference={handleNavigateToReference}
+            highlightRowId={highlightRowId}
           />
         )}
       </section>

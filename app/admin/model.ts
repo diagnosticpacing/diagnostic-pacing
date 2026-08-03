@@ -470,6 +470,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "Identifies the maneuver whose result activates this reasoning statement. Intended to auto-populate from Maneuver Considered.",
         width: "150px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
       },
       {
         key: "responseFieldPrompt",
@@ -484,6 +485,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "Identifies the specific maneuver response field being evaluated. Intended to auto-populate from Response Field Prompt.",
         width: "180px",
+        lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
       },
       {
         key: "operator",
@@ -520,6 +522,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "The diagnosis that this clinical reasoning acts upon. Intended to auto-populate from Diagnosis Affected.",
         width: "150px",
+        lookup: { sheet: "diagnoses", column: "diagnosisId" },
       },
       {
         key: "explanation",
@@ -542,6 +545,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "The reference that supports the explanation for this clinical reasoning. Intended to auto-populate from Reference Title.",
         width: "160px",
+        lookup: { sheet: "references", column: "referenceId" },
       },
       {
         key: "ruleGroupId",
