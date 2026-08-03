@@ -2208,6 +2208,9 @@ button {
 .clinicalStatesRail {
   left: 0;
   right: auto;
+  /* Independently user-resizable — see .railResizeHandle. Falls back to
+     the shared default until JS sets this per-rail variable. */
+  width: var(--clinical-state-rail-width, var(--side-monitor-width));
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-top-right-radius: 14px;
@@ -2217,10 +2220,51 @@ button {
 .differentialDiagnosisRail {
   right: 0;
   left: auto;
+  width: var(--diagnosis-monitor-width, var(--side-monitor-width));
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-top-left-radius: 14px;
   border-bottom-left-radius: 0;
+}
+
+/*
+ * Draggable divider at the inner edge of each side rail so the user can
+ * resize how much screen width each monitor claims. Positioned relative
+ * to the rail itself, which is already position: fixed.
+ */
+.railResizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 26;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.railResizeHandle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--border);
+  transform: translateX(-50%);
+  transition: background 0.15s ease;
+}
+
+.railResizeHandle:hover::after,
+.railResizeHandle.isDragging::after {
+  background: rgba(91, 214, 220, 0.6);
+}
+
+.clinicalStatesRail .railResizeHandle {
+  right: -6px;
+}
+
+.differentialDiagnosisRail .railResizeHandle {
+  left: -6px;
 }
 
 /*
@@ -2445,11 +2489,11 @@ button {
   width: auto;
   min-width: 0;
   margin-left: calc(
-    var(--side-monitor-width) +
+    var(--clinical-state-rail-width, var(--side-monitor-width)) +
     var(--side-monitor-gap)
   );
   margin-right: calc(
-    var(--side-monitor-width) +
+    var(--diagnosis-monitor-width, var(--side-monitor-width)) +
     var(--side-monitor-gap)
   );
   box-sizing: border-box;

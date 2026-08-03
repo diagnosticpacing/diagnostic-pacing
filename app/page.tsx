@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 
 import {
   createClinicalState,
@@ -54,6 +55,35 @@ const diagnoses = [
     reason: "Current observations argue against an automatic junctional rhythm.",
   },
 ];
+
+type RailId = "clinicalStates" | "differentialDiagnosis";
+
+const RAIL_WIDTH_DEFAULT = 190;
+const RAIL_WIDTH_MIN = 160;
+const RAIL_WIDTH_MAX = 480;
+
+const RAIL_WIDTH_STORAGE_KEY: Record<RailId, string> = {
+  clinicalStates: "diagnostic-pacing-rail-width:clinical-states",
+  differentialDiagnosis: "diagnostic-pacing-rail-width:differential-diagnosis",
+};
+
+function loadStoredRailWidth(rail: RailId): number {
+  if (typeof window === "undefined") return RAIL_WIDTH_DEFAULT;
+  const raw = window.localStorage.getItem(RAIL_WIDTH_STORAGE_KEY[rail]);
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isNaN(parsed) ? RAIL_WIDTH_DEFAULT : parsed;
+}
+
+/** Keeps a dragged rail width within a sane range, and never lets both
+ * rails together crowd out the center workspace on a narrow window. */
+function clampRailWidth(width: number): number {
+  const viewportCap =
+    typeof window === "undefined"
+      ? RAIL_WIDTH_MAX
+      : Math.max(RAIL_WIDTH_MIN, window.innerWidth * 0.32);
+
+  return Math.min(RAIL_WIDTH_MAX, viewportCap, Math.max(RAIL_WIDTH_MIN, width));
+}
 
 function Panel({
   eyebrow,
@@ -115,6 +145,73 @@ export default function Home() {
       cancelled = true;
     };
   }, []);
+
+  const [clinicalRailWidth, setClinicalRailWidth] = useState<number>(() =>
+    loadStoredRailWidth("clinicalStates"),
+  );
+  const [diagnosisRailWidth, setDiagnosisRailWidth] = useState<number>(() =>
+    loadStoredRailWidth("differentialDiagnosis"),
+  );
+  const [draggingRail, setDraggingRail] = useState<RailId | null>(null);
+
+  const railResizeRef = useRef<{
+    rail: RailId;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent) {
+      const resizing = railResizeRef.current;
+      if (!resizing) return;
+
+      const delta = event.clientX - resizing.startX;
+      // The differential diagnosis rail is anchored to the right edge of
+      // the screen, so dragging left (a negative delta) should widen it.
+      const signedDelta =
+        resizing.rail === "differentialDiagnosis" ? -delta : delta;
+      const nextWidth = clampRailWidth(resizing.startWidth + signedDelta);
+
+      if (resizing.rail === "clinicalStates") setClinicalRailWidth(nextWidth);
+      else setDiagnosisRailWidth(nextWidth);
+    }
+
+    function handleMouseUp() {
+      railResizeRef.current = null;
+      setDraggingRail(null);
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      RAIL_WIDTH_STORAGE_KEY.clinicalStates,
+      String(clinicalRailWidth),
+    );
+  }, [clinicalRailWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      RAIL_WIDTH_STORAGE_KEY.differentialDiagnosis,
+      String(diagnosisRailWidth),
+    );
+  }, [diagnosisRailWidth]);
+
+  function startRailResize(rail: RailId, event: ReactMouseEvent) {
+    event.preventDefault();
+    railResizeRef.current = {
+      rail,
+      startX: event.clientX,
+      startWidth: rail === "clinicalStates" ? clinicalRailWidth : diagnosisRailWidth,
+    };
+    setDraggingRail(rail);
+  }
 
   const activeClinicalState =
     caseRecord.clinicalStates.find(
@@ -362,7 +459,15 @@ export default function Home() {
   }
 
   return (
-    <main className="appShell">
+    <main
+      className="appShell"
+      style={
+        {
+          "--clinical-state-rail-width": `${clinicalRailWidth}px`,
+          "--diagnosis-monitor-width": `${diagnosisRailWidth}px`,
+        } as CSSProperties
+      }
+    >
       <header className="topbar">
         <div className="brandArea">
           <div className="brand">
@@ -450,12 +555,33 @@ export default function Home() {
           })}
         </div>
 
+        <div
+          className={`railResizeHandle${
+            draggingRail === "clinicalStates" ? " isDragging" : ""
+          }`}
+          onMouseDown={(event) => startRailResize("clinicalStates", event)}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize Clinical States panel"
+        />
       </aside>
 
       <aside
         className="differentialDiagnosisRail"
         aria-label="Differential diagnosis monitor"
       >
+        <div
+          className={`railResizeHandle${
+            draggingRail === "differentialDiagnosis" ? " isDragging" : ""
+          }`}
+          onMouseDown={(event) =>
+            startRailResize("differentialDiagnosis", event)
+          }
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize Differential Diagnosis panel"
+        />
+
         <Panel eyebrow="Differential diagnosis" title="">
           <div className="diagnosisList">
             {diagnoses.map((diagnosis) => (
