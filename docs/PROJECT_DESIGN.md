@@ -306,3 +306,48 @@ restore-from-old-revision, and first-time initialization), with
 
 As of this session's end, all of the above is committed and pushed —
 local `main`, GitHub, and the live Vercel deployment are in sync.
+
+<!-- CASCADING-LOOKUP-AUDIT-2026-08-03 -->
+## Cascading Lookup Columns — Full Audit (2026-08-03)
+
+Every "pre-populated"/"auto-populated" column across all sheets, cross-
+checked against the user's own spreadsheet column-instruction rows, to
+confirm which ones should narrow their options based on a value already
+picked earlier in the same row (`filterBy` in `app/admin/model.ts`), and
+which are intentionally top-of-chain picks with nothing to narrow by:
+
+- **Maneuver Definitions**: Relevant Diagnoses, Required States — first-
+  tier multi-select picks (populated from Diagnoses/Clinical States).
+  Nothing earlier in the row to scope by. Unscoped by design.
+- **Response Fields**: Associated Maneuver ID — first-tier pick
+  (populated from Maneuver Definitions). Unscoped by design.
+- **Response Options**: Associated Maneuver Name is the first-tier pick
+  (unscoped); Associated Maneuver Response Prompt is explicitly scoped
+  to that maneuver's own fields (`filterBy` on `associatedManeuverId`) —
+  this was the one column where the user's own spreadsheet notes spelled
+  out the scoping ("...that also share the maneuver ID in the given
+  row"), and the two-tier shape (pick maneuver, then pick from its
+  fields only) is the reference pattern for everything below.
+- **Clinical Reasoning**: Maneuver Considered is the first-tier pick
+  (unscoped). Three downstream columns all cascade off it, each scoped
+  to `maneuverId`: Response Field Prompt (narrowed to that maneuver's
+  response fields), Diagnosis Affected (narrowed to the diagnoses listed
+  in that maneuver's own Relevant Diagnoses), and Required Clinical
+  State (narrowed to the states listed in that maneuver's own Required
+  States). The latter two use a `viaSheet`/`viaListColumn` variant of
+  `filterBy` because their allowed values live as a comma-separated list
+  on the maneuver's own row rather than one row per option. Reference
+  Title has no maneuver/diagnosis link anywhere in the References sheet
+  to narrow by, so it stays a flat pick from all references — correctly
+  unscoped, not an oversight. Compared Value is a plain text field per
+  the user's own spec (not a lookup at all) — free text, not a dropdown.
+- Every `lookup`/`populatesColumn` pair that auto-fills a hidden ID
+  column (Maneuver Considered→Maneuver ID, Response Field Prompt→Field
+  ID, Diagnosis Affected→Diagnosis ID, Reference Title→Reference ID,
+  Associated Maneuver Name→Associated Maneuver ID, Associated Maneuver
+  Response Prompt→Associated Field ID) is implemented and working.
+
+Net: the cascading/narrowing behavior is fully implemented everywhere
+the schema has data to narrow by. The remaining unscoped lookups are
+unscoped because there's no "already selected" value in that row's
+schema to narrow against, not because the work is incomplete.
