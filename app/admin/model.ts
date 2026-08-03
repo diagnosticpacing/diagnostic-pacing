@@ -37,8 +37,23 @@ export type ColumnDefinition = {
    * e.g. only show response fields belonging to the maneuver already
    * chosen earlier in this same row. If `ownColumn` is blank, there are
    * no options yet (the prerequisite hasn't been picked).
+   *
+   * `viaSheet`/`viaListColumn` cover the variant where the constraint
+   * lives on a "parent" row as a comma-separated list rather than as one
+   * row per allowed value — e.g. narrowing Diagnosis Affected to only the
+   * diagnoses named in the chosen maneuver's own Relevant Diagnoses list.
+   * When set, rows in `viaSheet` matching `ownColumn`/`matchColumn` supply
+   * the allowed-value set (read from `viaListColumn`, comma-separated);
+   * `lookup.sheet` still supplies the actual option rows (so cross-sheet
+   * reference chips keep pointing at the right sheet), just filtered down
+   * to that allowed set.
    */
-  filterBy?: { ownColumn: string; matchColumn: string };
+  filterBy?: {
+    ownColumn: string;
+    matchColumn: string;
+    viaSheet?: SheetId;
+    viaListColumn?: string;
+  };
 };
 
 export type SheetDefinition = {
@@ -557,9 +572,16 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "diagnosisAffected",
         label: "Diagnosis Affected",
-        modelUse: "The diagnosis that this clinical reasoning acts upon.",
+        modelUse:
+          "The diagnosis that this clinical reasoning acts upon, narrowed to diagnoses the maneuver selected above is relevant to.",
         width: "200px",
         lookup: { sheet: "diagnoses", column: "abbreviatedName" },
+        filterBy: {
+          ownColumn: "maneuverId",
+          matchColumn: "maneuverId",
+          viaSheet: "maneuverDefinitions",
+          viaListColumn: "relevantDiagnoses",
+        },
         populatesColumn: "diagnosisId",
       },
       {
@@ -605,9 +627,15 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "requiredClinicalState",
         label: "Required Clinical State",
         modelUse:
-          "Restricts this condition to maneuver results recorded while the specified Clinical State was active. Used together with Rule Group ID to require the same finding across multiple states.",
+          "Restricts this condition to maneuver results recorded while the specified Clinical State was active, narrowed to states the maneuver selected above requires. Used together with Rule Group ID to require the same finding across multiple states.",
         width: "220px",
         lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
+        filterBy: {
+          ownColumn: "maneuverId",
+          matchColumn: "maneuverId",
+          viaSheet: "maneuverDefinitions",
+          viaListColumn: "requiredStates",
+        },
       },
       {
         key: "ruleDescription",

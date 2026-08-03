@@ -78,6 +78,12 @@ type SpreadsheetTableProps = {
 
 const norm = (value: string) => value.trim().toUpperCase();
 
+const splitList = (value?: string) =>
+  (value ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
 /** Finds the row in another sheet whose lookup column matches this value. */
 function resolveReference(
   allData: Record<SheetId, SpreadsheetRow[]>,
@@ -106,6 +112,12 @@ function getPrimaryIdColumn(sheetId: SheetId): string | null {
  * what makes a dropdown cascade off an earlier pick in the same row (e.g.
  * pick a maneuver, then only see that maneuver's response fields). If the
  * prerequisite column is still blank, there are no options yet.
+ *
+ * When `filterBy.viaSheet`/`viaListColumn` are set, the allowed values
+ * instead come from a comma-separated list column on the matching row in
+ * `viaSheet` (e.g. the chosen maneuver's own Relevant Diagnoses list),
+ * and the result is still filtered down to `lookup.sheet`'s actual rows
+ * so cross-sheet reference chips keep pointing at the right sheet.
  */
 function getLookupOptions(
   allData: Record<SheetId, SpreadsheetRow[]>,
@@ -119,13 +131,26 @@ function getLookupOptions(
 
   if (filterBy && !requiredMatch) return [];
 
+  let allowedTokens: Set<string> | null = null;
+  if (filterBy?.viaSheet && filterBy.viaListColumn) {
+    allowedTokens = new Set<string>();
+    for (const viaRow of allData[filterBy.viaSheet] ?? []) {
+      if (norm(viaRow[filterBy.matchColumn] ?? "") !== requiredMatch) continue;
+      for (const token of splitList(viaRow[filterBy.viaListColumn])) {
+        allowedTokens.add(norm(token));
+      }
+    }
+  }
+
   const values = new Set<string>();
   for (const row of allData[lookup.sheet] ?? []) {
-    if (filterBy && norm(row[filterBy.matchColumn] ?? "") !== requiredMatch) {
-      continue;
+    if (filterBy && !allowedTokens) {
+      if (norm(row[filterBy.matchColumn] ?? "") !== requiredMatch) continue;
     }
     const value = (row[lookup.column] ?? "").trim();
-    if (value) values.add(value);
+    if (!value) continue;
+    if (allowedTokens && !allowedTokens.has(norm(value))) continue;
+    values.add(value);
   }
   return Array.from(values).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
