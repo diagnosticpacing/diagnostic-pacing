@@ -3012,7 +3012,23 @@ button {
 }
 
 button.adminTableHeader {
+  position: relative;
   cursor: pointer;
+}
+
+.adminColumnResizeHandle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 4;
+  width: 7px;
+  cursor: col-resize;
+}
+
+.adminColumnResizeHandle:hover,
+.adminColumnResizeHandle:active {
+  background: rgba(91, 214, 220, 0.45);
 }
 
 button.adminTableHeader:hover,
@@ -3205,6 +3221,7 @@ button.adminTableHeader.isSorted {
   background: rgba(91, 214, 220, 0.1);
   color: var(--accent, #5bd6dc);
   cursor: pointer;
+  text-decoration: none;
   font-size: 10px;
   font-weight: 600;
   line-height: 1.6;

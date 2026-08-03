@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
   ColumnDefinition,
   SheetDefinition,
@@ -9,6 +10,9 @@ import { sheetDefinitions } from "../model";
 
 type SortDirection = "asc" | "desc";
 type SortState = { columnKey: string; direction: SortDirection } | null;
+
+const DEFAULT_COLUMN_WIDTH = 220;
+const MIN_COLUMN_WIDTH = 90;
 
 /**
  * Numeric-aware, case-insensitive comparison. Blank values always sort to
@@ -32,6 +36,29 @@ function compareValues(a: string, b: string, direction: SortDirection): number {
     : aTrim.localeCompare(bTrim, undefined, { sensitivity: "base" });
 
   return direction === "asc" ? result : -result;
+}
+
+/** Extracts a starting pixel width from a column's original CSS width hint. */
+function parseDefaultWidth(width?: string): number {
+  if (!width) return DEFAULT_COLUMN_WIDTH;
+  const pxMatch = width.match(/^(\d+)px$/);
+  if (pxMatch) return Number(pxMatch[1]);
+  const minmaxMatch = width.match(/minmax\((\d+)px/);
+  if (minmaxMatch) return Number(minmaxMatch[1]);
+  return DEFAULT_COLUMN_WIDTH;
+}
+
+const widthsStorageKey = (sheetId: SheetId) =>
+  `diagnostic-pacing-admin-column-widths:${sheetId}`;
+
+function loadStoredWidths(sheetId: SheetId): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(widthsStorageKey(sheetId));
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
 }
 
 type SpreadsheetTableProps = {
@@ -167,11 +194,59 @@ export default function SpreadsheetTable({
   highlightRowId,
 }: SpreadsheetTableProps) {
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // Sorting is a view-only concern, local to whichever sheet is showing.
-  // The parent remounts this component (via a `key` on the sheet id) when
-  // the active sheet changes, so this state naturally resets on its own
-  // rather than needing an effect to clear it.
+  // Sorting and column widths are view-only, local to whichever sheet is
+  // showing. The parent remounts this component (via a `key` on the sheet
+  // id) when the active sheet changes, so this state naturally resets on
+  // its own rather than needing an effect to clear it.
   const [sortState, setSortState] = useState<SortState>(null);
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
+    () => {
+      const stored = loadStoredWidths(definition.id);
+      const widths: Record<string, number> = {};
+      for (const column of definition.columns) {
+        widths[column.key] = stored[column.key] ?? parseDefaultWidth(column.width);
+      }
+      return widths;
+    },
+  );
+
+  const resizingRef = useRef<{
+    columnKey: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent) {
+      const resizing = resizingRef.current;
+      if (!resizing) return;
+      const delta = event.clientX - resizing.startX;
+      const nextWidth = Math.max(MIN_COLUMN_WIDTH, resizing.startWidth + delta);
+      setColumnWidths((current) => ({
+        ...current,
+        [resizing.columnKey]: nextWidth,
+      }));
+    }
+
+    function handleMouseUp() {
+      resizingRef.current = null;
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      widthsStorageKey(definition.id),
+      JSON.stringify(columnWidths),
+    );
+  }, [columnWidths, definition.id]);
 
   useEffect(() => {
     if (!highlightRowId) return;
@@ -199,6 +274,19 @@ export default function SpreadsheetTable({
     });
   };
 
+  const handleResizeStart = (
+    columnKey: string,
+    event: ReactMouseEvent,
+  ) => {
+    event.stopPropagation();
+    event.preventDefault();
+    resizingRef.current = {
+      columnKey,
+      startX: event.clientX,
+      startWidth: columnWidths[columnKey] ?? DEFAULT_COLUMN_WIDTH,
+    };
+  };
+
   /** Sets this column's value, and — if it auto-populates a sibling ID
    * column — resolves the matched row and fills that column too. */
   const handleLookupChange = (
@@ -219,7 +307,7 @@ export default function SpreadsheetTable({
   const gridTemplateColumns = [
     "48px",
     ...definition.columns.map(
-      (column) => column.width ?? "minmax(180px, 1fr)",
+      (column) => `${columnWidths[column.key] ?? DEFAULT_COLUMN_WIDTH}px`,
     ),
     "50px",
   ].join(" ");
@@ -260,6 +348,15 @@ export default function SpreadsheetTable({
                   {isSorted ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
                 </span>
               </span>
+
+              <span
+                className="adminColumnResizeHandle"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`Resize ${column.label} column`}
+                onMouseDown={(event) => handleResizeStart(column.key, event)}
+                onClick={(event) => event.stopPropagation()}
+              />
             </button>
           );
         })}
@@ -376,6 +473,19 @@ export default function SpreadsheetTable({
                           )
                         }
                       />
+                    )}
+
+                    {column.isUrl && value.trim() && (
+                      <a
+                        className="adminReferenceLink"
+                        href={value.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${value.trim()} in a new tab`}
+                      >
+                        Open
+                        <span aria-hidden="true">↗</span>
+                      </a>
                     )}
 
                     {referenceChips && referenceChips.length > 0 && (

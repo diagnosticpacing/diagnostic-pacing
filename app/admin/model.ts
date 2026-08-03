@@ -29,6 +29,8 @@ export type ColumnDefinition = {
    * column.
    */
   populatesColumn?: string;
+  /** When true, a non-empty value renders an "Open" link to that URL. */
+  isUrl?: true;
 };
 
 export type SheetDefinition = {
@@ -572,6 +574,13 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         width: "220px",
         lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
       },
+      {
+        key: "ruleDescription",
+        label: "Rule Description",
+        modelUse: "Plain language description of the rule.",
+        width: "minmax(280px, 0.9fr)",
+        multiline: true,
+      },
     ],
   },
 
@@ -616,6 +625,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "Web URL of the original journal publication.",
         width: "240px",
         required: true,
+        isUrl: true,
       },
       {
         key: "pmidDoi",
