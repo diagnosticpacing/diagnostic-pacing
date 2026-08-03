@@ -43,6 +43,10 @@ next-env.d.ts
 # Local patch safety backups
 *.backup-*
 
+# Working knowledge-base spreadsheet drafts (kept outside git; not app code)
+*.numbers
+Diagnostic pacing logic*.xlsx
+
 # Local knowledge repository and patch backups
 .data/
 .patch-backups/

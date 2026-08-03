@@ -9,6 +9,7 @@ type WorkbookSheets = Record<SheetId, SpreadsheetRow[]>;
 
 const sheetOrder: SheetId[] = [
   "clinicalTerms",
+  "clinicalStates",
   "diagnoses",
   "maneuverDefinitions",
   "maneuverResponseFields",
@@ -19,6 +20,7 @@ const sheetOrder: SheetId[] = [
 
 const worksheetNames: Record<SheetId, string> = {
   clinicalTerms: "Clinical Terms",
+  clinicalStates: "Clinical States",
   diagnoses: "Diagnoses",
   maneuverDefinitions: "Maneuver Definitions",
   maneuverResponseFields: "Response Fields",

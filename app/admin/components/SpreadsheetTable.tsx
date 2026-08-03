@@ -59,38 +59,73 @@ export default function SpreadsheetTable({
           <div className="adminSpreadsheetRow" key={row.__rowId}>
             <div className="adminRowNumber">{rowIndex + 1}</div>
 
-            {definition.columns.map((column) => (
-              <div className="adminCell" key={column.key}>
-                {column.multiline ? (
-                  <textarea
-                    aria-label={`${column.label}, row ${rowIndex + 1}`}
-                    placeholder={column.modelUse}
-                    rows={3}
-                    value={row[column.key] ?? ""}
-                    onChange={(event) =>
-                      onCellChange(
-                        row.__rowId,
-                        column.key,
-                        event.target.value,
-                      )
-                    }
-                  />
-                ) : (
-                  <input
-                    aria-label={`${column.label}, row ${rowIndex + 1}`}
-                    placeholder={column.modelUse}
-                    value={row[column.key] ?? ""}
-                    onChange={(event) =>
-                      onCellChange(
-                        row.__rowId,
-                        column.key,
-                        event.target.value,
-                      )
-                    }
-                  />
-                )}
-              </div>
-            ))}
+            {definition.columns.map((column) => {
+              const value = row[column.key] ?? "";
+              const isRequiredEmpty = Boolean(
+                column.required && value.trim() === "",
+              );
+              const cellClassName = isRequiredEmpty
+                ? "adminCell isRequiredEmpty"
+                : "adminCell";
+
+              return (
+                <div className={cellClassName} key={column.key}>
+                  {column.options && !column.multiSelect ? (
+                    <select
+                      aria-label={`${column.label}, row ${rowIndex + 1}`}
+                      value={value}
+                      onChange={(event) =>
+                        onCellChange(
+                          row.__rowId,
+                          column.key,
+                          event.target.value,
+                        )
+                      }
+                    >
+                      <option value="">
+                        {column.required ? "Select…" : "—"}
+                      </option>
+                      {column.options.map((option) => (
+                        <option key={option || "blank"} value={option}>
+                          {option || "—"}
+                        </option>
+                      ))}
+                    </select>
+                  ) : column.multiline ? (
+                    <textarea
+                      aria-label={`${column.label}, row ${rowIndex + 1}`}
+                      placeholder={column.modelUse}
+                      rows={3}
+                      value={value}
+                      onChange={(event) =>
+                        onCellChange(
+                          row.__rowId,
+                          column.key,
+                          event.target.value,
+                        )
+                      }
+                    />
+                  ) : (
+                    <input
+                      aria-label={`${column.label}, row ${rowIndex + 1}`}
+                      placeholder={
+                        column.multiSelect
+                          ? `${column.modelUse} (comma-separated)`
+                          : column.modelUse
+                      }
+                      value={value}
+                      onChange={(event) =>
+                        onCellChange(
+                          row.__rowId,
+                          column.key,
+                          event.target.value,
+                        )
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
 
             <div className="adminDeleteCell">
               <button

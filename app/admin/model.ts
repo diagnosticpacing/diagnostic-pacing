@@ -9,6 +9,20 @@ export type ColumnDefinition = {
   modelUse: string;
   width?: string;
   multiline?: boolean;
+  required?: boolean;
+  /** If set, this column's value must start with this literal prefix (e.g. "MID-"). */
+  idPrefix?: string;
+  /** Fixed list of selectable values. Rendered as a dropdown once the admin UI supports it. */
+  options?: string[];
+  /** When true, the column may hold more than one value (comma-separated). */
+  multiSelect?: boolean;
+  /**
+   * When set, this column's values are meant to be picked from another
+   * sheet's column rather than typed freely. Not yet enforced by the admin
+   * UI (no live dropdown/autofill), but recorded here so validation and a
+   * future UI can rely on it instead of re-deriving it.
+   */
+  lookup?: { sheet: SheetId; column: string };
 };
 
 export type SheetDefinition = {
@@ -20,6 +34,7 @@ export type SheetDefinition = {
 
 export type TopLevelTabId =
   | "clinicalTerms"
+  | "clinicalStates"
   | "diagnoses"
   | "maneuvers"
   | "clinicalReasoning"
@@ -32,6 +47,7 @@ export type ManeuverSheetId =
 
 export type SheetId =
   | "clinicalTerms"
+  | "clinicalStates"
   | "diagnoses"
   | "maneuverDefinitions"
   | "maneuverResponseFields"
@@ -44,6 +60,7 @@ export const topLevelTabs: {
   label: string;
 }[] = [
   { id: "clinicalTerms", label: "Clinical Terms" },
+  { id: "clinicalStates", label: "Clinical States" },
   { id: "diagnoses", label: "Diagnoses" },
   { id: "maneuvers", label: "Maneuvers" },
   { id: "clinicalReasoning", label: "Clinical Reasoning" },
@@ -65,7 +82,7 @@ export const maneuverSheets: {
     id: "maneuverResponseFields",
     label: "Response Fields",
     description:
-      "Defines the questions and data-entry controls displayed on the back of each maneuver tile.",
+      "Defines the questions and data-entry controls displayed for each pacing maneuver.",
   },
   {
     id: "maneuverResponseOptions",
@@ -87,29 +104,109 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         label: "Term ID",
         modelUse:
           "Stable identifier used when another record needs to reference this clinical term.",
-        width: "180px",
+        width: "170px",
+        required: true,
+        idPrefix: "TID-",
       },
       {
         key: "name",
         label: "Name",
-        modelUse:
-          "The preferred human-readable name of the clinical concept.",
-        width: "240px",
+        modelUse: "The preferred human-readable name of the clinical concept.",
+        width: "220px",
+        required: true,
       },
       {
         key: "definition",
         label: "Definition",
         modelUse:
           "Defines what the term means so it can be interpreted consistently in clinical reasoning and explanations.",
-        width: "minmax(380px, 1fr)",
+        width: "minmax(360px, 1fr)",
         multiline: true,
+        required: true,
+      },
+      {
+        key: "numberOfFields",
+        label: "Number of Fields",
+        modelUse:
+          "Defines the format the value is expressed in, e.g. 500 vs 500/300.",
+        width: "160px",
+        required: true,
+        options: ["n/a", "1", "2"],
+      },
+      {
+        key: "unitOfMeasure",
+        label: "Unit of Measure",
+        modelUse: "The unit of measure used for the clinical term, if applicable.",
+        width: "150px",
+        options: ["", "ms", "mV"],
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        modelUse: "Optional synonyms, cautions, usage guidance, or editorial context.",
+        width: "minmax(280px, 0.8fr)",
+        multiline: true,
+      },
+    ],
+  },
+
+  clinicalStates: {
+    id: "clinicalStates",
+    label: "Clinical States",
+    description:
+      "Fixed vocabulary of pharmacologic and rhythm conditions a maneuver result can be recorded under.",
+    columns: [
+      {
+        key: "stateId",
+        label: "State ID",
+        modelUse:
+          "Stable identifier used by Clinical Reasoning and Maneuver Definitions to reference this clinical state.",
+        width: "170px",
+        required: true,
+        idPrefix: "SID-",
+      },
+      {
+        key: "fullName",
+        label: "Full Name",
+        modelUse:
+          "Full name of the clinical state displayed in reporting and summary explanations.",
+        width: "240px",
+        required: true,
+        options: [
+          "Normal Sinus Rhythm",
+          "Bradycardia",
+          "Tachycardia",
+          "Implanted CRM Pacing",
+          "Isoproterenol On",
+          "Isoproterenol Washout",
+          "Isoproterenol Off",
+          "Adenosine Administered",
+        ],
+      },
+      {
+        key: "abbreviatedName",
+        label: "Abbreviated Name",
+        modelUse:
+          "Compact label displayed where the full clinical state name would be too long, and the value used elsewhere to reference this state.",
+        width: "170px",
+        required: true,
+        options: [
+          "NSR",
+          "Brady",
+          "Tachy",
+          "CRM Paced",
+          "Iso On",
+          "Iso Washout",
+          "Iso Off",
+          "Adenosine",
+        ],
       },
       {
         key: "notes",
         label: "Notes",
         modelUse:
-          "Optional synonyms, cautions, usage guidance, or editorial context.",
-        width: "minmax(300px, 0.8fr)",
+          "Optional caveats, variants, terminology guidance, or state-specific context.",
+        width: "minmax(280px, 0.8fr)",
         multiline: true,
       },
     ],
@@ -124,30 +221,32 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "diagnosisId",
         label: "Diagnosis ID",
-        modelUse:
-          "Stable identifier used by Clinical Reasoning to update this diagnosis.",
-        width: "190px",
+        modelUse: "Stable identifier used by Clinical Reasoning to update this diagnosis.",
+        width: "180px",
+        required: true,
+        idPrefix: "DID-",
       },
       {
-        key: "name",
-        label: "Name",
+        key: "fullName",
+        label: "Full Name",
         modelUse:
-          "Full diagnosis name displayed in the differential diagnosis.",
+          "Full name of the arrhythmia mechanism displayed in reporting and summary explanations.",
         width: "280px",
+        required: true,
       },
       {
-        key: "abbreviation",
-        label: "Abbreviation",
-        modelUse:
-          "Compact label displayed where the full diagnosis name would be too long.",
+        key: "abbreviatedName",
+        label: "Abbreviated Name",
+        modelUse: "Compact label displayed where the full diagnosis name would be too long.",
         width: "170px",
+        required: true,
       },
       {
         key: "description",
         label: "Description",
         modelUse:
           "Defines the mechanism and important distinguishing characteristics associated with the diagnosis.",
-        width: "minmax(400px, 1fr)",
+        width: "minmax(380px, 1fr)",
         multiline: true,
       },
       {
@@ -155,8 +254,16 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         label: "Notes",
         modelUse:
           "Optional caveats, variants, terminology guidance, or diagnosis-specific context.",
-        width: "minmax(300px, 0.75fr)",
+        width: "minmax(280px, 0.75fr)",
         multiline: true,
+      },
+      {
+        key: "baseRank",
+        label: "Base Rank",
+        modelUse:
+          "Fixed population-frequency order. Used as the default sort position and as the tiebreaker when two diagnoses have equal supporting evidence. Lower numbers are more common.",
+        width: "130px",
+        required: true,
       },
     ],
   },
@@ -173,51 +280,39 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "Stable identifier connecting this maneuver to response fields, response options, reasoning, references, and saved performances.",
         width: "180px",
+        required: true,
+        idPrefix: "MID-",
       },
       {
-        key: "name",
-        label: "Name",
-        modelUse:
-          "The maneuver name displayed on the front of its tile.",
-        width: "300px",
+        key: "maneuverName",
+        label: "Maneuver Name",
+        modelUse: "The maneuver name displayed on the front of its tile and in reporting.",
+        width: "280px",
+        required: true,
       },
       {
-        key: "category",
-        label: "Category",
+        key: "relevantDiagnoses",
+        label: "Relevant Diagnoses",
         modelUse:
-          "Groups the maneuver by general type, such as ventricular pacing, atrial pacing, or pharmacologic testing.",
-        width: "220px",
+          "The diagnoses this maneuver's result can inform. Used to decide which maneuver to suggest next, and as a fallback signal before Clinical Reasoning rules exist for this maneuver.",
+        width: "minmax(240px, 0.85fr)",
+        multiSelect: true,
+        lookup: { sheet: "diagnoses", column: "abbreviatedName" },
       },
       {
-        key: "shortDescription",
-        label: "Short Description",
-        modelUse:
-          "A concise explanation suitable for the maneuver tile or summary view.",
-        width: "minmax(340px, 0.9fr)",
-        multiline: true,
+        key: "requiredStates",
+        label: "Required States",
+        modelUse: "The clinical states necessary to perform this pacing maneuver.",
+        width: "minmax(220px, 0.8fr)",
+        multiSelect: true,
+        lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
       },
       {
         key: "technique",
         label: "Technique",
-        modelUse:
-          "Explains how the maneuver is performed and may be shown on the card back or in the expanded detail view.",
-        width: "minmax(440px, 1.1fr)",
+        modelUse: "Description of how to perform the maneuver and record the result.",
+        width: "minmax(380px, 1.1fr)",
         multiline: true,
-      },
-      {
-        key: "expansionNotes",
-        label: "Expansion Notes",
-        modelUse:
-          "Provides deeper educational content, interpretation guidance, limitations, and pitfalls for the expanded view.",
-        width: "minmax(440px, 1.1fr)",
-        multiline: true,
-      },
-      {
-        key: "enabled",
-        label: "Enabled",
-        modelUse:
-          "Controls whether the maneuver is available in the clinical application. Enter Yes or No.",
-        width: "130px",
       },
     ],
   },
@@ -225,72 +320,86 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
   maneuverResponseFields: {
     id: "maneuverResponseFields",
     label: "Response Fields",
-    description:
-      "One row represents one input control on the back of a maneuver tile.",
+    description: "One row represents one input control on a maneuver's response.",
     columns: [
-      {
-        key: "maneuverId",
-        label: "Maneuver ID",
-        modelUse:
-          "Identifies which maneuver owns this response field.",
-        width: "180px",
-      },
       {
         key: "fieldId",
         label: "Field ID",
         modelUse:
-          "Stable machine-readable name used to save the response and match it to Clinical Reasoning.",
-        width: "240px",
+          "Stable identifier connecting this response field to response options, reasoning, references, and saved performances.",
+        width: "180px",
+        required: true,
+        idPrefix: "FID-",
+      },
+      {
+        key: "associatedManeuverId",
+        label: "Associated Maneuver ID",
+        modelUse: "Identifies which maneuver owns this response field.",
+        width: "200px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
       },
       {
         key: "order",
         label: "Order",
-        modelUse:
-          "Determines the vertical order in which this field appears on the card back.",
-        width: "100px",
+        modelUse: "Determines the order in which this field appears among the maneuver's response fields.",
+        width: "90px",
+        required: true,
+        options: ["1", "2", "3", "4", "5", "6", "7", "8"],
       },
       {
         key: "prompt",
-        label: "Prompt",
+        label: "Maneuver Response Prompt",
         modelUse:
-          "The question or label displayed to the clinician on the back of the maneuver tile.",
-        width: "minmax(340px, 0.9fr)",
+          "The question or label displayed to the clinician when prompted to enter pacing maneuver results.",
+        width: "minmax(320px, 0.9fr)",
         multiline: true,
+        required: true,
+      },
+      {
+        key: "availableTerms",
+        label: "Available Terms",
+        modelUse:
+          "Which comparison operators are valid against this field's result. Filters the operator choices available to Clinical Reasoning.",
+        width: "180px",
+        required: true,
+        multiSelect: true,
+        options: ["n/a", "=", ">", "<"],
       },
       {
         key: "inputType",
         label: "Input Type",
-        modelUse:
-          "Determines which GUI control is rendered. Examples: Single Select, Multi Select, Yes/No, Yes/No/Uncertain, Number, Short Text, or Long Text.",
+        modelUse: "Determines which entry control is rendered for this field.",
         width: "210px",
-      },
-      {
-        key: "required",
-        label: "Required",
-        modelUse:
-          "Controls whether the maneuver can be accepted without completing this field. Enter Yes or No.",
-        width: "130px",
+        required: true,
+        options: [
+          "Checkbox",
+          "Single Select Dropdown",
+          "Multi Select Dropdown",
+          "Number Field",
+          "Text Field(s)",
+        ],
       },
       {
         key: "units",
         label: "Units",
-        modelUse:
-          "Optional units displayed beside a numeric response, such as ms or mV.",
+        modelUse: "Optional units displayed beside a numeric response.",
         width: "110px",
+        required: true,
+        options: ["n/a", "ms", "mV", "mA"],
       },
       {
-        key: "defaultValue",
-        label: "Default",
-        modelUse:
-          "Optional initial value shown when the card is opened.",
-        width: "170px",
+        key: "required",
+        label: "Required",
+        modelUse: "Controls whether the maneuver can be accepted without completing this field.",
+        width: "110px",
+        required: true,
+        options: ["Yes", "No"],
       },
       {
         key: "helpText",
         label: "Help Text",
-        modelUse:
-          "Context shown near the field to explain how the response should be determined or entered.",
-        width: "minmax(380px, 1fr)",
+        modelUse: "Context shown near the field to explain how the response should be determined or entered.",
+        width: "minmax(300px, 0.9fr)",
         multiline: true,
       },
     ],
@@ -299,36 +408,30 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
   maneuverResponseOptions: {
     id: "maneuverResponseOptions",
     label: "Response Options",
-    description:
-      "One row represents one selectable answer for a response field.",
+    description: "One row represents one selectable answer for a response field.",
     columns: [
-      {
-        key: "maneuverId",
-        label: "Maneuver ID",
-        modelUse:
-          "Identifies the maneuver that owns this selectable response.",
-        width: "180px",
-      },
-      {
-        key: "fieldId",
-        label: "Field ID",
-        modelUse:
-          "Identifies the response field in which this option should appear.",
-        width: "240px",
-      },
       {
         key: "optionId",
         label: "Option ID",
-        modelUse:
-          "Stable identifier for this particular answer option.",
-        width: "250px",
+        modelUse: "Stable identifier for this particular response field answer option.",
+        width: "200px",
+        required: true,
+        idPrefix: "OID-",
+      },
+      {
+        key: "associatedFieldId",
+        label: "Associated Field ID",
+        modelUse: "Identifies the response field in which this option should appear.",
+        width: "220px",
+        lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
       },
       {
         key: "order",
         label: "Order",
-        modelUse:
-          "Determines the order in which this option appears in the control.",
-        width: "100px",
+        modelUse: "Determines the order in which this option appears in the control.",
+        width: "90px",
+        required: true,
+        options: ["1", "2", "3", "4", "5", "6", "7", "8"],
       },
       {
         key: "displayLabel",
@@ -336,13 +439,6 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "The clinician-facing wording shown in the dropdown, button group, or selection list.",
         width: "300px",
-      },
-      {
-        key: "storedValue",
-        label: "Stored Value",
-        modelUse:
-          "Stable machine-readable value saved with the maneuver result and evaluated by Clinical Reasoning.",
-        width: "280px",
       },
     ],
   },
@@ -356,80 +452,111 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "reasoningId",
         label: "Reasoning ID",
-        modelUse:
-          "Stable identifier for this individual clinical reasoning statement.",
-        width: "190px",
+        modelUse: "Stable identifier for this individual clinical reasoning statement.",
+        width: "180px",
+        required: true,
+        idPrefix: "CRID-",
+      },
+      {
+        key: "maneuverConsidered",
+        label: "Maneuver Considered",
+        modelUse: "The maneuver this reasoning statement evaluates.",
+        width: "220px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
       },
       {
         key: "maneuverId",
         label: "Maneuver ID",
         modelUse:
-          "Identifies the maneuver whose result activates this reasoning statement.",
-        width: "180px",
+          "Identifies the maneuver whose result activates this reasoning statement. Intended to auto-populate from Maneuver Considered.",
+        width: "150px",
+      },
+      {
+        key: "responseFieldPrompt",
+        label: "Response Field Prompt",
+        modelUse: "The specific maneuver response field being evaluated.",
+        width: "240px",
+        lookup: { sheet: "maneuverResponseFields", column: "prompt" },
       },
       {
         key: "fieldId",
-        label: "Field ID",
+        label: "Associated Field ID",
         modelUse:
-          "Identifies the specific maneuver response field being evaluated.",
-        width: "240px",
+          "Identifies the specific maneuver response field being evaluated. Intended to auto-populate from Response Field Prompt.",
+        width: "180px",
       },
       {
         key: "operator",
         label: "Operator",
-        modelUse:
-          "Defines how the recorded response is compared with the expected value. Initial examples include Equals, Not Equals, Greater Than, and Less Than.",
-        width: "170px",
+        modelUse: "Defines how the recorded response is compared with the expected value.",
+        width: "160px",
+        required: true,
+        options: ["Is Checked", "Is Unchecked", "=", "≠", ">", "<"],
       },
       {
-        key: "expectedValue",
-        label: "Expected Value",
-        modelUse:
-          "The stored response value that must satisfy the operator for this reasoning statement to apply.",
-        width: "250px",
+        key: "comparedValue",
+        label: "Compared Value",
+        modelUse: "The value the operator compares the field's result to, if applicable.",
+        width: "200px",
+      },
+      {
+        key: "differentialAction",
+        label: "Differential Action",
+        modelUse: "Determines what kind of conclusion this result contributes to the diagnosis.",
+        width: "170px",
+        required: true,
+        options: ["Supports", "Excludes", "Confirms"],
+      },
+      {
+        key: "diagnosisAffected",
+        label: "Diagnosis Affected",
+        modelUse: "The diagnosis that this clinical reasoning acts upon.",
+        width: "200px",
+        lookup: { sheet: "diagnoses", column: "abbreviatedName" },
       },
       {
         key: "diagnosisId",
         label: "Diagnosis ID",
         modelUse:
-          "Identifies the diagnosis affected when this reasoning statement applies.",
-        width: "180px",
-      },
-      {
-        key: "effect",
-        label: "Effect",
-        modelUse:
-          "Describes how the finding changes the diagnosis, such as Supports, Against, Excludes, Confirms, or Remains Possible.",
-        width: "190px",
-      },
-      {
-        key: "strength",
-        label: "Strength",
-        modelUse:
-          "Describes the relative diagnostic weight or specificity of the finding without hiding the reasoning.",
-        width: "180px",
+          "The diagnosis that this clinical reasoning acts upon. Intended to auto-populate from Diagnosis Affected.",
+        width: "150px",
       },
       {
         key: "explanation",
         label: "Explanation",
         modelUse:
-          "The clinician-facing explanation of why this response has the stated effect on the diagnosis.",
-        width: "minmax(460px, 1.2fr)",
+          "The clinician-facing explanation of why this response has the stated effect on the diagnosis. Excerpted manuscript text preferred.",
+        width: "minmax(380px, 1.1fr)",
         multiline: true,
       },
       {
-        key: "referenceIds",
-        label: "Reference IDs",
-        modelUse:
-          "Comma-separated reference identifiers supporting this clinical reasoning statement.",
-        width: "260px",
+        key: "referenceTitle",
+        label: "Reference Title",
+        modelUse: "The reference that supports the explanation for this clinical reasoning.",
+        width: "220px",
+        lookup: { sheet: "references", column: "referenceTitle" },
       },
       {
-        key: "enabled",
-        label: "Enabled",
+        key: "referenceId",
+        label: "Reference ID",
         modelUse:
-          "Controls whether this reasoning statement is currently used. Enter Yes or No.",
-        width: "130px",
+          "The reference that supports the explanation for this clinical reasoning. Intended to auto-populate from Reference Title.",
+        width: "160px",
+      },
+      {
+        key: "ruleGroupId",
+        label: "Rule Group ID",
+        modelUse:
+          "Rows sharing the same Rule Group ID must all be satisfied together (AND) before the Differential Action applies. Leave blank for a standalone condition.",
+        width: "180px",
+      },
+      {
+        key: "requiredClinicalState",
+        label: "Required Clinical State",
+        modelUse:
+          "Restricts this condition to maneuver results recorded while the specified Clinical State was active. Used together with Rule Group ID to require the same finding across multiple states.",
+        width: "220px",
+        lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
       },
     ],
   },
@@ -437,256 +564,65 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
   references: {
     id: "references",
     label: "References",
-    description:
-      "Publications and other evidence supporting maneuver definitions and clinical reasoning.",
+    description: "Publications and other evidence supporting maneuver definitions and clinical reasoning.",
     columns: [
       {
         key: "referenceId",
         label: "Reference ID",
-        modelUse:
-          "Stable identifier used to attach this publication to maneuvers and clinical reasoning statements.",
+        modelUse: "Stable identifier used to attach this publication to maneuvers and clinical reasoning statements.",
         width: "180px",
+        required: true,
+        idPrefix: "REFID-",
       },
       {
-        key: "citation",
-        label: "Citation",
-        modelUse:
-          "The complete clinician-facing publication citation.",
-        width: "minmax(520px, 1.4fr)",
+        key: "referenceTitle",
+        label: "Reference Title",
+        modelUse: "The title of the manuscript.",
+        width: "300px",
+        required: true,
+      },
+      {
+        key: "abbreviatedAuthor",
+        label: "Abbreviated Author",
+        modelUse: "The first author, followed by et al.",
+        width: "200px",
+        required: true,
+      },
+      {
+        key: "completeAuthorList",
+        label: "Complete Author List",
+        modelUse: "All authors.",
+        width: "minmax(260px, 0.8fr)",
         multiline: true,
+        required: true,
       },
       {
-        key: "identifier",
+        key: "link",
+        label: "Link",
+        modelUse: "Web URL of the original journal publication.",
+        width: "240px",
+        required: true,
+      },
+      {
+        key: "pmidDoi",
         label: "PMID / DOI",
-        modelUse:
-          "A publication identifier used to locate, verify, and deduplicate the source.",
-        width: "260px",
+        modelUse: "A publication identifier used to locate, verify, and deduplicate the source.",
+        width: "220px",
       },
       {
         key: "notes",
         label: "Notes",
-        modelUse:
-          "Explains what the source supports and records any important limitations.",
-        width: "minmax(340px, 0.8fr)",
+        modelUse: "Explains what the source supports and records any important limitations.",
+        width: "minmax(280px, 0.8fr)",
         multiline: true,
       },
     ],
   },
 };
 
-const row = (
-  rowId: string,
-  values: Record<string, string>,
-): SpreadsheetRow => ({
-  __rowId: rowId,
-  ...values,
-});
-
-export const initialData: Record<SheetId, SpreadsheetRow[]> = {
-  clinicalTerms: [],
-
-  diagnoses: [
-    row("diagnosis-avnrt", {
-      diagnosisId: "AVNRT",
-      name: "Atrioventricular Nodal Reentrant Tachycardia",
-      abbreviation: "AVNRT",
-      description:
-        "A reentrant supraventricular tachycardia involving functionally distinct pathways within or adjacent to the atrioventricular node.",
-      notes: "",
-    }),
-  ],
-
-  maneuverDefinitions: [
-    row("maneuver-vop", {
-      maneuverId: "VOP",
-      name: "Ventricular Overdrive Pacing",
-      category: "Ventricular Pacing",
-      shortDescription:
-        "Ventricular pacing during tachycardia at a cycle length shorter than the tachycardia cycle length.",
-      technique:
-        "Pace from the ventricle during tachycardia at a cycle length sufficiently shorter than the tachycardia cycle length to interact with or entrain the tachycardia, then evaluate the response when pacing stops.",
-      expansionNotes:
-        "Interpretation may include the post-pacing activation sequence, evidence of entrainment, fusion, termination behavior, PPI − TCL, and other timing relationships. Validity and limitations should be considered before diagnostic reasoning is applied.",
-      enabled: "Yes",
-    }),
-  ],
-
-  maneuverResponseFields: [
-    row("vop-field-response", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      order: "1",
-      prompt: "What was the post-pacing response?",
-      inputType: "Single Select",
-      required: "Yes",
-      units: "",
-      defaultValue: "",
-      helpText:
-        "Select the chamber activation sequence observed immediately after ventricular pacing stops.",
-    }),
-    row("vop-field-entrained", {
-      maneuverId: "VOP",
-      fieldId: "tachycardia_entrained",
-      order: "2",
-      prompt: "Was the tachycardia entrained?",
-      inputType: "Yes/No/Uncertain",
-      required: "Yes",
-      units: "",
-      defaultValue: "",
-      helpText:
-        "Record whether pacing demonstrably interacted with and reset the tachycardia.",
-    }),
-    row("vop-field-fusion", {
-      maneuverId: "VOP",
-      fieldId: "fusion_present",
-      order: "3",
-      prompt: "Was fusion present?",
-      inputType: "Yes/No/Uncertain",
-      required: "No",
-      units: "",
-      defaultValue: "",
-      helpText:
-        "Record manifest or concealed fusion when it can be assessed.",
-    }),
-    row("vop-field-pcl-tcl", {
-      maneuverId: "VOP",
-      fieldId: "pcl_minus_tcl",
-      order: "4",
-      prompt: "PCL − TCL",
-      inputType: "Number",
-      required: "No",
-      units: "ms",
-      defaultValue: "",
-      helpText:
-        "Enter the pacing cycle length minus the tachycardia cycle length.",
-    }),
-    row("vop-field-ppi-tcl", {
-      maneuverId: "VOP",
-      fieldId: "ppi_minus_tcl",
-      order: "5",
-      prompt: "PPI − TCL",
-      inputType: "Number",
-      required: "No",
-      units: "ms",
-      defaultValue: "",
-      helpText:
-        "Enter the post-pacing interval minus the tachycardia cycle length.",
-    }),
-    row("vop-field-validity", {
-      maneuverId: "VOP",
-      fieldId: "validity",
-      order: "6",
-      prompt: "Is this maneuver interpretable?",
-      inputType: "Single Select",
-      required: "Yes",
-      units: "",
-      defaultValue: "VALID",
-      helpText:
-        "Choose whether the maneuver can be used for clinical reasoning and document limitations when necessary.",
-    }),
-    row("vop-field-comments", {
-      maneuverId: "VOP",
-      fieldId: "comments",
-      order: "7",
-      prompt: "Comments",
-      inputType: "Long Text",
-      required: "No",
-      units: "",
-      defaultValue: "",
-      helpText:
-        "Optional procedural details, limitations, or interpretation comments.",
-    }),
-  ],
-
-  maneuverResponseOptions: [
-    row("vop-option-vav", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      optionId: "post_response_vav",
-      order: "1",
-      displayLabel: "V-A-V",
-      storedValue: "VAV",
-    }),
-    row("vop-option-vaav", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      optionId: "post_response_vaav",
-      order: "2",
-      displayLabel: "V-A-A-V",
-      storedValue: "VAAV",
-    }),
-    row("vop-option-av-dissociation", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      optionId: "post_response_av_dissociation",
-      order: "3",
-      displayLabel: "AV dissociation",
-      storedValue: "AV_DISSOCIATION",
-    }),
-    row("vop-option-terminated-no-a", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      optionId: "post_response_terminated_no_a",
-      order: "4",
-      displayLabel: "Terminated without atrial activation",
-      storedValue: "TERMINATED_NO_A",
-    }),
-    row("vop-option-other", {
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      optionId: "post_response_other",
-      order: "5",
-      displayLabel: "Other",
-      storedValue: "OTHER",
-    }),
-    row("vop-option-valid", {
-      maneuverId: "VOP",
-      fieldId: "validity",
-      optionId: "validity_valid",
-      order: "1",
-      displayLabel: "Valid",
-      storedValue: "VALID",
-    }),
-    row("vop-option-limited", {
-      maneuverId: "VOP",
-      fieldId: "validity",
-      optionId: "validity_limited",
-      order: "2",
-      displayLabel: "Limited",
-      storedValue: "LIMITED",
-    }),
-    row("vop-option-invalid", {
-      maneuverId: "VOP",
-      fieldId: "validity",
-      optionId: "validity_invalid",
-      order: "3",
-      displayLabel: "Invalid",
-      storedValue: "INVALID",
-    }),
-  ],
-
-  clinicalReasoning: [
-    row("reasoning-vop-vav-avnrt", {
-      reasoningId: "VOP_VAV_AVNRT",
-      maneuverId: "VOP",
-      fieldId: "post_pacing_response",
-      operator: "Equals",
-      expectedValue: "VAV",
-      diagnosisId: "AVNRT",
-      effect: "Remains Possible",
-      strength: "Non-specific",
-      explanation:
-        "A V-A-V response after ventricular overdrive pacing is compatible with AVNRT, but the response is not independently diagnostic and must be interpreted with the validity of the maneuver and additional findings.",
-      referenceIds: "",
-      enabled: "Yes",
-    }),
-  ],
-
-  references: [],
-};
-
 export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
   clinicalTerms: [],
+  clinicalStates: [],
   diagnoses: [],
   maneuverDefinitions: [],
   maneuverResponseFields: [],
@@ -694,3 +630,7 @@ export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
   clinicalReasoning: [],
   references: [],
 });
+
+// The knowledge base starts empty — all content is entered through the
+// admin site rather than seeded here.
+export const initialData: Record<SheetId, SpreadsheetRow[]> = emptyData();
