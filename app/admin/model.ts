@@ -63,12 +63,20 @@ export type ColumnDefinition = {
    * `lookup.sheet` still supplies the actual option rows (so cross-sheet
    * reference chips keep pointing at the right sheet), just filtered down
    * to that allowed set.
+   *
+   * `optional` covers a column that's only sometimes scoped by another —
+   * e.g. Diagnosis Affected narrows to a maneuver's relevant diagnoses
+   * when Maneuver Considered is used, but a row can instead use Interval
+   * Considered, which has no relevant-diagnoses list to narrow by. With
+   * `optional: true`, a blank prerequisite falls back to the full
+   * unfiltered option list instead of blocking the column entirely.
    */
   filterBy?: {
     ownColumn: string;
     matchColumn: string;
     viaSheet?: SheetId;
     viaListColumn?: string;
+    optional?: boolean;
   };
 };
 
@@ -614,7 +622,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "diagnosisAffected",
         label: "Diagnosis Affected",
         modelUse:
-          "The diagnosis that this clinical reasoning acts upon, narrowed to diagnoses the maneuver selected above is relevant to.",
+          "The diagnosis that this clinical reasoning acts upon. Narrowed to diagnoses the maneuver selected above is relevant to when this row uses Maneuver Considered; shows every diagnosis when it uses Interval Considered instead.",
         width: "200px",
         lookup: { sheet: "diagnoses", column: "abbreviatedName" },
         filterBy: {
@@ -622,6 +630,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           matchColumn: "maneuverId",
           viaSheet: "maneuverDefinitions",
           viaListColumn: "relevantDiagnoses",
+          optional: true,
         },
         populatesColumn: "diagnosisId",
       },
@@ -668,7 +677,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "requiredClinicalState",
         label: "Required Clinical State",
         modelUse:
-          "Restricts this condition to maneuver results recorded while the specified Clinical State was active, narrowed to states the maneuver selected above requires. Used together with Rule Group ID to require the same finding across multiple states.",
+          "Restricts this condition to results recorded while the specified Clinical State was active. Narrowed to states the maneuver selected above requires when this row uses Maneuver Considered; shows every Clinical State when it uses Interval Considered instead. Used together with Rule Group ID to require the same finding across multiple states.",
         width: "220px",
         lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
         filterBy: {
@@ -676,6 +685,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           matchColumn: "maneuverId",
           viaSheet: "maneuverDefinitions",
           viaListColumn: "requiredStates",
+          optional: true,
         },
       },
       {

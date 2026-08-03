@@ -129,14 +129,23 @@ function getLookupOptions(
     ? norm(currentRow[filterBy.ownColumn] ?? "")
     : null;
 
-  if (filterBy && !requiredMatch) return [];
+  // An `optional` filterBy narrows when its prerequisite is filled in,
+  // but falls back to the full unfiltered list rather than blocking
+  // entirely when it isn't — e.g. Diagnosis Affected narrows to a
+  // maneuver's own relevant diagnoses when a maneuver is considered, but
+  // shows every diagnosis when the row considers an interval instead
+  // (which has no "relevant diagnoses" list of its own to narrow by).
+  const effectiveFilterBy =
+    filterBy && !requiredMatch && filterBy.optional ? null : filterBy;
+
+  if (effectiveFilterBy && !requiredMatch) return [];
 
   let allowedTokens: Set<string> | null = null;
-  if (filterBy?.viaSheet && filterBy.viaListColumn) {
+  if (effectiveFilterBy?.viaSheet && effectiveFilterBy.viaListColumn) {
     allowedTokens = new Set<string>();
-    for (const viaRow of allData[filterBy.viaSheet] ?? []) {
-      if (norm(viaRow[filterBy.matchColumn] ?? "") !== requiredMatch) continue;
-      for (const token of splitList(viaRow[filterBy.viaListColumn])) {
+    for (const viaRow of allData[effectiveFilterBy.viaSheet] ?? []) {
+      if (norm(viaRow[effectiveFilterBy.matchColumn] ?? "") !== requiredMatch) continue;
+      for (const token of splitList(viaRow[effectiveFilterBy.viaListColumn])) {
         allowedTokens.add(norm(token));
       }
     }
@@ -144,8 +153,8 @@ function getLookupOptions(
 
   const values = new Set<string>();
   for (const row of allData[lookup.sheet] ?? []) {
-    if (filterBy && !allowedTokens) {
-      if (norm(row[filterBy.matchColumn] ?? "") !== requiredMatch) continue;
+    if (effectiveFilterBy && !allowedTokens) {
+      if (norm(row[effectiveFilterBy.matchColumn] ?? "") !== requiredMatch) continue;
     }
     const value = (row[lookup.column] ?? "").trim();
     if (!value) continue;
