@@ -200,3 +200,109 @@ original schema:
 - The knowledge base now starts empty (`initialData` = `emptyData()`) —
   all content will be entered through the live admin site rather than
   seeded in code.
+
+<!-- DIFFERENTIAL-HIERARCHY-2026-08-02 -->
+## Differential Diagnosis Hierarchy (decided, not yet built)
+
+No percentage confidence. It was demo scaffolding from the original GUI
+draft and doesn't reflect real clinical reasoning — dropped entirely.
+Maneuver results only Support, Exclude, or Confirm a diagnosis (see
+Clinical Reasoning's `differentialAction`), and the differential list is a
+three-tier ranking built from that:
+
+- **Confirmed** diagnoses are pegged to the top of the list, regardless of
+  support count. Confirming one diagnosis does **not** remove or demote
+  the others — multiple concurrent mechanisms are clinically possible, so
+  every diagnosis not explicitly excluded stays visible and active.
+- **Excluded** diagnoses are pegged to the bottom, still visible (not
+  hidden) so the clinician can see why something was ruled out, per the
+  transparency theme running through the rest of this design.
+- **Possible** diagnoses (everything else) sort by count of satisfied
+  Supports rules, highest first, reshuffling live as results come in.
+  Ties fall back to a fixed population-frequency order (`baseRank` on the
+  Diagnoses sheet) as the default/tiebreak position — no separate
+  tiebreaker mechanism needed.
+- Order *within* the Confirmed tier or *within* the Excluded tier doesn't
+  matter; only which tier a diagnosis is in is meaningful.
+
+<!-- MANEUVER-CARD-UI-2026-08-02 -->
+## Maneuver Suggestion & Card UI (decided, not yet built)
+
+The current published site (the static GUI draft) is explicitly **not**
+the model going forward. The redesigned workspace centers on an array of
+maneuver cards/tiles:
+
+- Card front: maneuver name, performed/not-performed, which Clinical
+  State it was performed in (a maneuver can legitimately be performed
+  more than once per case — e.g. once off isoproterenol, once on — so
+  "performed" is tracked per maneuver-and-state pair, not as a single
+  global flag), and a result summary if performed.
+- Clicking a card flips it (animated) to reveal the response fields
+  defined for that maneuver in the knowledge base, for data entry.
+  Flipping it back triggers recalculation of the differential and
+  refreshes the display.
+- The array reorders dynamically by relevance, always laid out top to
+  bottom, left to right — a single ordered array, not separate sections.
+  Decision: **no separate "already performed" section.** Because a
+  maneuver's relevance can legitimately return (e.g. still needed under a
+  different Clinical State), a maneuver whose relevance has genuinely
+  dropped to zero should just sink toward the bottom of the same ranked
+  list rather than being bucketed away.
+- Relevance/suggestion scoring proposal: primarily derive relevance from
+  the Clinical Reasoning table — for each not-yet-exhausted maneuver,
+  count how many of its reasoning rows touch a diagnosis still in the
+  Possible tier, weighting Excludes/Confirms rows higher than Supports
+  rows (a maneuver that could decisively exclude or confirm something is
+  more valuable than one that can only nudge a support count). The
+  coarser `relevantDiagnoses` column on Maneuver Definitions acts as a
+  fallback signal for maneuvers that don't have Clinical Reasoning rows
+  authored yet (which, as of this session, is effectively all of them —
+  the knowledge base has almost no reasoning rows in it).
+- **Still open, not resolved:** whether to go further than counting
+  reasoning-row overlap — e.g. modeling each maneuver's possible *results*
+  to estimate which next maneuver is most likely to be decisive
+  (something closer to a value-of-information calculation) — versus
+  keeping the simpler reasoning-row-count approach above. Revisit once
+  there's enough real Clinical Reasoning data to tell whether the simple
+  version is good enough.
+
+<!-- ADMIN-UI-FEATURES-2026-08-02 -->
+## Admin Site Feature Additions (implemented)
+
+Beyond the schema itself, the admin spreadsheet editor (`app/admin/`)
+gained:
+
+- **Cross-sheet reference links.** Any cell whose value references a row
+  in another sheet renders a small clickable chip below it; clicking
+  switches tabs and scrolls to/briefly highlights the target row.
+  Unmatched values show as a dim, non-clickable tag instead, so a
+  dangling reference is visible at a glance.
+- **Live cross-sheet lookup dropdowns.** Columns with `lookup` metadata
+  render as real `<select>` dropdowns (or a checkbox picker for
+  multi-select columns like Relevant Diagnoses / Required States /
+  Available Terms), populated live from whatever's currently in the
+  referenced sheet — no save/reload needed to see a newly added row show
+  up as a choice elsewhere. Where a column is paired via
+  `populatesColumn` (Maneuver Considered → Maneuver ID, Response Field
+  Prompt → Field ID, Diagnosis Affected → Diagnosis ID, Reference Title →
+  Reference ID), picking a name auto-fills the hidden ID column.
+- **Column sorting.** Click a header to sort ascending, again for
+  descending, a third time to clear. Numeric-aware (Base Rank/Order
+  columns sort correctly rather than alphabetically), blanks always sort
+  last. View-only — never changes saved row order or triggers unsaved
+  changes.
+- **Required-field highlighting.** Cells for a required-but-blank column
+  get a red outline, driven by the same `required` metadata used for
+  save-time validation.
+
+A real bug was found and fixed this session: revisions saved under the
+pre-Clinical-States schema were missing that sheet's key entirely (not an
+empty array — absent), which crashed the save/load path. Every
+loaded/saved workbook is now normalized (`normalizeWorkbookSheets` in
+`app/admin/model.ts`) to guarantee all current sheet keys exist as
+arrays, applied on both the read path and the write path (covering save,
+restore-from-old-revision, and first-time initialization), with
+`validateWorkbook` also hardened to tolerate a missing sheet defensively.
+
+As of this session's end, all of the above is committed and pushed —
+local `main`, GitHub, and the live Vercel deployment are in sync.
