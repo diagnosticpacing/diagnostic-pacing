@@ -351,3 +351,51 @@ Net: the cascading/narrowing behavior is fully implemented everywhere
 the schema has data to narrow by. The remaining unscoped lookups are
 unscoped because there's no "already selected" value in that row's
 schema to narrow against, not because the work is incomplete.
+
+<!-- MANEUVER-CARD-GRID-2026-08-03 -->
+## Maneuver Card Grid — Working Draft (implemented 2026-08-03)
+
+The main workspace page's "Pacing maneuvers" panel — previously a single
+hardcoded recommendation plus a static 3-item alternatives list — is now
+a live card grid driven by the knowledge base, implementing the card-UI
+decision recorded above under "Maneuver Suggestion & Card UI":
+
+- **New public API**: `GET /api/knowledge/public` (unauthenticated) —
+  the existing `/api/knowledge` route correctly requires an admin
+  session since it can write; this read-only sibling lets the public
+  page fetch the same knowledge base to render maneuvers.
+- **`app/maneuvers/knowledge.ts`**: parses the raw sheets into a
+  maneuver → response-fields → response-options catalog (fields sorted
+  by Order, options sorted by Order within each field), tolerating
+  rows with missing linking IDs rather than crashing.
+- **`app/maneuvers/ManeuverCard.tsx`**: the flip card. Front face shows
+  the maneuver name, a performed/not-performed badge scoped to the
+  active Clinical State, a short result summary, and a note when it's
+  also been recorded under other Clinical States. Clicking flips it
+  (CSS 3D transform, `.maneuverCard`/`.maneuverCardFlipper` in
+  globals.css) to a data-entry form built from that maneuver's own
+  response fields — one control per Input Type: Checkbox, Single/Multi
+  Select Dropdown (options pulled from that field's own Response
+  Options), Number Field (with units), or Text Field(s).
+- **`app/clinical/model.ts`**: replaced the unused `ManeuverPlaceholder`
+  scaffold (a `{performed, suggested}` string-list pair that nothing
+  ever read) with a real `ManeuverPerformance` record — maneuverId,
+  a `values` map keyed by Field ID, and a timestamp — stored per
+  Clinical State via `findPerformance`/`upsertPerformance`. A maneuver
+  performed under two different Clinical States gets two independent
+  records, matching the "performed" concept from the card-UI decision.
+- **Ordering**: single flat grid, no separate "already performed"
+  section — cards simply reorder by relevance, exactly as decided
+  above. Relevance currently uses the documented fallback only (count
+  of the maneuver's own Relevant Diagnoses still active/non-excluded in
+  the differential) — the fuller Clinical-Reasoning-weighted algorithm
+  is still the open item noted above and needs real reasoning-rule data
+  to evaluate against before it's worth building.
+
+**Known limitation carried over from before this change:** the
+differential diagnosis list this scores against is still the static
+demo array on the page (not yet computed from Clinical Reasoning
+rules), so relevance ordering is only as good as that placeholder data
+for now. Building the real differential engine off Clinical Reasoning
+rows is the natural next step, and would make both this ordering and
+the differential diagnosis rail itself live.
