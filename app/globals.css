@@ -3676,3 +3676,300 @@ button.adminTableHeader.isSorted {
 .adminLoginForm button { margin-top: .35rem; border: 0; border-radius: .55rem; background: #dceef7; color: #10222e; padding: .82rem 1rem; font: inherit; font-weight: 800; cursor: pointer; }
 .adminLoginForm button:disabled { opacity: .55; cursor: not-allowed; }
 .adminLoginError { margin: 0; color: #ffb9b9; }
+
+/* Maneuver Card Grid v1 */
+
+.maneuverGridSubhead {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.maneuverGridSubhead strong {
+  color: var(--text);
+}
+
+.maneuverCatalogStatus {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.maneuverCatalogStatus.isError {
+  border-color: rgba(237, 127, 134, 0.4);
+  color: var(--red);
+}
+
+.maneuverGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* Establishes the 3D space the card flips within. */
+.maneuverCard {
+  perspective: 1400px;
+  min-height: 230px;
+}
+
+.maneuverCardFlipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 230px;
+  transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.maneuverCard.isFlipped .maneuverCardFlipper {
+  transform: rotateY(180deg);
+}
+
+.maneuverCardFace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  backface-visibility: hidden;
+}
+
+.maneuverCardFront {
+  justify-content: space-between;
+}
+
+.maneuverCardBack {
+  transform: rotateY(180deg);
+  overflow-y: auto;
+}
+
+.maneuverCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.maneuverCardTop h3,
+.maneuverCardBackHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.maneuverSuggestedTag {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(240, 185, 106, 0.16);
+  color: var(--amber);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.maneuverTechnique {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.maneuverPerformedStatus {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.maneuverPerformedBadge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.maneuverPerformedBadge.isPerformed {
+  border-color: rgba(105, 211, 158, 0.4);
+  background: rgba(105, 211, 158, 0.12);
+  color: var(--green);
+}
+
+.maneuverResultSummary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.maneuverOtherStatesNote {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.maneuverCardAction {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 1px solid rgba(91, 214, 220, 0.35);
+  border-radius: 8px;
+  background: rgba(91, 214, 220, 0.1);
+  color: var(--cyan);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.maneuverCardAction:hover {
+  border-color: rgba(91, 214, 220, 0.6);
+  background: rgba(91, 214, 220, 0.18);
+}
+
+.maneuverCardBackHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.maneuverCardBackHeader span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.maneuverFieldList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.maneuverField label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.maneuverField input,
+.maneuverField select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.maneuverField input:focus,
+.maneuverField select:focus {
+  outline: none;
+  border-color: rgba(91, 214, 220, 0.6);
+}
+
+.maneuverFieldCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.maneuverFieldMultiSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.maneuverFieldMultiSelect label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.maneuverFieldUnitInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.maneuverFieldUnitInput input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.maneuverFieldUnitInput input:focus {
+  outline: none;
+}
+
+.maneuverFieldUnitInput span {
+  flex: 0 0 auto;
+  color: var(--quiet);
+  font-size: 10px;
+}
+
+.maneuverFieldHelp {
+  margin: 4px 0 0;
+  color: var(--quiet);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.maneuverFieldEmpty {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.maneuverCardBackActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}

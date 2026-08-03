@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createClinicalState,
   createInitialCase,
+  findPerformance,
   medicationSummary,
   phaseOptions,
   rhythmOptions,
   sedationOptions,
+  upsertPerformance,
   workspaceConfigurations,
   type ClinicalStateContext,
   effectiveRefractoryPeriodComponentId,
   effectiveRefractoryPeriodValues,
   formatEffectiveRefractoryPeriod,
 } from "./clinical/model";
+import {
+  buildManeuverCatalog,
+  scoreManeuverRelevance,
+  type ManeuverCatalogEntry,
+} from "./maneuvers/knowledge";
+import ManeuverCard from "./maneuvers/ManeuverCard";
 
 const diagnoses = [
   {
@@ -47,27 +55,6 @@ const diagnoses = [
   },
 ];
 
-const maneuvers = [
-  {
-    name: "His-refractory PVC",
-    category: "Ventricular pacing",
-    description:
-      "Assess whether a ventricular stimulus advances, delays, or terminates the tachycardia.",
-  },
-  {
-    name: "Ventricular overdrive pacing",
-    category: "Entrainment",
-    description:
-      "Evaluate the post-pacing response, PPI–TCL, and SA–VA.",
-  },
-  {
-    name: "Para-Hisian pacing",
-    category: "Accessory pathway",
-    description:
-      "Compare retrograde atrial timing with and without His capture.",
-  },
-];
-
 function Panel({
   eyebrow,
   title,
@@ -89,7 +76,6 @@ function Panel({
 }
 
 export default function Home() {
-  const [selectedManeuver, setSelectedManeuver] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [caseRecord, setCaseRecord] = useState(createInitialCase);
   const [activeClinicalStateId, setActiveClinicalStateId] = useState(
@@ -97,12 +83,75 @@ export default function Home() {
   );
   const [stateChanges, setStateChanges] = useState<string[]>([]);
 
-  const currentManeuver = maneuvers[selectedManeuver];
+  const [maneuverCatalog, setManeuverCatalog] = useState<
+    ManeuverCatalogEntry[]
+  >([]);
+  const [maneuverCatalogStatus, setManeuverCatalogStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/knowledge/public")
+      .then((response) => {
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        return response.json();
+      })
+      .then((data: { sheets: Record<string, unknown> }) => {
+        if (cancelled) return;
+        setManeuverCatalog(
+          buildManeuverCatalog(
+            data.sheets as Parameters<typeof buildManeuverCatalog>[0],
+          ),
+        );
+        setManeuverCatalogStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setManeuverCatalogStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeClinicalState =
     caseRecord.clinicalStates.find(
       (clinicalState) => clinicalState.id === activeClinicalStateId,
     ) ?? caseRecord.clinicalStates[0];
+
+  const activeClinicalStateIndex = caseRecord.clinicalStates.findIndex(
+    (clinicalState) => clinicalState.id === activeClinicalState.id,
+  );
+  const activeClinicalStateLabel = `Clinical State ${
+    activeClinicalStateIndex === -1 ? 1 : activeClinicalStateIndex + 1
+  }`;
+
+  // Diagnoses not yet excluded — the fallback signal maneuver relevance is
+  // scored against until a real differential-diagnosis engine exists (see
+  // scoreManeuverRelevance in ./maneuvers/knowledge).
+  const activeDiagnosisAbbreviations = new Set(
+    diagnoses
+      .filter((diagnosis) => diagnosis.status !== "Excluded")
+      .map((diagnosis) => diagnosis.abbreviation.toUpperCase()),
+  );
+
+  const sortedManeuverCatalog = [...maneuverCatalog].sort(
+    (a, b) =>
+      scoreManeuverRelevance(b.definition, activeDiagnosisAbbreviations) -
+      scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations),
+  );
+
+  function saveManeuverPerformance(
+    maneuverId: string,
+    values: Record<string, string>,
+  ) {
+    updateActiveClinicalState((current) =>
+      upsertPerformance(current, maneuverId, values),
+    );
+    logStateChange("Maneuver result", maneuverId);
+  }
 
   const activeWorkspace =
     workspaceConfigurations[activeClinicalState.context.rhythm];
@@ -832,47 +881,72 @@ export default function Home() {
 
 
         <Panel eyebrow="Pacing maneuvers" title="">
-          <article className="recommendation">
-            <span className="stepNumber">
-              {String(selectedManeuver + 1).padStart(2, "0")}
-            </span>
-            <div>
-              <small>{currentManeuver.category}</small>
-              <h3>{currentManeuver.name}</h3>
-              <p>{currentManeuver.description}</p>
-            </div>
-          </article>
+          <p className="maneuverGridSubhead">
+            Ordered by relevance to the current differential — no separate
+            &ldquo;already performed&rdquo; section, since a maneuver can
+            become relevant again under a different Clinical State. Showing
+            results for <strong>{activeClinicalStateLabel}</strong>.
+          </p>
 
-          <div className="rationale">
-            <strong>Why this maneuver?</strong>
-            <p>
-              This is currently the highest-yield step for separating AVNRT
-              from an accessory pathway-mediated tachycardia.
+          {maneuverCatalogStatus === "loading" && (
+            <p className="maneuverCatalogStatus">Loading maneuvers…</p>
+          )}
+
+          {maneuverCatalogStatus === "error" && (
+            <p className="maneuverCatalogStatus isError">
+              Couldn&rsquo;t load the maneuver knowledge base. Try reloading
+              the page.
             </p>
-          </div>
+          )}
 
-          <div className="buttonRow">
-            <button className="primaryButton">Begin maneuver</button>
-            <button className="secondaryButton">View guide</button>
-          </div>
+          {maneuverCatalogStatus === "ready" &&
+            sortedManeuverCatalog.length === 0 && (
+              <p className="maneuverCatalogStatus">
+                No maneuvers are defined in the knowledge base yet — add them
+                from the admin editor.
+              </p>
+            )}
 
-          <p className="sectionLabel">Alternative maneuvers</p>
+          {maneuverCatalogStatus === "ready" &&
+            sortedManeuverCatalog.length > 0 && (
+              <div className="maneuverGrid">
+                {sortedManeuverCatalog.map((entry) => {
+                  const relevanceScore = scoreManeuverRelevance(
+                    entry.definition,
+                    activeDiagnosisAbbreviations,
+                  );
+                  const otherStatesPerformedCount =
+                    caseRecord.clinicalStates.filter(
+                      (clinicalState) =>
+                        clinicalState.id !== activeClinicalState.id &&
+                        findPerformance(
+                          clinicalState,
+                          entry.definition.maneuverId,
+                        ) !== null,
+                    ).length;
 
-          <div className="maneuverList">
-            {maneuvers.map((maneuver, index) => (
-              <button
-                className={selectedManeuver === index ? "selected" : ""}
-                key={maneuver.name}
-                onClick={() => setSelectedManeuver(index)}
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <strong>{maneuver.name}</strong>
-                  <small>{maneuver.category}</small>
-                </div>
-              </button>
-            ))}
-          </div>
+                  return (
+                    <ManeuverCard
+                      key={entry.definition.maneuverId}
+                      entry={entry}
+                      performance={findPerformance(
+                        activeClinicalState,
+                        entry.definition.maneuverId,
+                      )}
+                      otherStatesPerformedCount={otherStatesPerformedCount}
+                      isSuggested={relevanceScore > 0}
+                      activeClinicalStateLabel={activeClinicalStateLabel}
+                      onSave={(values) =>
+                        saveManeuverPerformance(
+                          entry.definition.maneuverId,
+                          values,
+                        )
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
         </Panel>
 
         <Panel eyebrow="Current interpretation" title="Evidence and reasoning">

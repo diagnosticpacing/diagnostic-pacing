@@ -44,9 +44,18 @@ export type ClinicalStateContext = {
   epinephrin: string;
 };
 
-export type ManeuverPlaceholder = {
-  performed: string[];
-  suggested: string[];
+/**
+ * One recorded pass at a maneuver, scoped to a single Clinical State. A
+ * maneuver can legitimately be performed more than once per case (e.g. once
+ * off isoproterenol, once on), so performances are keyed by
+ * (maneuverId, clinicalStateId), not by maneuverId alone. `values` holds one
+ * entry per response field id (from the Maneuver Response Fields sheet),
+ * keyed by that field's Field ID.
+ */
+export type ManeuverPerformance = {
+  maneuverId: string;
+  values: Record<string, string>;
+  recordedAt: string;
 };
 
 export type ClinicalState = {
@@ -56,7 +65,7 @@ export type ClinicalState = {
   erpDisplay: {
     showAccessoryPathway2: boolean;
   };
-  maneuvers: ManeuverPlaceholder;
+  performances: ManeuverPerformance[];
 };
 
 export type CaseRecord = {
@@ -241,11 +250,46 @@ export function createClinicalState(
     erpDisplay: {
       showAccessoryPathway2: false,
     },
-    maneuvers: {
-      performed: [],
-      suggested: [],
-    },
+    performances: [],
   };
+}
+
+/** The recorded performance of a maneuver under a given Clinical State, if any. */
+export function findPerformance(
+  clinicalState: ClinicalState,
+  maneuverId: string,
+): ManeuverPerformance | null {
+  return (
+    clinicalState.performances.find(
+      (performance) => performance.maneuverId === maneuverId,
+    ) ?? null
+  );
+}
+
+/** Records or replaces a maneuver's performance under a given Clinical State. */
+export function upsertPerformance(
+  clinicalState: ClinicalState,
+  maneuverId: string,
+  values: Record<string, string>,
+): ClinicalState {
+  const next: ManeuverPerformance = {
+    maneuverId,
+    values,
+    recordedAt: new Date().toISOString(),
+  };
+
+  const existingIndex = clinicalState.performances.findIndex(
+    (performance) => performance.maneuverId === maneuverId,
+  );
+
+  const performances =
+    existingIndex === -1
+      ? [...clinicalState.performances, next]
+      : clinicalState.performances.map((performance, index) =>
+          index === existingIndex ? next : performance,
+        );
+
+  return { ...clinicalState, performances };
 }
 
 export function createInitialCase(): CaseRecord {
