@@ -2,6 +2,59 @@
 
 This document records committed architecture, workflow, and interface decisions.
 
+<!-- STATUS-SUMMARY-2026-08-03 -->
+## Status Summary (checkpoint as of 2026-08-03)
+
+A fast-read reconciliation point, since this doc is the only durable memory
+across sessions. Full reasoning for everything below lives in its own dated
+section further down — this is an index, not a replacement.
+
+**Live and implemented:**
+
+- Clinical State measurement architecture, ERP card, and rhythm-specific
+  display rules (original design, still current).
+- Knowledge base schema v2, including Clinical States, Rule Group ID /
+  Required Clinical State on Clinical Reasoning, and the three-value
+  Differential Action (Supports/Excludes/Confirms). The Clinical States
+  fixed vocabulary is NSR, Brady, Tachy, CRM Paced, Iso On, Iso Off,
+  Adenosine — **Iso Washout was removed** from the original v2 list early
+  in this stretch of work.
+- Admin spreadsheet editor: cross-sheet reference links, live cascading
+  lookup dropdowns (see the dedicated reference section below — this is
+  the "how are the tailored column menus auto-populated" answer),
+  auto-populated hidden ID columns, column sorting, resizable columns,
+  required-field highlighting, and **per-row locking** with save-locks-
+  everything semantics.
+- Clinical Reasoning can evaluate either a Maneuver's response field or
+  an Interval directly (Maneuver Considered vs. Interval Considered),
+  mutually exclusive and enforced live in the UI, not just by validation.
+- Clinical Terms sheet renamed to "Intervals" in every user-facing label
+  (internal `SheetId`/keys unchanged on purpose — no migration needed).
+- Main GUI: live maneuver card grid (flip-to-enter-results) replacing the
+  old static tile mockup, independently resizable Clinical States and
+  Differential Diagnosis rails, and a **real differential diagnosis
+  engine** (`app/differential/engine.ts`) replacing the old hardcoded
+  demo array and fake percentage-confidence bar. Both the card grid's
+  relevance ordering and the differential rail now read from the same
+  live knowledge base via the public `GET /api/knowledge/public` route.
+
+**Still open / intentionally deferred:**
+
+- Differential engine: Required Clinical State is not enforced yet (checked
+  existentially across all recorded states); interval-to-measurement
+  matching is a name heuristic, not a formal ID join.
+- Maneuver relevance scoring still uses the documented fallback (count of
+  a maneuver's own Relevant Diagnoses still active) rather than the fuller
+  Clinical-Reasoning-weighted / value-of-information approach — needs more
+  real reasoning-rule data before that's worth building.
+- Two schema-v2 items flagged but never explicitly re-confirmed: the
+  `enabled` Yes/No row-disable toggle, and `storedValue` on Response
+  Options (Compared Value is currently free text with no controlled
+  vocabulary to validate against it).
+- The `INFRA-STATUS-2026-08-01` snapshot below (Blob revision number, row
+  counts, the revision-index gap at 5/7) is now stale given the volume of
+  saves since — treat it as historical, not current, until re-verified.
+
 <!-- ERP-CLINICAL-STATE-DESIGN-V1 -->
 ## Clinical State Measurement Architecture
 
@@ -93,7 +146,15 @@ card derives its visible fields and ordering through rhythm-specific display
 rules rather than deleting fields from the underlying model.
 
 <!-- INFRA-STATUS-2026-08-01 -->
-## Infrastructure Status (as of 2026-08-01)
+## Infrastructure Status (as of 2026-08-01 — stale, see Status Summary)
+
+**This snapshot is out of date.** Dozens of saves have landed since
+(schema v2, Intervals rename, Clinical Reasoning additions, row locking,
+and all the ordinary data entry in between), so the revision number and
+row counts below no longer reflect production. Left as-is rather than
+guessed-at — re-run `scripts/blob-status.mjs` for a current read rather
+than trusting these numbers. The revision-index gap noted below hasn't
+been specifically re-checked since.
 
 - Local project folder, GitHub (`diagnosticpacing/diagnostic-pacing`), and
   Vercel are connected and verified in sync. Local `main` tracks
@@ -116,11 +177,15 @@ rules rather than deleting fields from the underlying model.
   2026-07-27 and can be ignored or discarded.
 
 <!-- KNOWLEDGE-ENGINE-DESIGN-2026-08-01 -->
-## Knowledge Base Rules Engine (design in progress, not yet built)
+## Knowledge Base Rules Engine (original design notes — implemented 2026-08-03)
 
-The differential-diagnosis calculator and rules engine do not exist yet —
-`app/page.tsx` still renders hardcoded demo diagnoses and maneuvers. Design
-direction agreed so far:
+**Superseded by `DIFFERENTIAL-ENGINE-V1-2026-08-03` below**, which built
+almost exactly what this section proposed (hard/soft rules, Rule Group ID
+AND-grouping, the Relevant-Diagnoses fallback for maneuver suggestion).
+Left in place for the original reasoning; treat the section below as the
+current, accurate description of what actually exists in code.
+
+Design direction agreed at the time:
 
 - The existing `clinicalReasoning` sheet's `effect` column (Supports /
   Against / Remains Possible / Excludes / Confirms) already implies a hybrid
@@ -163,7 +228,10 @@ original schema:
 - New **Clinical States** sheet (`clinicalStates`): a fixed vocabulary of
   pharmacologic/rhythm conditions (NSR, Brady, Tachy, CRM Paced, Iso On,
   Iso Washout, Iso Off, Adenosine) that a maneuver performance or
-  Clinical Reasoning condition can be scoped to.
+  Clinical Reasoning condition can be scoped to. **Update:** Iso Washout
+  was subsequently removed from this vocabulary (NSR, Brady, Tachy, CRM
+  Paced, Iso On, Iso Off, Adenosine is current) — it didn't correspond to
+  a distinct enough pharmacologic state to justify its own row.
 - **Diagnoses** gained `baseRank`: the fixed population-frequency fallback
   sort order (see the differential-hierarchy decision above).
 - **Clinical Reasoning** gained `ruleGroupId` (rows sharing a group id must
@@ -182,13 +250,15 @@ original schema:
 - `ColumnDefinition` (the type describing each sheet's columns) now
   carries structured metadata — `required`, `idPrefix`, `options`,
   `multiSelect`, `lookup` — instead of only free-text guidance. The admin
-  UI (`SpreadsheetTable.tsx`) currently uses this to render real
-  dropdowns for fixed-option columns and to highlight required-but-blank
-  cells in red. Cross-sheet lookups (e.g. "Maneuver Considered" picking a
-  name and auto-filling the hidden Maneuver ID column) and multi-select
-  controls are captured in the schema (`lookup`, `multiSelect`) but not
-  yet rendered as real dropdowns — those columns are still typed as
-  comma-separated free text until that UI is built.
+  UI (`SpreadsheetTable.tsx`) uses this to render real dropdowns for
+  fixed-option and cross-sheet-lookup columns alike (including
+  multi-select as a checkbox picker) and to highlight required-but-blank
+  cells in red. **Update:** this was still free-text/comma-separated at
+  the time this note was written; live cascading dropdowns were built the
+  next day (`ADMIN-UI-FEATURES-2026-08-02`, then fully audited and
+  extended in `CASCADING-LOOKUP-AUDIT-2026-08-03`) — see the consolidated
+  "Admin Auto-Populate & Cascading Lookup Reference" section below for how
+  the mechanism actually works today.
 - Two things worth flagging that got dropped in the revision and haven't
   been explicitly re-confirmed: the `enabled` Yes/No toggle (on Maneuver
   Definitions and Clinical Reasoning, for disabling a row without
@@ -202,7 +272,7 @@ original schema:
   seeded in code.
 
 <!-- DIFFERENTIAL-HIERARCHY-2026-08-02 -->
-## Differential Diagnosis Hierarchy (decided, not yet built)
+## Differential Diagnosis Hierarchy (decided 2026-08-02; implemented 2026-08-03)
 
 No percentage confidence. It was demo scaffolding from the original GUI
 draft and doesn't reflect real clinical reasoning — dropped entirely.
@@ -226,7 +296,7 @@ three-tier ranking built from that:
   matter; only which tier a diagnosis is in is meaningful.
 
 <!-- MANEUVER-CARD-UI-2026-08-02 -->
-## Maneuver Suggestion & Card UI (decided, not yet built)
+## Maneuver Suggestion & Card UI (decided 2026-08-02; implemented 2026-08-03)
 
 The current published site (the static GUI draft) is explicitly **not**
 the model going forward. The redesigned workspace centers on an array of
@@ -352,6 +422,89 @@ the schema has data to narrow by. The remaining unscoped lookups are
 unscoped because there's no "already selected" value in that row's
 schema to narrow against, not because the work is incomplete.
 
+<!-- AUTO-POPULATE-REFERENCE-2026-08-03 -->
+## Admin Auto-Populate & Cascading Lookup — Reference (current mechanism)
+
+The full picture, in one place, of how a column's menu selections get
+scoped and how picking one column can fill in another. This mechanism
+grew in pieces across several sessions (`ColumnDefinition` in
+`app/admin/model.ts`, rendering logic in
+`app/admin/components/SpreadsheetTable.tsx`) — this section is the
+answer key rather than a change log entry.
+
+Five `ColumnDefinition` fields drive it, and they combine:
+
+- **`lookup: { sheet, column }`** — this column's value comes from
+  another sheet's column rather than free typing. Renders as a `<select>`
+  (or a checkbox picker if `multiSelect` is also set), live-populated
+  from whatever's currently in that sheet — no save/reload needed to see
+  a row added elsewhere show up as a choice.
+- **`populatesColumn: "otherKey"`** — selecting a value in this column
+  also auto-fills the named sibling column in the same row, using the
+  matched row's *primary ID column* (whichever column has an `idPrefix`)
+  by default. This is how a human-picks-a-name column silently keeps a
+  machine-stable ID column in sync (e.g. Maneuver Considered → Maneuver
+  ID).
+- **`populatesColumnFrom: "columnKey"`** — overrides which column of the
+  matched row gets copied, when the default (the primary ID) isn't what
+  the paired column should mirror. Only Interval Considered → Interval
+  Name sets this today (copies the interval's `name`, not its `TID-`
+  code, since nothing else references an interval by ID).
+- **`filterBy: { ownColumn, matchColumn, viaSheet?, viaListColumn?, optional? }`**
+  — narrows this column's option list to rows relevant to a value already
+  picked earlier in the same row, rather than showing every row in
+  `lookup.sheet`:
+  - Base form (`ownColumn`/`matchColumn` only): only include rows from
+    `lookup.sheet` whose `matchColumn` equals this row's own
+    `ownColumn` value. One row in the target sheet per allowed option
+    (e.g. Response Field Prompt narrowed to fields whose
+    `associatedManeuverId` matches this row's `maneuverId`).
+  - `viaSheet`/`viaListColumn` variant: the allowed values instead come
+    from a **comma-separated list column** on the matching row in
+    `viaSheet`, rather than one target row per option (e.g. Diagnosis
+    Affected narrows to whatever's in the chosen maneuver's own
+    `relevantDiagnoses` list). `lookup.sheet` still supplies the actual
+    option rows, just filtered down to that allowed set, so reference
+    chips keep pointing at the right sheet.
+  - `optional: true`: if the prerequisite (`ownColumn`) is blank, fall
+    back to the full unfiltered list instead of blocking the column
+    entirely. Used where a column is only *sometimes* scoped by another
+    — Diagnosis Affected and Required Clinical State narrow off
+    `maneuverId` when a row uses Maneuver Considered, but show every
+    option when the row uses Interval Considered instead (which has no
+    maneuver to narrow by). Without `optional`, a blank prerequisite
+    shows zero options and a "Pick X first" placeholder — the correct
+    behavior for Response Field Prompt, which is only ever meaningful
+    for a maneuver-based row and should stay blocked without one.
+- **`disabledWhenFilled: ["columnKey", ...]`** — independent of lookup
+  scoping: this column becomes disabled (greyed out, blocked from
+  editing, with a "Clear X to use this" note) whenever any named sibling
+  column already holds a value. This is how Maneuver Considered/Maneuver
+  ID/Response Field Prompt/Associated Field ID and Interval
+  Considered/Interval Name stay mutually exclusive — picking one path
+  locks out the other until it's cleared.
+
+Current column-by-column map:
+
+| Sheet | Column | lookup | filterBy | populatesColumn(From) |
+|---|---|---|---|---|
+| Maneuver Definitions | Relevant Diagnoses, Required States | ✓ (unscoped, first-tier) | — | — |
+| Response Fields | Associated Maneuver ID | ✓ (unscoped, first-tier) | — | — |
+| Response Options | Associated Maneuver Name | ✓ (unscoped, first-tier) | — | → Associated Maneuver ID |
+| Response Options | Associated Maneuver Response Prompt | ✓ | on `associatedManeuverId` | → Associated Field ID |
+| Clinical Reasoning | Maneuver Considered | ✓ (unscoped, first-tier) | — | → Maneuver ID |
+| Clinical Reasoning | Response Field Prompt | ✓ | on `maneuverId` (blocking, not optional) | → Field ID |
+| Clinical Reasoning | Interval Considered | ✓ (unscoped, first-tier) | — | → Interval Name (via `populatesColumnFrom: "name"`) |
+| Clinical Reasoning | Diagnosis Affected | ✓ | on `maneuverId`, `optional`, via Maneuver Definitions' `relevantDiagnoses` | → Diagnosis ID |
+| Clinical Reasoning | Required Clinical State | ✓ | on `maneuverId`, `optional`, via Maneuver Definitions' `requiredStates` | — |
+| Clinical Reasoning | Reference Title | ✓ (unscoped — no maneuver/diagnosis link exists on References to narrow by) | — | → Reference ID |
+
+Every unscoped ("first-tier") lookup in this table is unscoped by
+design, not by omission — there's nothing earlier in that row to narrow
+against. If a future column ever needs scoping and the schema doesn't
+yet have an "already picked" value to key off of, that's a schema gap
+to raise, not a UI gap to silently work around.
+
 <!-- MANEUVER-CARD-GRID-2026-08-03 -->
 ## Maneuver Card Grid — Working Draft (implemented 2026-08-03)
 
@@ -392,13 +545,12 @@ decision recorded above under "Maneuver Suggestion & Card UI":
   is still the open item noted above and needs real reasoning-rule data
   to evaluate against before it's worth building.
 
-**Known limitation carried over from before this change:** the
-differential diagnosis list this scores against is still the static
-demo array on the page (not yet computed from Clinical Reasoning
-rules), so relevance ordering is only as good as that placeholder data
-for now. Building the real differential engine off Clinical Reasoning
-rows is the natural next step, and would make both this ordering and
-the differential diagnosis rail itself live.
+**Resolved same stretch of work:** the limitation originally noted here
+— that relevance scoring ran against a static demo diagnoses array — no
+longer applies. `DIFFERENTIAL-ENGINE-V1-2026-08-03` below replaced that
+array with a real, live-computed differential, so both this card grid's
+relevance ordering and the differential diagnosis rail itself now read
+from the same knowledge-base-driven result.
 
 <!-- RESIZABLE-SIDE-RAILS-2026-08-03 -->
 ## Resizable Side Rails (implemented 2026-08-03)
