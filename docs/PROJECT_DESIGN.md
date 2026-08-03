@@ -448,7 +448,7 @@ Five `ColumnDefinition` fields drive it, and they combine:
 - **`populatesColumnFrom: "columnKey"`** — overrides which column of the
   matched row gets copied, when the default (the primary ID) isn't what
   the paired column should mirror. Only Interval Considered → Interval
-  Name sets this today (copies the interval's `name`, not its `TID-`
+  Name sets this today (copies the interval's `name`, not its `IID-`
   code, since nothing else references an interval by ID).
 - **`filterBy: { ownColumn, matchColumn, viaSheet?, viaListColumn?, optional? }`**
   — narrows this column's option list to rows relevant to a value already
@@ -578,12 +578,13 @@ Two related changes to the knowledge base schema:
 - **"Clinical Terms" renamed to "Intervals"** everywhere it's shown to
   the user (tab label, sheet label/description, exported workbook's
   worksheet name, column labels — "Term ID" is now "Interval ID").
-  The underlying `SheetId` key (`clinicalTerms`), column key (`termId`),
-  and ID prefix (`TID-`) were deliberately left unchanged, since
-  production Blob data already exists under those keys — renaming them
-  would have required a migration path for no real benefit, since only
-  the label was described as "more accurate," not the internal
-  identifiers.
+  The underlying `SheetId` key (`clinicalTerms`) and column key
+  (`termId`) were deliberately left unchanged, since production Blob
+  data already exists under those keys — renaming them would have
+  required a migration path for no real benefit, since only the label
+  was described as "more accurate," not the internal identifiers. The ID
+  *prefix* was originally left unchanged too (`TID-`), but was later
+  changed to `IID-` — see `INTERVAL-ID-PREFIX-2026-08-03` below.
 - **Clinical Reasoning can now evaluate an Interval directly**, not
   just a maneuver's response field. Two options were weighed: (A) add a
   parallel column pair for intervals, or (B) merge Maneuver Considered
@@ -628,7 +629,7 @@ Two follow-ups to the Interval Considered addition above, same day:
   let a row combine both paths anyway by going around Maneuver
   Considered directly, defeating the point.
 - **Interval ID renamed to Interval Name**, and changed to actually
-  mirror the interval's Name rather than its `TID-` code — unlike
+  mirror the interval's Name rather than its ID code — unlike
   Maneuver ID (a real foreign key other sheets reference), nothing
   references an interval by ID, so there's no reason for the
   auto-populated companion column to show a code instead of a readable
@@ -777,3 +778,34 @@ adopted into React state if the server confirms the save succeeded —
 a rejected save (validation failure or revision conflict) leaves the
 editor's in-progress state, including whatever was still unlocked,
 completely untouched.
+
+<!-- BROWSER-TAB-TITLES-2026-08-03 -->
+## Browser Tab Titles (implemented 2026-08-03)
+
+Both the main workspace and admin editor were still showing the Next.js
+starter-template default ("Create Next App") as their browser tab
+title/description — never actually set. `app/layout.tsx`'s root
+`metadata` now reads `"DiagnosticPacing.org"` with a real description;
+`app/admin/layout.tsx` adds its own `title: "Knowledge Base Admin"`
+(Next.js layout metadata is per-segment, so the admin route's title
+overrides the root one there without needing a shared title template).
+
+<!-- INTERVAL-ID-PREFIX-2026-08-03 -->
+## Interval ID Prefix Changed to IID- (implemented 2026-08-03)
+
+The Intervals sheet's `termId` column (labeled "Interval ID" since the
+Clinical Terms → Intervals rename) required a `TID-` prefix — a leftover
+from before the rename, no longer matching the sheet's own name.
+Changed `idPrefix` in `app/admin/model.ts` to `IID-` (e.g. `IID-001`),
+consistent with every other sheet's ID column matching its own name
+(`MID-`, `FID-`, `OID-`, `DID-`, `SID-`, `CRID-`, `REFID-`).
+
+**Any existing Interval rows already saved under `TID-` will now fail
+save/lock validation** (the `idPrefix` check requires the value to start
+with the current prefix) until their IDs are manually renamed to
+`IID-...` in the admin editor — this wasn't a live concern to check
+before making the change, since the Intervals sheet was still
+effectively empty/placeholder as of the last confirmed knowledge base
+snapshot (see the now-stale `INFRA-STATUS-2026-08-01` note), but is
+worth knowing if a save unexpectedly flags existing rows after this
+change.

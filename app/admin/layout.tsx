@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  title: "Knowledge Base Admin",
   robots: { index: false, follow: false, nocache: true },
 };
 

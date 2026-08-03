@@ -166,10 +166,10 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "termId",
         label: "Interval ID",
         modelUse:
-          "Stable identifier used when another record needs to reference this interval.",
+          "Stable identifier used when another record needs to reference this interval, e.g. IID-001.",
         width: "170px",
         required: true,
-        idPrefix: "TID-",
+        idPrefix: "IID-",
       },
       {
         key: "name",
