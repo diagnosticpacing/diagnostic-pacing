@@ -1,6 +1,14 @@
 export type SpreadsheetRow = {
   __rowId: string;
-  [key: string]: string;
+  /**
+   * Internal editing-safety metadata, not domain content: "true" when the
+   * row is locked against edits. Not a real column — excluded from the
+   * exported workbook and from any validation/reference logic that walks
+   * `definition.columns`. Absent or any other value means unlocked; new
+   * rows are created without it, so they default to unlocked.
+   */
+  __locked?: string;
+  [key: string]: string | undefined;
 };
 
 export type ColumnDefinition = {

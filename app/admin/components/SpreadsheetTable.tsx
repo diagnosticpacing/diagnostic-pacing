@@ -7,6 +7,8 @@ import type {
   SpreadsheetRow,
 } from "../model";
 import { sheetDefinitions } from "../model";
+import { validateRow } from "@/knowledge/validation";
+import { KNOWLEDGE_SCHEMA_VERSION, type KnowledgeWorkbook } from "@/knowledge/types";
 
 type SortDirection = "asc" | "desc";
 type SortState = { columnKey: string; direction: SortDirection } | null;
@@ -72,6 +74,7 @@ type SpreadsheetTableProps = {
     value: string,
   ) => void;
   onDeleteRow: (rowId: string) => void;
+  onToggleLock: (rowId: string, locked: boolean) => void;
   onNavigateToReference: (sheetId: SheetId, rowId: string) => void;
   highlightRowId?: string | null;
 };
@@ -166,6 +169,31 @@ function getLookupOptions(
   );
 }
 
+/** A minimal line-drawn padlock, open or closed, matching the app's plain
+ * glyph icon style (×, ↗, ▾) rather than a full-color emoji. */
+function LockIcon({ locked }: { locked: boolean }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4.5" y="11" width="15" height="10" rx="2.2" />
+      {locked ? (
+        <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+      ) : (
+        <path d="M8 11V7.5a4 4 0 0 1 7.4-2.1" />
+      )}
+    </svg>
+  );
+}
+
 function ReferenceLink({
   label,
   onClick,
@@ -249,6 +277,7 @@ export default function SpreadsheetTable({
   onAddRow,
   onCellChange,
   onDeleteRow,
+  onToggleLock,
   onNavigateToReference,
   highlightRowId,
 }: SpreadsheetTableProps) {
@@ -367,11 +396,44 @@ export default function SpreadsheetTable({
     }
   };
 
+  /**
+   * Locking runs the exact same completeness/referential checks save does
+   * (see knowledge/validation.ts's validateRow), so a row that locks
+   * cleanly is guaranteed not to block a save later. Unlocking never needs
+   * validation — it only ever loosens things.
+   */
+  const handleToggleLock = (row: SpreadsheetRow) => {
+    const isLocked = row.__locked === "true";
+
+    if (isLocked) {
+      onToggleLock(row.__rowId, false);
+      return;
+    }
+
+    const workbook: KnowledgeWorkbook = {
+      schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
+      sheets: allData,
+    };
+    const issues = validateRow(definition.id, row, workbook);
+
+    if (issues.length > 0) {
+      window.alert(
+        `This row can't be locked yet — it wouldn't pass save validation:\n\n${issues
+          .map((item) => `• ${item.message}`)
+          .join("\n")}`,
+      );
+      return;
+    }
+
+    onToggleLock(row.__rowId, true);
+  };
+
   const gridTemplateColumns = [
     "48px",
     ...definition.columns.map(
       (column) => `${columnWidths[column.key] ?? DEFAULT_COLUMN_WIDTH}px`,
     ),
+    "54px",
     "50px",
   ].join(" ");
 
@@ -424,18 +486,22 @@ export default function SpreadsheetTable({
           );
         })}
 
+        <div className="adminTableHeader adminLockHeader" />
         <div className="adminTableHeader adminDeleteHeader" />
 
         {sortedRows.map((row, rowIndex) => {
           const isHighlighted = row.__rowId === highlightRowId;
+          const isLocked = row.__locked === "true";
 
           return (
             <div
-              className={
-                isHighlighted
-                  ? "adminSpreadsheetRow isHighlighted"
-                  : "adminSpreadsheetRow"
-              }
+              className={[
+                "adminSpreadsheetRow",
+                isHighlighted && "isHighlighted",
+                isLocked && "isLocked",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               key={row.__rowId}
               ref={(node) => {
                 if (node) rowRefs.current.set(row.__rowId, node);
@@ -458,6 +524,7 @@ export default function SpreadsheetTable({
                   }))
                   .find((peer) => peer.value.trim() !== "");
                 const isDisabledByPeer = Boolean(blockingColumn);
+                const isDisabledForEditing = isDisabledByPeer || isLocked;
 
                 const cellClassName = [
                   "adminCell",
@@ -494,7 +561,7 @@ export default function SpreadsheetTable({
                         ariaLabel={`${column.label}, row ${rowIndex + 1}`}
                         value={value}
                         options={selectOptions}
-                        disabled={isDisabledByPeer}
+                        disabled={isDisabledForEditing}
                         onChange={(next) =>
                           onCellChange(row.__rowId, column.key, next)
                         }
@@ -503,7 +570,7 @@ export default function SpreadsheetTable({
                       <select
                         aria-label={`${column.label}, row ${rowIndex + 1}`}
                         value={value}
-                        disabled={isDisabledByPeer}
+                        disabled={isDisabledForEditing}
                         onChange={(event) =>
                           handleLookupChange(
                             row.__rowId,
@@ -535,7 +602,7 @@ export default function SpreadsheetTable({
                         placeholder={column.modelUse}
                         rows={3}
                         value={value}
-                        disabled={isDisabledByPeer}
+                        disabled={isDisabledForEditing}
                         onChange={(event) =>
                           onCellChange(
                             row.__rowId,
@@ -553,7 +620,7 @@ export default function SpreadsheetTable({
                             : column.modelUse
                         }
                         value={value}
-                        disabled={isDisabledByPeer}
+                        disabled={isDisabledForEditing}
                         onChange={(event) =>
                           onCellChange(
                             row.__rowId,
@@ -613,11 +680,31 @@ export default function SpreadsheetTable({
                 );
               })}
 
+              <div className="adminLockCell">
+                <button
+                  type="button"
+                  className={isLocked ? "adminLockButton isLocked" : "adminLockButton"}
+                  aria-label={
+                    isLocked ? `Unlock row ${rowIndex + 1}` : `Lock row ${rowIndex + 1}`
+                  }
+                  aria-pressed={isLocked}
+                  title={
+                    isLocked
+                      ? "Unlock to edit this row"
+                      : "Lock this row to protect it from accidental edits"
+                  }
+                  onClick={() => handleToggleLock(row)}
+                >
+                  <LockIcon locked={isLocked} />
+                </button>
+              </div>
+
               <div className="adminDeleteCell">
                 <button
                   type="button"
                   aria-label={`Delete row ${rowIndex + 1}`}
-                  title="Delete row"
+                  title={isLocked ? "Unlock this row before deleting it" : "Delete row"}
+                  disabled={isLocked}
                   onClick={() => onDeleteRow(row.__rowId)}
                 >
                   ×
@@ -632,7 +719,7 @@ export default function SpreadsheetTable({
             className="adminEmptySpreadsheetRow"
             style={{
               gridColumn: `1 / span ${
-                definition.columns.length + 2
+                definition.columns.length + 3
               }`,
             }}
           >

@@ -126,6 +126,19 @@ export default function AdminPage() {
     setIsDirty(true);
   };
 
+  const handleToggleLock = (rowId: string, locked: boolean) => {
+    setData((current) => ({
+      ...current,
+      [activeSheetId]: current[activeSheetId].map((row) =>
+        row.__rowId === rowId
+          ? { ...row, __locked: locked ? "true" : "" }
+          : row,
+      ),
+    }));
+
+    setIsDirty(true);
+  };
+
   const handleNavigateToReference = (sheetId: SheetId, rowId: string) => {
     if (maneuverSheetIds.has(sheetId)) {
       setActiveTab("maneuvers");
@@ -153,6 +166,21 @@ export default function AdminPage() {
 
     if (!changeSummary) return;
 
+    // Saving locks every row across every sheet, not just the one being
+    // viewed — a successful save has already passed the exact same
+    // validation a manual row-lock requires, so there's nothing left to
+    // protect against by leaving anything unlocked. This is computed as a
+    // local copy rather than applied to `data` directly: if the save is
+    // rejected (validation failure or a revision conflict), `data` stays
+    // exactly as the user left it, still editable, with nothing locked
+    // that didn't actually get saved.
+    const lockedSheets = Object.fromEntries(
+      Object.entries(data).map(([sheetId, rows]) => [
+        sheetId,
+        rows.map((row) => ({ ...row, __locked: "true" })),
+      ]),
+    ) as Record<SheetId, SpreadsheetRow[]>;
+
     setIsSaving(true);
     try {
       const response = await fetch("/api/knowledge", {
@@ -161,7 +189,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           expectedRevision: revision,
           changeSummary,
-          sheets: data,
+          sheets: lockedSheets,
         }),
       });
 
@@ -301,6 +329,7 @@ export default function AdminPage() {
             onAddRow={handleAddRow}
             onCellChange={handleCellChange}
             onDeleteRow={handleDeleteRow}
+            onToggleLock={handleToggleLock}
             onNavigateToReference={handleNavigateToReference}
             highlightRowId={highlightRowId}
           />

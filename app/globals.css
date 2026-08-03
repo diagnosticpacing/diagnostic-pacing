@@ -14,6 +14,7 @@
   --green: #69d39e;
   --amber: #f0b96a;
   --red: #ed7f86;
+  --locked: #a78bfa;
 }
 
 * {
@@ -4044,4 +4045,101 @@ button.adminTableHeader.isSorted {
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+
+/* Row locking v1 */
+
+.adminLockHeader {
+  min-height: 150px;
+  justify-content: flex-end;
+  padding-bottom: 14px;
+  text-align: center;
+}
+
+.adminLockCell {
+  display: flex;
+  min-height: 69px;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.adminLockButton {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--quiet);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.adminLockButton:hover {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--locked);
+  opacity: 1;
+}
+
+.adminLockButton.isLocked {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--locked);
+  opacity: 1;
+}
+
+/*
+ * A locked row has to read as unmistakably different from the existing
+ * "disabled by a sibling field" grey-out (isDisabledByPeer, used for the
+ * Maneuver/Interval Considered mutual exclusion) and from the red
+ * "required but empty" state — both of those are transient mid-edit
+ * states, while locked is a deliberate, whole-row protection status the
+ * user turned on. Diagonal hatch + a violet top/bottom band, rather than
+ * another shade of grey, is the distinguishing treatment; violet isn't
+ * used anywhere else in the admin palette (green/cyan/amber/red are all
+ * already spoken for), so it can't be confused for a status color.
+ *
+ * `.adminSpreadsheetRow` is `display: contents`, so it renders no box of
+ * its own — the treatment has to target each of its rendered children
+ * individually, the same pattern already used for isHighlighted.
+ */
+.adminSpreadsheetRow.isLocked > .adminCell,
+.adminSpreadsheetRow.isLocked > .adminRowNumber,
+.adminSpreadsheetRow.isLocked > .adminLockCell,
+.adminSpreadsheetRow.isLocked > .adminDeleteCell {
+  position: relative;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(167, 139, 250, 0.055) 0px,
+      rgba(167, 139, 250, 0.055) 7px,
+      rgba(167, 139, 250, 0.1) 7px,
+      rgba(167, 139, 250, 0.1) 14px
+    ),
+    rgba(167, 139, 250, 0.03);
+  box-shadow:
+    inset 0 1px 0 rgba(167, 139, 250, 0.4),
+    inset 0 -1px 0 rgba(167, 139, 250, 0.4);
+}
+
+.adminSpreadsheetRow.isLocked > .adminCell input,
+.adminSpreadsheetRow.isLocked > .adminCell select,
+.adminSpreadsheetRow.isLocked > .adminCell textarea {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.adminSpreadsheetRow.isLocked > .adminRowNumber {
+  color: var(--locked);
+  font-weight: 800;
+}
+
+.adminDeleteCell button:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
 }

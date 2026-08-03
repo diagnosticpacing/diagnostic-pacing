@@ -564,3 +564,64 @@ Both limitations narrow what today's still-small knowledge base can
 express, not what the engine architecturally supports — neither
 requires a rework to close later, just more precise data on one side
 of the join.
+
+<!-- ADMIN-ROW-LOCKING-V1-2026-08-03 -->
+## Admin Row Locking (implemented 2026-08-03)
+
+Motivation: as the knowledge base grows, the main risk in the admin
+spreadsheet editor isn't concurrent-edit conflicts (single admin
+user) — it's fat-fingering a cell in a long table: a wrong dropdown
+pick, an accidental clear, editing the wrong row. Row locking is a
+deliberate, opt-in guard against that, not a permissions system.
+
+Every row in every sheet can be locked or unlocked via a padlock
+button in a new row-action column (next to the existing delete
+button). A locked row disables every control in that row — reusing
+the same disabling mechanism already built for the Maneuver/Interval
+`disabledWhenFilled` mutual exclusion — and gets a deliberately new,
+distinct visual treatment (a violet diagonal hatch + top/bottom band,
+`--locked` in the palette) so it reads as "sealed" rather than as
+another shade of the existing grey "disabled by a sibling field" look
+or the red "required but empty" look. Deleting a locked row is also
+blocked; unlocking is the only way to edit or delete it.
+
+Lock state lives as `__locked` row metadata (alongside the existing
+`__rowId`), not a real column — it's an editing-safety concern, not
+domain content, so it's excluded from the exported Excel workbook and
+from the columns considered by cross-sheet lookups. `validateWorkbook`'s
+generic per-row check now allows `__locked` as a recognized internal
+key so a locked row doesn't fail validation as having an "unexpected
+column."
+
+New rows default unlocked, so a row can be freely iterated on while
+it's being built. Locking is intentionally coupled to the same
+completeness bar as saving: clicking the lock button runs a new
+`validateRow(sheetId, row, workbook)` (extracted from
+`knowledge/validation.ts`, reusing `validateWorkbook`'s exact rules —
+required fields, ID prefix, duplicate ID within its sheet, and
+whatever sheet-specific cross-sheet reference checks apply) and blocks
+the lock with the specific issues if the row wouldn't pass save. This
+makes the guarantee "if a row can be locked, it will not block a save"
+hold by construction, not by two independently-maintained rule sets
+happening to agree. `validateRow` is a deliberate reimplementation
+rather than a shared-loop refactor of `validateWorkbook`'s internals:
+`validateWorkbook`'s duplicate-ID check is order-dependent (only the
+*second* occurrence of a duplicate is flagged, correct for a one-pass
+whole-workbook report), while `validateRow` checks a row against every
+other row in its sheet regardless of order — stricter, which only ever
+makes locking harder to obtain, never easier, so it can't produce a row
+that locks cleanly but then fails to save. Unlocking never runs
+validation, since it only ever loosens things.
+
+Saving locks every row in every sheet, not just the one being edited.
+This is the primary way rows end up locked in practice — the manual
+per-row toggle exists for locking something before you're ready to
+save everything else. The save flow already gates on
+`assertValidWorkbook` passing for the whole workbook before anything is
+persisted, so by the time a save succeeds every row has already met
+the same bar the manual lock check enforces; locking is applied to a
+local copy of the data right before the request is sent, and only
+adopted into React state if the server confirms the save succeeded —
+a rejected save (validation failure or revision conflict) leaves the
+editor's in-progress state, including whatever was still unlocked,
+completely untouched.

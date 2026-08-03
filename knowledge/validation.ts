@@ -61,7 +61,11 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
       continue;
     }
 
-    const allowed = new Set(["__rowId", ...definition.columns.map((c) => c.key)]);
+    const allowed = new Set([
+      "__rowId",
+      "__locked",
+      ...definition.columns.map((c) => c.key),
+    ]);
     const rowIds = new Set<string>();
     const ids = new Set<string>();
     const idKey = idColumn[sheetId];
@@ -188,6 +192,167 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
     if (n(row.requiredClinicalState) && !clinicalStateAbbreviations.has(n(row.requiredClinicalState).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "requiredClinicalState", `Unknown clinical state "${row.requiredClinicalState}".`);
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Validates a single row against the same completeness and referential-
+ * integrity rules `validateWorkbook` applies during save — required fields,
+ * ID prefix, duplicate ID within its sheet, and any sheet-specific
+ * cross-sheet reference checks. Used by the admin UI's row-lock action so
+ * that "this row can be locked" and "this row will not block a save" stay
+ * true by construction rather than by two independently-maintained rule
+ * sets drifting apart.
+ *
+ * This intentionally reimplements the checks rather than sharing the
+ * `validateWorkbook` loop's internal state: `validateWorkbook` only flags a
+ * duplicate ID starting at its *second* occurrence (order-dependent, so the
+ * first row with a given ID is never itself flagged), which is fine for a
+ * one-pass whole-workbook report but wrong for "should locking this
+ * specific row be allowed" — this checks the row against every other row
+ * in its sheet regardless of order. That makes this check slightly
+ * stricter than the aggregate pass in edge cases, which only ever makes
+ * locking harder to obtain, never easier — it can't produce a row that
+ * locks cleanly but then fails to save.
+ */
+export function validateRow(
+  sheetId: SheetId,
+  row: SpreadsheetRow,
+  workbook: KnowledgeWorkbook,
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const definition = sheetDefinitions[sheetId];
+  const sheets = workbook.sheets;
+
+  const safe = <T extends SheetId>(id: T): SpreadsheetRow[] =>
+    Array.isArray(sheets[id]) ? sheets[id] : [];
+
+  if (!n(row.__rowId)) {
+    issue(issues, sheetId, row, "__rowId", "Internal row ID is required.");
+  } else if (safe(sheetId).filter((r) => r.__rowId === row.__rowId).length > 1) {
+    issue(issues, sheetId, row, "__rowId", `Duplicate internal row ID "${row.__rowId}".`);
+  }
+
+  const allowed = new Set([
+    "__rowId",
+    "__locked",
+    ...definition.columns.map((c) => c.key),
+  ]);
+  for (const key of Object.keys(row)) {
+    if (!allowed.has(key)) issue(issues, sheetId, row, key, `Unexpected column "${key}".`);
+  }
+
+  for (const column of definition.columns) {
+    const value = n(row[column.key]);
+
+    if (column.required && !value) {
+      issue(issues, sheetId, row, column.key, `${definition.label}: ${column.label} is required.`);
+      continue;
+    }
+
+    if (value && column.idPrefix && !value.startsWith(column.idPrefix)) {
+      issue(
+        issues,
+        sheetId,
+        row,
+        column.key,
+        `${definition.label}: ${column.label} must begin with "${column.idPrefix}".`,
+      );
+    }
+  }
+
+  const idKey = idColumn[sheetId];
+  if (idKey && n(row[idKey])) {
+    const value = n(row[idKey]).toUpperCase();
+    const duplicate = safe(sheetId).some(
+      (other) => other.__rowId !== row.__rowId && n(other[idKey]).toUpperCase() === value,
+    );
+    if (duplicate) issue(issues, sheetId, row, idKey, `Duplicate ${idKey} "${row[idKey]}".`);
+  }
+
+  const maneuverIds = new Set(safe("maneuverDefinitions").map((r) => n(r.maneuverId).toUpperCase()));
+  const diagnosisAbbreviations = new Set(safe("diagnoses").map((r) => n(r.abbreviatedName).toUpperCase()));
+  const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
+  const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
+  const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
+  const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
+  const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
+  const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
+
+  if (sheetId === "maneuverDefinitions") {
+    for (const abbr of splitList(row.relevantDiagnoses)) {
+      if (!diagnosisAbbreviations.has(abbr.toUpperCase())) {
+        issue(issues, sheetId, row, "relevantDiagnoses", `Unknown diagnosis "${abbr}" in Relevant Diagnoses.`);
+      }
+    }
+    for (const abbr of splitList(row.requiredStates)) {
+      if (!clinicalStateAbbreviations.has(abbr.toUpperCase())) {
+        issue(issues, sheetId, row, "requiredStates", `Unknown clinical state "${abbr}" in Required States.`);
+      }
+    }
+  }
+
+  if (sheetId === "maneuverResponseFields") {
+    if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
+      issue(issues, sheetId, row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
+    }
+  }
+
+  if (sheetId === "maneuverResponseOptions") {
+    if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
+      issue(issues, sheetId, row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
+    }
+    if (n(row.associatedFieldId) && !fieldIds.has(n(row.associatedFieldId).toUpperCase())) {
+      issue(issues, sheetId, row, "associatedFieldId", `Unknown field ID "${row.associatedFieldId}".`);
+    }
+  }
+
+  if (sheetId === "clinicalReasoning") {
+    const hasManeuver = Boolean(n(row.maneuverConsidered) || n(row.maneuverId));
+    const hasInterval = Boolean(n(row.intervalConsidered) || n(row.intervalName));
+
+    if (!hasManeuver && !hasInterval) {
+      issue(
+        issues,
+        sheetId,
+        row,
+        "maneuverConsidered",
+        "Either Maneuver Considered or Interval Considered is required.",
+      );
+    }
+    if (hasManeuver && hasInterval) {
+      issue(
+        issues,
+        sheetId,
+        row,
+        "intervalConsidered",
+        "Only one of Maneuver Considered or Interval Considered should be set per row.",
+      );
+    }
+
+    if (n(row.maneuverId) && !maneuverIds.has(n(row.maneuverId).toUpperCase())) {
+      issue(issues, sheetId, row, "maneuverId", `Unknown maneuver ID "${row.maneuverId}".`);
+    }
+    if (n(row.fieldId) && !fieldIds.has(n(row.fieldId).toUpperCase())) {
+      issue(issues, sheetId, row, "fieldId", `Unknown field ID "${row.fieldId}".`);
+    }
+    if (n(row.intervalName) && !intervalNames.has(n(row.intervalName).toUpperCase())) {
+      issue(issues, sheetId, row, "intervalName", `Unknown interval "${row.intervalName}".`);
+    }
+    if (n(row.diagnosisId) && !diagnosisIds.has(n(row.diagnosisId).toUpperCase())) {
+      issue(issues, sheetId, row, "diagnosisId", `Unknown diagnosis ID "${row.diagnosisId}".`);
+    }
+    if (n(row.referenceId) && !referenceIds.has(n(row.referenceId).toUpperCase())) {
+      issue(issues, sheetId, row, "referenceId", `Unknown reference ID "${row.referenceId}".`);
+    }
+    if (n(row.referenceTitle) && !referenceTitles.has(n(row.referenceTitle).toUpperCase())) {
+      issue(issues, sheetId, row, "referenceTitle", `Unknown reference title "${row.referenceTitle}".`);
+    }
+    if (n(row.requiredClinicalState) && !clinicalStateAbbreviations.has(n(row.requiredClinicalState).toUpperCase())) {
+      issue(issues, sheetId, row, "requiredClinicalState", `Unknown clinical state "${row.requiredClinicalState}".`);
     }
   }
 
