@@ -457,3 +457,36 @@ Two related changes to the knowledge base schema:
   Considered per row (flags both blank or both filled), plus a
   referential-integrity check on the new Interval ID against the
   Intervals sheet.
+
+<!-- CLINICAL-REASONING-MUTUAL-EXCLUSION-2026-08-03 -->
+## Maneuver/Interval Mutual Exclusion + Interval Name (implemented 2026-08-03)
+
+Two follow-ups to the Interval Considered addition above, same day:
+
+- **Mutual exclusion is now enforced live in the admin UI**, not just
+  flagged after the fact by validation. New `disabledWhenFilled`
+  column metadata: a column becomes disabled (greyed out, blocked from
+  editing, with a "Clear X to use this" note) whenever a named sibling
+  column already holds a value in the same row. Applied to both
+  directions — Maneuver Considered, Maneuver ID, Response Field Prompt,
+  and Associated Field ID all disable while Interval Considered or
+  Interval Name holds a value, and vice versa. This was scoped wider
+  than literally "the two Considered columns" on purpose: leaving
+  Maneuver ID/Response Field Prompt independently editable would have
+  let a row combine both paths anyway by going around Maneuver
+  Considered directly, defeating the point.
+- **Interval ID renamed to Interval Name**, and changed to actually
+  mirror the interval's Name rather than its `TID-` code — unlike
+  Maneuver ID (a real foreign key other sheets reference), nothing
+  references an interval by ID, so there's no reason for the
+  auto-populated companion column to show a code instead of a readable
+  name. This required a real fix, not just swapping which column the
+  lookup reads: the auto-populate logic previously always copied the
+  target sheet's *primary ID column* on selection, regardless of what
+  the paired column's own lookup pointed at. Added
+  `populatesColumnFrom` so a column can name which field of the matched
+  row to copy instead of assuming the primary ID. Every other existing
+  pair (Maneuver Considered → Maneuver ID, Diagnosis Affected →
+  Diagnosis ID, Reference Title → Reference ID, etc.) doesn't set this,
+  so all of them keep defaulting to the primary ID exactly as before —
+  nothing about their existing behavior changed.
