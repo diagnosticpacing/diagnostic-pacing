@@ -29,8 +29,24 @@ export type ColumnDefinition = {
    * column.
    */
   populatesColumn?: string;
+  /**
+   * When set alongside `populatesColumn`, the auto-filled value is copied
+   * from this column of the matched row instead of the target sheet's
+   * primary ID column (the default) — e.g. mirroring a human-readable
+   * Name rather than filling in a stable ID, for a paired column that
+   * isn't referenced elsewhere as a foreign key.
+   */
+  populatesColumnFrom?: string;
   /** When true, a non-empty value renders an "Open" link to that URL. */
   isUrl?: true;
+  /**
+   * Names sibling columns (in the same row) that, when any holds a
+   * non-blank value, make this column disabled/uneditable — used to keep
+   * two alternative paths on one row mutually exclusive (e.g. Maneuver
+   * Considered vs. Interval Considered) rather than letting a row
+   * combine both.
+   */
+  disabledWhenFilled?: string[];
   /**
    * When set alongside `lookup`, narrows the option list to only target
    * rows whose `matchColumn` equals this row's own `ownColumn` value —
@@ -517,10 +533,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "maneuverConsidered",
         label: "Maneuver Considered",
         modelUse:
-          "The maneuver this reasoning statement evaluates, as an alternative to Interval Considered — leave blank if this row instead evaluates an interval directly.",
+          "The maneuver this reasoning statement evaluates, as an alternative to Interval Considered. Disabled while Interval Considered holds a value — clear that first to use this instead.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
         populatesColumn: "maneuverId",
+        disabledWhenFilled: ["intervalConsidered", "intervalName"],
       },
       {
         key: "maneuverId",
@@ -529,6 +546,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Identifies the maneuver whose result activates this reasoning statement. Intended to auto-populate from Maneuver Considered.",
         width: "150px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
+        disabledWhenFilled: ["intervalConsidered", "intervalName"],
       },
       {
         key: "responseFieldPrompt",
@@ -539,6 +557,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
         filterBy: { ownColumn: "maneuverId", matchColumn: "associatedManeuverId" },
         populatesColumn: "fieldId",
+        disabledWhenFilled: ["intervalConsidered", "intervalName"],
       },
       {
         key: "fieldId",
@@ -547,23 +566,27 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Identifies the specific maneuver response field being evaluated. Intended to auto-populate from Response Field Prompt.",
         width: "180px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
+        disabledWhenFilled: ["intervalConsidered", "intervalName"],
       },
       {
         key: "intervalConsidered",
         label: "Interval Considered",
         modelUse:
-          "The interval this reasoning statement evaluates directly, as an alternative to a Maneuver/Response Field pair — e.g. an AH interval threshold rather than a maneuver result. Leave the Maneuver columns blank when using this.",
+          "The interval this reasoning statement evaluates directly, as an alternative to a Maneuver/Response Field pair — e.g. an AH interval threshold rather than a maneuver result. Disabled while Maneuver Considered holds a value — clear that first to use this instead.",
         width: "220px",
         lookup: { sheet: "clinicalTerms", column: "name" },
-        populatesColumn: "intervalId",
+        populatesColumn: "intervalName",
+        populatesColumnFrom: "name",
+        disabledWhenFilled: ["maneuverConsidered", "maneuverId"],
       },
       {
-        key: "intervalId",
-        label: "Interval ID",
+        key: "intervalName",
+        label: "Interval Name",
         modelUse:
-          "Identifies the specific interval being evaluated. Intended to auto-populate from Interval Considered.",
-        width: "150px",
-        lookup: { sheet: "clinicalTerms", column: "termId" },
+          "Identifies the specific interval being evaluated, by name (Intervals has no other sheet referencing it by ID, so this mirrors the readable name rather than a code). Intended to auto-populate from Interval Considered.",
+        width: "180px",
+        lookup: { sheet: "clinicalTerms", column: "name" },
+        disabledWhenFilled: ["maneuverConsidered", "maneuverId"],
       },
       {
         key: "operator",

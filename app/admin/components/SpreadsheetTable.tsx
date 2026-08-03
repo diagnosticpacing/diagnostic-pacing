@@ -183,17 +183,20 @@ function MultiSelectCell({
   value,
   options,
   onChange,
+  disabled,
 }: {
   ariaLabel: string;
   value: string;
   options: string[];
   onChange: (next: string) => void;
+  disabled?: boolean;
 }) {
   const selected = new Set(
     value.split(",").map((v) => v.trim()).filter(Boolean),
   );
 
   const toggle = (option: string) => {
+    if (disabled) return;
     const next = new Set(selected);
     if (next.has(option)) next.delete(option);
     else next.add(option);
@@ -201,8 +204,11 @@ function MultiSelectCell({
   };
 
   return (
-    <details className="adminMultiSelect">
-      <summary aria-label={ariaLabel}>
+    <details
+      className={`adminMultiSelect${disabled ? " isDisabled" : ""}`}
+      {...(disabled ? { onClick: (event) => event.preventDefault() } : {})}
+    >
+      <summary aria-label={ariaLabel} aria-disabled={disabled}>
         {selected.size > 0 ? Array.from(selected).join(", ") : "Select…"}
       </summary>
       <div className="adminMultiSelectPanel">
@@ -216,6 +222,7 @@ function MultiSelectCell({
             <input
               type="checkbox"
               checked={selected.has(option)}
+              disabled={disabled}
               onChange={() => toggle(option)}
             />
             {option}
@@ -330,8 +337,10 @@ export default function SpreadsheetTable({
     };
   };
 
-  /** Sets this column's value, and — if it auto-populates a sibling ID
-   * column — resolves the matched row and fills that column too. */
+  /** Sets this column's value, and — if it auto-populates a sibling
+   * column — resolves the matched row and fills that column too, using
+   * `populatesColumnFrom` when set or the target sheet's primary ID
+   * column by default. */
   const handleLookupChange = (
     rowId: string,
     column: ColumnDefinition,
@@ -341,9 +350,11 @@ export default function SpreadsheetTable({
 
     if (column.lookup && column.populatesColumn) {
       const match = resolveReference(allData, column.lookup, newValue);
-      const idColumn = getPrimaryIdColumn(column.lookup.sheet);
-      const idValue = match && idColumn ? match[idColumn] ?? "" : "";
-      onCellChange(rowId, column.populatesColumn, idValue);
+      const sourceColumn =
+        column.populatesColumnFrom ?? getPrimaryIdColumn(column.lookup.sheet);
+      const populatedValue =
+        match && sourceColumn ? match[sourceColumn] ?? "" : "";
+      onCellChange(rowId, column.populatesColumn, populatedValue);
     }
   };
 
@@ -429,9 +440,23 @@ export default function SpreadsheetTable({
                 const isRequiredEmpty = Boolean(
                   column.required && value.trim() === "",
                 );
-                const cellClassName = isRequiredEmpty
-                  ? "adminCell isRequiredEmpty"
-                  : "adminCell";
+
+                const blockingColumn = column.disabledWhenFilled
+                  ?.map((key) => ({
+                    key,
+                    def: definition.columns.find((c) => c.key === key),
+                    value: row[key] ?? "",
+                  }))
+                  .find((peer) => peer.value.trim() !== "");
+                const isDisabledByPeer = Boolean(blockingColumn);
+
+                const cellClassName = [
+                  "adminCell",
+                  isRequiredEmpty && "isRequiredEmpty",
+                  isDisabledByPeer && "isDisabledByPeer",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
 
                 const referenceChips =
                   column.lookup && value.trim()
@@ -460,6 +485,7 @@ export default function SpreadsheetTable({
                         ariaLabel={`${column.label}, row ${rowIndex + 1}`}
                         value={value}
                         options={selectOptions}
+                        disabled={isDisabledByPeer}
                         onChange={(next) =>
                           onCellChange(row.__rowId, column.key, next)
                         }
@@ -468,6 +494,7 @@ export default function SpreadsheetTable({
                       <select
                         aria-label={`${column.label}, row ${rowIndex + 1}`}
                         value={value}
+                        disabled={isDisabledByPeer}
                         onChange={(event) =>
                           handleLookupChange(
                             row.__rowId,
@@ -499,6 +526,7 @@ export default function SpreadsheetTable({
                         placeholder={column.modelUse}
                         rows={3}
                         value={value}
+                        disabled={isDisabledByPeer}
                         onChange={(event) =>
                           onCellChange(
                             row.__rowId,
@@ -516,6 +544,7 @@ export default function SpreadsheetTable({
                             : column.modelUse
                         }
                         value={value}
+                        disabled={isDisabledByPeer}
                         onChange={(event) =>
                           onCellChange(
                             row.__rowId,
@@ -524,6 +553,12 @@ export default function SpreadsheetTable({
                           )
                         }
                       />
+                    )}
+
+                    {isDisabledByPeer && blockingColumn && (
+                      <p className="adminCellDisabledNote">
+                        Clear &ldquo;{blockingColumn.def?.label ?? blockingColumn.key}&rdquo; to use this.
+                      </p>
                     )}
 
                     {column.isUrl && value.trim() && (

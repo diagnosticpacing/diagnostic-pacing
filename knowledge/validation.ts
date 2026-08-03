@@ -113,7 +113,7 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
   const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
-  const intervalIds = new Set(safe("clinicalTerms").map((r) => n(r.termId).toUpperCase()));
+  const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
   const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
   const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
 
@@ -147,7 +147,7 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
 
   for (const row of safe("clinicalReasoning")) {
     const hasManeuver = Boolean(n(row.maneuverConsidered) || n(row.maneuverId));
-    const hasInterval = Boolean(n(row.intervalConsidered) || n(row.intervalId));
+    const hasInterval = Boolean(n(row.intervalConsidered) || n(row.intervalName));
 
     if (!hasManeuver && !hasInterval) {
       issue(
@@ -174,8 +174,8 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     if (n(row.fieldId) && !fieldIds.has(n(row.fieldId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "fieldId", `Unknown field ID "${row.fieldId}".`);
     }
-    if (n(row.intervalId) && !intervalIds.has(n(row.intervalId).toUpperCase())) {
-      issue(issues, "clinicalReasoning", row, "intervalId", `Unknown interval ID "${row.intervalId}".`);
+    if (n(row.intervalName) && !intervalNames.has(n(row.intervalName).toUpperCase())) {
+      issue(issues, "clinicalReasoning", row, "intervalName", `Unknown interval "${row.intervalName}".`);
     }
     if (n(row.diagnosisId) && !diagnosisIds.has(n(row.diagnosisId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "diagnosisId", `Unknown diagnosis ID "${row.diagnosisId}".`);
