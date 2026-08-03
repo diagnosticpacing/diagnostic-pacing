@@ -24,37 +24,12 @@ import {
   type ManeuverCatalogEntry,
 } from "./maneuvers/knowledge";
 import ManeuverCard from "./maneuvers/ManeuverCard";
-
-const diagnoses = [
-  {
-    abbreviation: "AVNRT",
-    name: "AV nodal reentrant tachycardia",
-    status: "Leading",
-    confidence: 72,
-    reason: "Short VA interval and concentric retrograde activation.",
-  },
-  {
-    abbreviation: "ORT",
-    name: "Orthodromic reciprocating tachycardia",
-    status: "Possible",
-    confidence: 48,
-    reason: "Accessory pathway participation has not been excluded.",
-  },
-  {
-    abbreviation: "AT",
-    name: "Atrial tachycardia",
-    status: "Less likely",
-    confidence: 21,
-    reason: "Current findings favor an AV node-dependent mechanism.",
-  },
-  {
-    abbreviation: "JT",
-    name: "Junctional tachycardia",
-    status: "Excluded",
-    confidence: 4,
-    reason: "Current observations argue against an automatic junctional rhythm.",
-  },
-];
+import {
+  evaluateDifferential,
+  explainDifferentialResult,
+  type DifferentialResult,
+} from "./differential/engine";
+import type { SheetId, SpreadsheetRow } from "./admin/model";
 
 type RailId = "clinicalStates" | "differentialDiagnosis";
 
@@ -116,6 +91,9 @@ export default function Home() {
   const [maneuverCatalog, setManeuverCatalog] = useState<
     ManeuverCatalogEntry[]
   >([]);
+  const [knowledgeSheets, setKnowledgeSheets] = useState<
+    Partial<Record<SheetId, SpreadsheetRow[]>>
+  >({});
   const [maneuverCatalogStatus, setManeuverCatalogStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
@@ -130,10 +108,10 @@ export default function Home() {
       })
       .then((data: { sheets: Record<string, unknown> }) => {
         if (cancelled) return;
+        const sheets = data.sheets as Partial<Record<SheetId, SpreadsheetRow[]>>;
+        setKnowledgeSheets(sheets);
         setManeuverCatalog(
-          buildManeuverCatalog(
-            data.sheets as Parameters<typeof buildManeuverCatalog>[0],
-          ),
+          buildManeuverCatalog(sheets as Parameters<typeof buildManeuverCatalog>[0]),
         );
         setManeuverCatalogStatus("ready");
       })
@@ -225,13 +203,18 @@ export default function Home() {
     activeClinicalStateIndex === -1 ? 1 : activeClinicalStateIndex + 1
   }`;
 
+  const differentialResults: DifferentialResult[] = evaluateDifferential(
+    caseRecord,
+    knowledgeSheets,
+  );
+
   // Diagnoses not yet excluded — the fallback signal maneuver relevance is
-  // scored against until a real differential-diagnosis engine exists (see
-  // scoreManeuverRelevance in ./maneuvers/knowledge).
+  // scored against (see scoreManeuverRelevance in ./maneuvers/knowledge)
+  // until Clinical Reasoning rules exist that speak to a given maneuver.
   const activeDiagnosisAbbreviations = new Set(
-    diagnoses
-      .filter((diagnosis) => diagnosis.status !== "Excluded")
-      .map((diagnosis) => diagnosis.abbreviation.toUpperCase()),
+    differentialResults
+      .filter((result) => result.status !== "Excluded")
+      .map((result) => result.diagnosis.abbreviatedName.toUpperCase()),
   );
 
   const sortedManeuverCatalog = [...maneuverCatalog].sort(
@@ -583,44 +566,73 @@ export default function Home() {
         />
 
         <Panel eyebrow="Differential diagnosis" title="">
-          <div className="diagnosisList">
-            {diagnoses.map((diagnosis) => (
-              <article className="diagnosisCard" key={diagnosis.abbreviation}>
-                <div className="diagnosisTop">
-                  <span className="abbreviation">
-                    {diagnosis.abbreviation}
-                  </span>
-                  <div className="diagnosisText">
-                    <h3>{diagnosis.name}</h3>
-                    <p>{diagnosis.reason}</p>
-                  </div>
-                  <span
-                    className={`status ${diagnosis.status
-                      .toLowerCase()
-                      .replace(" ", "-")}`}
-                  >
-                    {diagnosis.status}
-                  </span>
+          {maneuverCatalogStatus === "loading" && (
+            <p className="maneuverCatalogStatus">Loading knowledge base…</p>
+          )}
 
-                  <button
-                    className="diagnosisWhyButton"
-                    type="button"
-                    title="Show justification"
-                    onClick={() => window.alert(diagnosis.reason)}
-                  >
-                    Why?
-                  </button>
-                </div>
+          {maneuverCatalogStatus === "error" && (
+            <p className="maneuverCatalogStatus isError">
+              Couldn&rsquo;t load the knowledge base. Try reloading the page.
+            </p>
+          )}
 
-                <div className="confidence">
-                  <div>
-                    <span style={{ width: `${diagnosis.confidence}%` }} />
-                  </div>
-                  <small>{diagnosis.confidence}%</small>
-                </div>
-              </article>
-            ))}
-          </div>
+          {maneuverCatalogStatus === "ready" &&
+            differentialResults.length === 0 && (
+              <p className="maneuverCatalogStatus">
+                No diagnoses are defined in the knowledge base yet — add them
+                in the admin editor.
+              </p>
+            )}
+
+          {maneuverCatalogStatus === "ready" &&
+            differentialResults.length > 0 && (
+              <div className="diagnosisList">
+                {differentialResults.map((result) => (
+                  <article
+                    className="diagnosisCard"
+                    key={result.diagnosis.diagnosisId}
+                  >
+                    <div className="diagnosisTop">
+                      <span className="abbreviation">
+                        {result.diagnosis.abbreviatedName}
+                      </span>
+                      <div className="diagnosisText">
+                        <h3>{result.diagnosis.fullName}</h3>
+                        <p>{result.diagnosis.description}</p>
+                      </div>
+                      <span
+                        className={`status ${result.status.toLowerCase()}`}
+                      >
+                        {result.status}
+                      </span>
+
+                      <button
+                        className="diagnosisWhyButton"
+                        type="button"
+                        title="Show justification"
+                        onClick={() =>
+                          window.alert(explainDifferentialResult(result))
+                        }
+                      >
+                        Why?
+                      </button>
+                    </div>
+
+                    <div className="confidence">
+                      <small>
+                        {result.status === "Possible"
+                          ? `${result.supportCount} supporting finding${
+                              result.supportCount === 1 ? "" : "s"
+                            }`
+                          : `${result.findings.length} clinical reasoning finding${
+                              result.findings.length === 1 ? "" : "s"
+                            }`}
+                      </small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
         </Panel>
       </aside>
 

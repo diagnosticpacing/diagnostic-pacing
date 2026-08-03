@@ -503,3 +503,64 @@ can affect any diagnosis and reference any Clinical State exactly as
 freely as a maneuver-based one. Response Field Prompt intentionally
 keeps the old blocking behavior, since it's only ever meaningful for a
 maneuver-based row.
+
+<!-- DIFFERENTIAL-ENGINE-V1-2026-08-03 -->
+## Differential Diagnosis Engine, first pass (implemented 2026-08-03)
+
+The main GUI's Differential Diagnosis panel previously showed a
+hardcoded, fake `diagnoses` array (four static entries with a made-up
+percentage confidence bar). It's now driven by a real engine
+(`app/differential/engine.ts`, `evaluateDifferential()`) that reads the
+Diagnoses and Clinical Reasoning sheets straight from the public
+knowledge API and evaluates them against the live case record.
+
+Rule evaluation, per row: a Clinical Reasoning row's condition is
+satisfied if, for a maneuver-based row, any recorded performance of
+its Maneuver ID has a value for its Field ID that passes the row's
+Operator against its Compared Value (`Is Checked` / `Is Unchecked` /
+`=` / `≠` / `>` / `<`, numeric-aware when both sides parse as numbers);
+for an interval-based row, the same check runs against a matching
+measurement field's value instead of a maneuver's recorded result. A
+row with no recorded data for its condition is neither satisfied nor
+unsatisfied in a way that fires an action — silence isn't evidence.
+
+Rule Group ID AND-grouping is real: rows sharing a Rule Group ID must
+*all* be satisfied before any of their individual Differential Actions
+apply; a blank Rule Group ID means the row stands alone (OR against
+everything else). Per-diagnosis status follows the documented
+hard-rule/soft-rule precedence: any fired `Confirms` row makes the
+diagnosis Confirmed; otherwise any fired `Excludes` row makes it
+Excluded; otherwise it's Possible, ranked by how many `Supports` rows
+fired. The three-tier sort (Confirmed, then Possible by support count
+then Base Rank, then Excluded) matches the
+`DIFFERENTIAL-HIERARCHY-2026-08-02` decision exactly — no percentage
+confidence anywhere. The panel's "Why?" button now shows the real
+concatenated explanation/rule-description text from whichever Clinical
+Reasoning rows fired for that diagnosis, or a plain "no rules have
+fired yet" message when none have.
+
+**Two scope simplifications, both intentional and disclosed rather
+than silently cut:**
+
+- **Required Clinical State is not enforced.** A reasoning row's
+  condition is checked existentially across every Clinical State in
+  the case, not restricted to the specific state the row names. The
+  knowledge base's Clinical States sheet is a fixed abbreviation
+  vocabulary (`NSR`, `Iso On`, etc.) with no formal link yet to the
+  GUI's per-Clinical-State context fields (phase/rhythm/sedation/drug
+  levels are free text or a different option set) — building that
+  bridge is future work, not something to fake now.
+- **Interval-to-measurement matching is a name heuristic, not a formal
+  ID join.** The Intervals sheet has no field-level identifier that a
+  measurement field could reference, so `findMatchingMeasurementField()`
+  normalizes both the reasoning row's Interval Name and each rhythm's
+  measurement field labels (stripping "interval"/"ERP"/"FRP"/punctuation)
+  and matches on equality, falling back to substring containment. Good
+  enough for a first pass with a small, hand-entered vocabulary; will
+  need to become a real join once the knowledge base has enough rows
+  for name collisions to matter.
+
+Both limitations narrow what today's still-small knowledge base can
+express, not what the engine architecturally supports — neither
+requires a rework to close later, just more precise data on one side
+of the join.
