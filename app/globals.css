@@ -15,6 +15,17 @@
   --amber: #f0b96a;
   --red: #ed7f86;
   --locked: #a78bfa;
+  /*
+   * The app is dark-only (no light theme toggle), but nothing told the
+   * browser that — so native form controls it renders itself, most
+   * visibly a <select>'s open dropdown popup, defaulted to the OS's
+   * light UI: white popup background with this stylesheet's light
+   * --text color on top, i.e. white text on a white list. color-scheme
+   * tells the browser which UI variant to draw its own chrome in
+   * (popups, scrollbars, spin buttons) so it matches the rest of the
+   * page instead of clashing with it.
+   */
+  color-scheme: dark;
 }
 
 * {
@@ -299,6 +310,17 @@ button {
 
 .toolbarField select {
   cursor: pointer;
+}
+
+/*
+ * Belt-and-suspenders alongside :root's color-scheme: dark — Safari in
+ * particular has been inconsistent about fully re-theming a native
+ * <select> popup from color-scheme alone, so the popup's own list items
+ * get an explicit dark background/light text too.
+ */
+.toolbarField select option {
+  background: var(--raised);
+  color: var(--text);
 }
 
 .unitInput {
@@ -3171,6 +3193,11 @@ button.adminTableHeader.isSorted {
   min-height: 44px;
 }
 
+.adminCell select option {
+  background: var(--raised);
+  color: var(--text);
+}
+
 .adminCell input:hover,
 .adminCell textarea:hover,
 .adminCell select:hover {
@@ -3967,6 +3994,11 @@ button.adminTableHeader.isSorted {
 .maneuverField select:focus {
   outline: none;
   border-color: rgba(91, 214, 220, 0.6);
+}
+
+.maneuverField select option {
+  background: var(--raised);
+  color: var(--text);
 }
 
 .maneuverFieldCheckbox {

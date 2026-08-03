@@ -809,3 +809,25 @@ effectively empty/placeholder as of the last confirmed knowledge base
 snapshot (see the now-stale `INFRA-STATUS-2026-08-01` note), but is
 worth knowing if a save unexpectedly flags existing rows after this
 change.
+
+<!-- NATIVE-SELECT-DARK-THEME-2026-08-03 -->
+## Native Select Dropdown Popups (implemented 2026-08-03)
+
+The app is dark-only, but never told the browser that. A `<select>`'s
+closed control was themed correctly (dark background, light text via
+this stylesheet), but its *open dropdown popup* is drawn by the browser
+itself using its default light UI — white popup background — while
+still inheriting this stylesheet's light `--text` color for the option
+text, producing white-on-white (reported on the clinical workspace's
+Phase/Rhythm/Sedation selects, but the same root cause applied
+everywhere a native `<select>` is used: admin lookup/option-list
+dropdowns, and maneuver card response fields).
+
+Fixed at the style-guide level rather than per-instance: `color-scheme:
+dark` added to `:root` tells the browser to draw its own native chrome
+(select popups, scrollbars, spin buttons) using its dark UI variant
+site-wide. Backed up with an explicit `option { background: var(--raised);
+color: var(--text); }` rule on each select context
+(`.toolbarField select`, `.adminCell select`, `.maneuverField select`),
+since Safari in particular has been inconsistent about fully re-theming
+a select popup from `color-scheme` alone.
