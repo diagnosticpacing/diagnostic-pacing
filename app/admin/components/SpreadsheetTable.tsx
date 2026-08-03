@@ -172,8 +172,8 @@ function ReferenceLink({
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
     >
-      {label}
-      <span aria-hidden="true">↗</span>
+      <span className="adminReferenceLinkLabel">{label}</span>
+      <span className="adminReferenceLinkIcon" aria-hidden="true">↗</span>
     </button>
   );
 }
@@ -535,7 +535,7 @@ export default function SpreadsheetTable({
                         title={`Open ${value.trim()} in a new tab`}
                       >
                         Open
-                        <span aria-hidden="true">↗</span>
+                        <span className="adminReferenceLinkIcon" aria-hidden="true">↗</span>
                       </a>
                     )}
 

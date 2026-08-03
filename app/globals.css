@@ -3078,6 +3078,12 @@ button.adminTableHeader.isSorted {
 
 .adminCell {
   min-height: 45px;
+  /* Grid items default to min-width: auto, which lets a long child (like
+     a reference chip) refuse to shrink below its own content width and
+     spill out into the next column when that column has been resized
+     narrower. min-width: 0 lets this cell's contents actually respect
+     its own resized width. */
+  min-width: 0;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -3208,11 +3214,14 @@ button.adminTableHeader.isSorted {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 10px 8px;
 }
 
 .adminReferenceLink {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 3px;
   padding: 2px 7px;
@@ -3232,18 +3241,35 @@ button.adminTableHeader.isSorted {
   background: rgba(91, 214, 220, 0.18);
 }
 
-.adminReferenceLink span {
+/* Truncates a long referenced value (rather than letting the chip's
+   pill shape stretch past its own cell into the next column) while the
+   button's title attribute still surfaces the full value on hover. */
+.adminReferenceLinkLabel {
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.adminReferenceLinkIcon {
+  flex: 0 0 auto;
   font-size: 9px;
   opacity: 0.8;
 }
 
 .adminReferenceUnmatched {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
   padding: 2px 7px;
   border: 1px dashed var(--border);
   border-radius: 999px;
   color: var(--quiet);
   font-size: 10px;
   font-style: italic;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .adminSpreadsheetRow.isHighlighted > .adminCell,
