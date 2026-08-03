@@ -3077,6 +3077,19 @@ button.adminTableHeader.isSorted {
 }
 
 .adminCell {
+  /* Explicit flex column instead of plain block flow: a cell can stack
+     up to three pieces (its input/select, an optional Open link, an
+     optional reference-chip strip), and this grid's rows are
+     implicit/auto-sized. A <select> element's contribution to that
+     auto-sizing is inconsistently reported across browsers, which was
+     letting a cell's true total height (control + chips) be
+     under-counted — so the row came out too short and the chip strip
+     visually bled into the row below. A flex column reports its real,
+     unambiguous total height (the sum of its stacked children) to the
+     grid, so the row always sizes to fit everything the cell holds. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   min-height: 45px;
   /* Grid items default to min-width: auto, which lets a long child (like
      a reference chip) refuse to shrink below its own content width and
@@ -3221,6 +3234,11 @@ button.adminTableHeader.isSorted {
 
 .adminReferenceLink {
   display: inline-flex;
+  /* Used both loose inside .adminCell (the URL "Open" link) and as a
+     chip inside .adminReferenceChips. In the first case, .adminCell is
+     now a flex column, whose default stretch would otherwise force this
+     into a full-width bar instead of its normal content-hugging pill. */
+  align-self: flex-start;
   max-width: 100%;
   align-items: center;
   gap: 3px;
