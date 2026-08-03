@@ -17,12 +17,18 @@ export type ColumnDefinition = {
   /** When true, the column may hold more than one value (comma-separated). */
   multiSelect?: boolean;
   /**
-   * When set, this column's values are meant to be picked from another
-   * sheet's column rather than typed freely. Not yet enforced by the admin
-   * UI (no live dropdown/autofill), but recorded here so validation and a
-   * future UI can rely on it instead of re-deriving it.
+   * When set, this column's values are picked from another sheet's column
+   * rather than typed freely. Rendered as a live dropdown, populated from
+   * the current data in that sheet.
    */
   lookup?: { sheet: SheetId; column: string };
+  /**
+   * When set alongside `lookup`, selecting a value also auto-fills the
+   * named column (in the same row) with the matched row's primary ID —
+   * e.g. picking a maneuver by name also fills the hidden Maneuver ID
+   * column.
+   */
+  populatesColumn?: string;
 };
 
 export type SheetDefinition = {
@@ -463,6 +469,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "The maneuver this reasoning statement evaluates.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
+        populatesColumn: "maneuverId",
       },
       {
         key: "maneuverId",
@@ -478,6 +485,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "The specific maneuver response field being evaluated.",
         width: "240px",
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
+        populatesColumn: "fieldId",
       },
       {
         key: "fieldId",
@@ -515,6 +523,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "The diagnosis that this clinical reasoning acts upon.",
         width: "200px",
         lookup: { sheet: "diagnoses", column: "abbreviatedName" },
+        populatesColumn: "diagnosisId",
       },
       {
         key: "diagnosisId",
@@ -538,6 +547,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "The reference that supports the explanation for this clinical reasoning.",
         width: "220px",
         lookup: { sheet: "references", column: "referenceTitle" },
+        populatesColumn: "referenceId",
       },
       {
         key: "referenceId",

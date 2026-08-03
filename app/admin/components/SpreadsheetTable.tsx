@@ -5,6 +5,7 @@ import type {
   SheetId,
   SpreadsheetRow,
 } from "../model";
+import { sheetDefinitions } from "../model";
 
 type SortDirection = "asc" | "desc";
 type SortState = { columnKey: string; direction: SortDirection } | null;
@@ -66,6 +67,26 @@ function resolveReference(
   );
 }
 
+/** The column a sheet uses as its own primary, prefixed identifier. */
+function getPrimaryIdColumn(sheetId: SheetId): string | null {
+  return sheetDefinitions[sheetId].columns.find((c) => c.idPrefix)?.key ?? null;
+}
+
+/** Live, sorted, de-duplicated option list pulled from another sheet's data. */
+function getLookupOptions(
+  allData: Record<SheetId, SpreadsheetRow[]>,
+  lookup: NonNullable<ColumnDefinition["lookup"]>,
+): string[] {
+  const values = new Set<string>();
+  for (const row of allData[lookup.sheet] ?? []) {
+    const value = (row[lookup.column] ?? "").trim();
+    if (value) values.add(value);
+  }
+  return Array.from(values).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+}
+
 function ReferenceLink({
   label,
   onClick,
@@ -84,6 +105,54 @@ function ReferenceLink({
       {label}
       <span aria-hidden="true">↗</span>
     </button>
+  );
+}
+
+function MultiSelectCell({
+  ariaLabel,
+  value,
+  options,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: string;
+  options: string[];
+  onChange: (next: string) => void;
+}) {
+  const selected = new Set(
+    value.split(",").map((v) => v.trim()).filter(Boolean),
+  );
+
+  const toggle = (option: string) => {
+    const next = new Set(selected);
+    if (next.has(option)) next.delete(option);
+    else next.add(option);
+    onChange(Array.from(next).join(", "));
+  };
+
+  return (
+    <details className="adminMultiSelect">
+      <summary aria-label={ariaLabel}>
+        {selected.size > 0 ? Array.from(selected).join(", ") : "Select…"}
+      </summary>
+      <div className="adminMultiSelectPanel">
+        {options.length === 0 && (
+          <p className="adminMultiSelectEmpty">
+            No options yet — add rows to the source sheet first.
+          </p>
+        )}
+        {options.map((option) => (
+          <label className="adminMultiSelectOption" key={option}>
+            <input
+              type="checkbox"
+              checked={selected.has(option)}
+              onChange={() => toggle(option)}
+            />
+            {option}
+          </label>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -128,6 +197,23 @@ export default function SpreadsheetTable({
       }
       return null;
     });
+  };
+
+  /** Sets this column's value, and — if it auto-populates a sibling ID
+   * column — resolves the matched row and fills that column too. */
+  const handleLookupChange = (
+    rowId: string,
+    column: ColumnDefinition,
+    newValue: string,
+  ) => {
+    onCellChange(rowId, column.key, newValue);
+
+    if (column.lookup && column.populatesColumn) {
+      const match = resolveReference(allData, column.lookup, newValue);
+      const idColumn = getPrimaryIdColumn(column.lookup.sheet);
+      const idValue = match && idColumn ? match[idColumn] ?? "" : "";
+      onCellChange(rowId, column.populatesColumn, idValue);
+    }
   };
 
   const gridTemplateColumns = [
@@ -223,16 +309,29 @@ export default function SpreadsheetTable({
                         }))
                     : null;
 
+                const selectOptions = column.lookup
+                  ? getLookupOptions(allData, column.lookup)
+                  : column.options;
+
                 return (
                   <div className={cellClassName} key={column.key}>
-                    {column.options && !column.multiSelect ? (
+                    {selectOptions && column.multiSelect ? (
+                      <MultiSelectCell
+                        ariaLabel={`${column.label}, row ${rowIndex + 1}`}
+                        value={value}
+                        options={selectOptions}
+                        onChange={(next) =>
+                          onCellChange(row.__rowId, column.key, next)
+                        }
+                      />
+                    ) : selectOptions ? (
                       <select
                         aria-label={`${column.label}, row ${rowIndex + 1}`}
                         value={value}
                         onChange={(event) =>
-                          onCellChange(
+                          handleLookupChange(
                             row.__rowId,
-                            column.key,
+                            column,
                             event.target.value,
                           )
                         }
@@ -240,7 +339,7 @@ export default function SpreadsheetTable({
                         <option value="">
                           {column.required ? "Select…" : "—"}
                         </option>
-                        {column.options.map((option) => (
+                        {selectOptions.map((option) => (
                           <option key={option || "blank"} value={option}>
                             {option || "—"}
                           </option>
