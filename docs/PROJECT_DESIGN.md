@@ -399,3 +399,61 @@ rules), so relevance ordering is only as good as that placeholder data
 for now. Building the real differential engine off Clinical Reasoning
 rows is the natural next step, and would make both this ordering and
 the differential diagnosis rail itself live.
+
+<!-- RESIZABLE-SIDE-RAILS-2026-08-03 -->
+## Resizable Side Rails (implemented 2026-08-03)
+
+The Clinical States (left) and Differential Diagnosis (right) rails on
+the main workspace page are now independently user-resizable, each with
+a drag handle at its inner edge, using the same drag pattern as the
+admin spreadsheet's column-resize handles. Each rail's width is a CSS
+variable (`--clinical-state-rail-width`, `--diagnosis-monitor-width`)
+set via inline style on `.appShell`, clamped to 160-480px (and capped
+at ~32% of viewport width per side so the two rails can't crowd out the
+center workspace), and persisted per-rail in `localStorage` across
+reloads. The center workspace's margins reference the same two
+variables, so it keeps pace automatically. No card-level changes were
+needed — both Clinical State cards and differential diagnosis cards
+already used ellipsis truncation and flexible grid tracks rather than
+fixed pixel widths, so they reflow to whatever width a rail is dragged
+to.
+
+<!-- INTERVALS-AND-CLINICAL-REASONING-2026-08-03 -->
+## Intervals Rename + Clinical Reasoning Interval Support (implemented 2026-08-03)
+
+Two related changes to the knowledge base schema:
+
+- **"Clinical Terms" renamed to "Intervals"** everywhere it's shown to
+  the user (tab label, sheet label/description, exported workbook's
+  worksheet name, column labels — "Term ID" is now "Interval ID").
+  The underlying `SheetId` key (`clinicalTerms`), column key (`termId`),
+  and ID prefix (`TID-`) were deliberately left unchanged, since
+  production Blob data already exists under those keys — renaming them
+  would have required a migration path for no real benefit, since only
+  the label was described as "more accurate," not the internal
+  identifiers.
+- **Clinical Reasoning can now evaluate an Interval directly**, not
+  just a maneuver's response field. Two options were weighed: (A) add a
+  parallel column pair for intervals, or (B) merge Maneuver Considered
+  and Interval Considered into one picker whose second-tier column
+  would have to behave differently depending on which type was picked.
+  (B) was rejected — a maneuver's second-tier column narrows to that
+  maneuver's own response fields, but an interval has no equivalent
+  "fields" to narrow to, so the column would need genuinely different
+  behavior per row, which is exactly the kind of column-type mess
+  flagged as a risk going in.
+  Went with (A): added `Interval Considered` (lookup → Intervals'
+  `name`) and an auto-populated `Interval ID`, mirroring the existing
+  `Maneuver Considered`/`Maneuver ID` pair, placed right after
+  Associated Field ID and before Operator. A row uses one pair or the
+  other — for an interval-based row, Response Field Prompt/Associated
+  Field ID simply stay blank, since Operator/Compared Value already
+  compare directly against whatever's Considered with no field
+  indirection needed. Every downstream column (Operator, Compared
+  Value, Differential Action, Diagnosis Affected, Explanation,
+  Reference, Rule Group ID, Required Clinical State, Rule Description)
+  needed no changes at all.
+- Validation now requires exactly one of Maneuver Considered / Interval
+  Considered per row (flags both blank or both filled), plus a
+  referential-integrity check on the new Interval ID against the
+  Intervals sheet.

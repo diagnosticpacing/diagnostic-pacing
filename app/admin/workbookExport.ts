@@ -19,7 +19,7 @@ const sheetOrder: SheetId[] = [
 ];
 
 const worksheetNames: Record<SheetId, string> = {
-  clinicalTerms: "Clinical Terms",
+  clinicalTerms: "Intervals",
   clinicalStates: "Clinical States",
   diagnoses: "Diagnoses",
   maneuverDefinitions: "Maneuver Definitions",

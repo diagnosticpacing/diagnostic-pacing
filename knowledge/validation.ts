@@ -113,6 +113,7 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
   const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
+  const intervalIds = new Set(safe("clinicalTerms").map((r) => n(r.termId).toUpperCase()));
   const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
   const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
 
@@ -145,11 +146,36 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   }
 
   for (const row of safe("clinicalReasoning")) {
+    const hasManeuver = Boolean(n(row.maneuverConsidered) || n(row.maneuverId));
+    const hasInterval = Boolean(n(row.intervalConsidered) || n(row.intervalId));
+
+    if (!hasManeuver && !hasInterval) {
+      issue(
+        issues,
+        "clinicalReasoning",
+        row,
+        "maneuverConsidered",
+        "Either Maneuver Considered or Interval Considered is required.",
+      );
+    }
+    if (hasManeuver && hasInterval) {
+      issue(
+        issues,
+        "clinicalReasoning",
+        row,
+        "intervalConsidered",
+        "Only one of Maneuver Considered or Interval Considered should be set per row.",
+      );
+    }
+
     if (n(row.maneuverId) && !maneuverIds.has(n(row.maneuverId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "maneuverId", `Unknown maneuver ID "${row.maneuverId}".`);
     }
     if (n(row.fieldId) && !fieldIds.has(n(row.fieldId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "fieldId", `Unknown field ID "${row.fieldId}".`);
+    }
+    if (n(row.intervalId) && !intervalIds.has(n(row.intervalId).toUpperCase())) {
+      issue(issues, "clinicalReasoning", row, "intervalId", `Unknown interval ID "${row.intervalId}".`);
     }
     if (n(row.diagnosisId) && !diagnosisIds.has(n(row.diagnosisId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "diagnosisId", `Unknown diagnosis ID "${row.diagnosisId}".`);

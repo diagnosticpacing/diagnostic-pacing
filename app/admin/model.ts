@@ -90,7 +90,7 @@ export const topLevelTabs: {
   id: TopLevelTabId;
   label: string;
 }[] = [
-  { id: "clinicalTerms", label: "Clinical Terms" },
+  { id: "clinicalTerms", label: "Intervals" },
   { id: "clinicalStates", label: "Clinical States" },
   { id: "diagnoses", label: "Diagnoses" },
   { id: "maneuvers", label: "Maneuvers" },
@@ -126,15 +126,15 @@ export const maneuverSheets: {
 export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
   clinicalTerms: {
     id: "clinicalTerms",
-    label: "Clinical Terms",
+    label: "Intervals",
     description:
-      "Shared clinical vocabulary used consistently throughout the application.",
+      "Shared interval/measurement vocabulary (AH, HV, VA, and similar) used consistently throughout the application.",
     columns: [
       {
         key: "termId",
-        label: "Term ID",
+        label: "Interval ID",
         modelUse:
-          "Stable identifier used when another record needs to reference this clinical term.",
+          "Stable identifier used when another record needs to reference this interval.",
         width: "170px",
         required: true,
         idPrefix: "TID-",
@@ -142,7 +142,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "name",
         label: "Name",
-        modelUse: "The preferred human-readable name of the clinical concept.",
+        modelUse: "The preferred human-readable name of the interval.",
         width: "220px",
         required: true,
       },
@@ -150,7 +150,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "definition",
         label: "Definition",
         modelUse:
-          "Defines what the term means so it can be interpreted consistently in clinical reasoning and explanations.",
+          "Defines what the interval means so it can be interpreted consistently in clinical reasoning and explanations.",
         width: "minmax(360px, 1fr)",
         multiline: true,
         required: true,
@@ -167,7 +167,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "unitOfMeasure",
         label: "Unit of Measure",
-        modelUse: "The unit of measure used for the clinical term, if applicable.",
+        modelUse: "The unit of measure used for the interval, if applicable.",
         width: "150px",
         options: ["", "ms", "mV"],
       },
@@ -516,7 +516,8 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "maneuverConsidered",
         label: "Maneuver Considered",
-        modelUse: "The maneuver this reasoning statement evaluates.",
+        modelUse:
+          "The maneuver this reasoning statement evaluates, as an alternative to Interval Considered — leave blank if this row instead evaluates an interval directly.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
         populatesColumn: "maneuverId",
@@ -546,6 +547,23 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Identifies the specific maneuver response field being evaluated. Intended to auto-populate from Response Field Prompt.",
         width: "180px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
+      },
+      {
+        key: "intervalConsidered",
+        label: "Interval Considered",
+        modelUse:
+          "The interval this reasoning statement evaluates directly, as an alternative to a Maneuver/Response Field pair — e.g. an AH interval threshold rather than a maneuver result. Leave the Maneuver columns blank when using this.",
+        width: "220px",
+        lookup: { sheet: "clinicalTerms", column: "name" },
+        populatesColumn: "intervalId",
+      },
+      {
+        key: "intervalId",
+        label: "Interval ID",
+        modelUse:
+          "Identifies the specific interval being evaluated. Intended to auto-populate from Interval Considered.",
+        width: "150px",
+        lookup: { sheet: "clinicalTerms", column: "termId" },
       },
       {
         key: "operator",
