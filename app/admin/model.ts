@@ -638,3 +638,24 @@ export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
 // The knowledge base starts empty — all content is entered through the
 // admin site rather than seeded here.
 export const initialData: Record<SheetId, SpreadsheetRow[]> = emptyData();
+
+/**
+ * Fills in any sheets missing from a stored/loaded workbook (e.g. a
+ * revision saved before a sheet like Clinical States existed) with an
+ * empty array, so the rest of the app can always assume every SheetId key
+ * is present and is an array. Without this, loading an older revision
+ * crashes anywhere that does `sheets.someSheet.map(...)`.
+ */
+export function normalizeWorkbookSheets(
+  sheets: Partial<Record<SheetId, SpreadsheetRow[]>> | undefined | null,
+): Record<SheetId, SpreadsheetRow[]> {
+  const normalized = emptyData();
+  const source = sheets ?? {};
+
+  for (const sheetId of Object.keys(normalized) as SheetId[]) {
+    const rows = source[sheetId];
+    normalized[sheetId] = Array.isArray(rows) ? rows : [];
+  }
+
+  return normalized;
+}

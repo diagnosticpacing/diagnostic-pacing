@@ -102,16 +102,21 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
   }
 
-  // Cross-sheet referential integrity.
-  const maneuverIds = new Set(sheets.maneuverDefinitions.map((r) => n(r.maneuverId).toUpperCase()));
-  const diagnosisAbbreviations = new Set(sheets.diagnoses.map((r) => n(r.abbreviatedName).toUpperCase()));
-  const diagnosisIds = new Set(sheets.diagnoses.map((r) => n(r.diagnosisId).toUpperCase()));
-  const clinicalStateAbbreviations = new Set(sheets.clinicalStates.map((r) => n(r.abbreviatedName).toUpperCase()));
-  const fieldIds = new Set(sheets.maneuverResponseFields.map((r) => n(r.fieldId).toUpperCase()));
-  const referenceIds = new Set(sheets.references.map((r) => n(r.referenceId).toUpperCase()));
-  const referenceTitles = new Set(sheets.references.map((r) => n(r.referenceTitle).toUpperCase()));
+  // Cross-sheet referential integrity. Guarded with `?? []` in case a
+  // workbook predates a sheet (e.g. loaded from a revision saved before
+  // Clinical States existed) and normalization was somehow skipped.
+  const safe = <T extends SheetId>(sheetId: T): SpreadsheetRow[] =>
+    Array.isArray(sheets[sheetId]) ? sheets[sheetId] : [];
 
-  for (const row of sheets.maneuverDefinitions) {
+  const maneuverIds = new Set(safe("maneuverDefinitions").map((r) => n(r.maneuverId).toUpperCase()));
+  const diagnosisAbbreviations = new Set(safe("diagnoses").map((r) => n(r.abbreviatedName).toUpperCase()));
+  const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
+  const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
+  const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
+  const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
+  const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
+
+  for (const row of safe("maneuverDefinitions")) {
     for (const abbr of splitList(row.relevantDiagnoses)) {
       if (!diagnosisAbbreviations.has(abbr.toUpperCase())) {
         issue(issues, "maneuverDefinitions", row, "relevantDiagnoses", `Unknown diagnosis "${abbr}" in Relevant Diagnoses.`);
@@ -124,19 +129,19 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
   }
 
-  for (const row of sheets.maneuverResponseFields) {
+  for (const row of safe("maneuverResponseFields")) {
     if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
       issue(issues, "maneuverResponseFields", row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
     }
   }
 
-  for (const row of sheets.maneuverResponseOptions) {
+  for (const row of safe("maneuverResponseOptions")) {
     if (n(row.associatedFieldId) && !fieldIds.has(n(row.associatedFieldId).toUpperCase())) {
       issue(issues, "maneuverResponseOptions", row, "associatedFieldId", `Unknown field ID "${row.associatedFieldId}".`);
     }
   }
 
-  for (const row of sheets.clinicalReasoning) {
+  for (const row of safe("clinicalReasoning")) {
     if (n(row.maneuverId) && !maneuverIds.has(n(row.maneuverId).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "maneuverId", `Unknown maneuver ID "${row.maneuverId}".`);
     }

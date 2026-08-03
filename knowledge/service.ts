@@ -1,4 +1,4 @@
-import { initialData } from "@/app/admin/model";
+import { initialData, normalizeWorkbookSheets } from "@/app/admin/model";
 import { getKnowledgeRepository } from "./repository";
 import { assertValidWorkbook, WorkbookValidationError } from "./validation";
 import {
@@ -41,6 +41,11 @@ async function createRevision(
     throw new RevisionConflictError(currentRevision, expectedRevision);
   }
 
+  // Normalize before validating/storing so a workbook saved or restored
+  // from before a sheet existed (e.g. Clinical States) doesn't crash
+  // validation or leave a missing key in what gets written.
+  const normalizedSheets = normalizeWorkbookSheets(sheets);
+
   const next = currentRevision + 1;
   const now = new Date().toISOString();
   const revision: KnowledgeRevision = {
@@ -52,7 +57,7 @@ async function createRevision(
       previousRevision: currentRevision || null,
       restoredFromRevision,
     },
-    workbook: { schemaVersion: KNOWLEDGE_SCHEMA_VERSION, sheets: clone(sheets) },
+    workbook: { schemaVersion: KNOWLEDGE_SCHEMA_VERSION, sheets: clone(normalizedSheets) },
   };
 
   assertValidWorkbook(revision.workbook);
@@ -84,7 +89,14 @@ export async function loadCurrentKnowledge(): Promise<KnowledgeSnapshot> {
 
   const revision = await repository.getRevision(current.pointer.currentRevision);
   if (!revision) throw new RevisionNotFoundError(current.pointer.currentRevision);
-  return { revision: revision.metadata.revision, metadata: revision.metadata, workbook: revision.workbook };
+  return {
+    revision: revision.metadata.revision,
+    metadata: revision.metadata,
+    workbook: {
+      ...revision.workbook,
+      sheets: normalizeWorkbookSheets(revision.workbook.sheets),
+    },
+  };
 }
 
 export function saveKnowledge(request: SaveKnowledgeRequest) {
