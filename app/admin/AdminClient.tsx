@@ -294,6 +294,7 @@ export default function AdminPage() {
 
         {hasLoaded && (
           <SpreadsheetTable
+            key={activeSheetId}
             definition={activeDefinition}
             rows={activeRows}
             allData={data}

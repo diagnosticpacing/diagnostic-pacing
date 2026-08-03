@@ -1,10 +1,37 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ColumnDefinition,
   SheetDefinition,
   SheetId,
   SpreadsheetRow,
 } from "../model";
+
+type SortDirection = "asc" | "desc";
+type SortState = { columnKey: string; direction: SortDirection } | null;
+
+/**
+ * Numeric-aware, case-insensitive comparison. Blank values always sort to
+ * the end regardless of direction, so empty cells don't scatter to the top
+ * on a descending sort.
+ */
+function compareValues(a: string, b: string, direction: SortDirection): number {
+  const aTrim = a.trim();
+  const bTrim = b.trim();
+
+  if (!aTrim && !bTrim) return 0;
+  if (!aTrim) return 1;
+  if (!bTrim) return -1;
+
+  const aNum = Number(aTrim);
+  const bNum = Number(bTrim);
+  const bothNumeric = !Number.isNaN(aNum) && !Number.isNaN(bNum);
+
+  const result = bothNumeric
+    ? aNum - bNum
+    : aTrim.localeCompare(bTrim, undefined, { sensitivity: "base" });
+
+  return direction === "asc" ? result : -result;
+}
 
 type SpreadsheetTableProps = {
   definition: SheetDefinition;
@@ -71,12 +98,37 @@ export default function SpreadsheetTable({
   highlightRowId,
 }: SpreadsheetTableProps) {
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Sorting is a view-only concern, local to whichever sheet is showing.
+  // The parent remounts this component (via a `key` on the sheet id) when
+  // the active sheet changes, so this state naturally resets on its own
+  // rather than needing an effect to clear it.
+  const [sortState, setSortState] = useState<SortState>(null);
 
   useEffect(() => {
     if (!highlightRowId) return;
     const node = rowRefs.current.get(highlightRowId);
     node?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [highlightRowId]);
+
+  const sortedRows = useMemo(() => {
+    if (!sortState) return rows;
+    const { columnKey, direction } = sortState;
+    return [...rows].sort((a, b) =>
+      compareValues(a[columnKey] ?? "", b[columnKey] ?? "", direction),
+    );
+  }, [rows, sortState]);
+
+  const handleHeaderClick = (columnKey: string) => {
+    setSortState((current) => {
+      if (!current || current.columnKey !== columnKey) {
+        return { columnKey, direction: "asc" };
+      }
+      if (current.direction === "asc") {
+        return { columnKey, direction: "desc" };
+      }
+      return null;
+    });
+  };
 
   const gridTemplateColumns = [
     "48px",
@@ -96,22 +148,39 @@ export default function SpreadsheetTable({
           #
         </div>
 
-        {definition.columns.map((column) => (
-          <div className="adminTableHeader" key={column.key}>
-            <div className="adminColumnGuide">
-              <span>How the application uses this</span>
-              <p>{column.modelUse}</p>
-            </div>
+        {definition.columns.map((column) => {
+          const isSorted = sortState?.columnKey === column.key;
 
-            <strong className="adminColumnLabel">
-              {column.label}
-            </strong>
-          </div>
-        ))}
+          return (
+            <button
+              className={
+                isSorted ? "adminTableHeader isSorted" : "adminTableHeader"
+              }
+              key={column.key}
+              type="button"
+              title="Click to sort. Click again to reverse, a third time to clear."
+              onClick={() => handleHeaderClick(column.key)}
+            >
+              <div className="adminColumnGuide">
+                <span>How the application uses this</span>
+                <p>{column.modelUse}</p>
+              </div>
+
+              <span className="adminColumnLabelRow">
+                <strong className="adminColumnLabel">
+                  {column.label}
+                </strong>
+                <span className="adminSortIndicator" aria-hidden="true">
+                  {isSorted ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
 
         <div className="adminTableHeader adminDeleteHeader" />
 
-        {rows.map((row, rowIndex) => {
+        {sortedRows.map((row, rowIndex) => {
           const isHighlighted = row.__rowId === highlightRowId;
 
           return (
