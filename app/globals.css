@@ -2977,7 +2977,12 @@ button {
 
 .adminTableViewport {
   width: 100%;
-  overflow: auto;
+  /* Horizontal scroll only — a wide sheet still needs to scroll sideways
+     to reach far-right columns, but the sheet should never get its own
+     capped-height vertical scrollbox. It should just grow as tall as it
+     needs and let the whole page scroll, like any other page content. */
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .adminSpreadsheet {
@@ -2992,7 +2997,10 @@ button {
 
 .adminTableHeader {
   position: sticky;
-  top: 0;
+  /* Sticks just below the site's own sticky top bar (76px tall) rather
+     than at the very top of the browser viewport, now that the sheet
+     scrolls with the page instead of inside its own boxed-in area. */
+  top: 76px;
   z-index: 3;
   display: block;
   width: 100%;
