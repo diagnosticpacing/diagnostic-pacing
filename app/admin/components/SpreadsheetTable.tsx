@@ -99,13 +99,31 @@ function getPrimaryIdColumn(sheetId: SheetId): string | null {
   return sheetDefinitions[sheetId].columns.find((c) => c.idPrefix)?.key ?? null;
 }
 
-/** Live, sorted, de-duplicated option list pulled from another sheet's data. */
+/**
+ * Live, sorted, de-duplicated option list pulled from another sheet's
+ * data. When `filterBy` is set, only target rows whose `matchColumn`
+ * equals the current row's own `ownColumn` value are included — this is
+ * what makes a dropdown cascade off an earlier pick in the same row (e.g.
+ * pick a maneuver, then only see that maneuver's response fields). If the
+ * prerequisite column is still blank, there are no options yet.
+ */
 function getLookupOptions(
   allData: Record<SheetId, SpreadsheetRow[]>,
   lookup: NonNullable<ColumnDefinition["lookup"]>,
+  filterBy: ColumnDefinition["filterBy"],
+  currentRow: SpreadsheetRow,
 ): string[] {
+  const requiredMatch = filterBy
+    ? norm(currentRow[filterBy.ownColumn] ?? "")
+    : null;
+
+  if (filterBy && !requiredMatch) return [];
+
   const values = new Set<string>();
   for (const row of allData[lookup.sheet] ?? []) {
+    if (filterBy && norm(row[filterBy.matchColumn] ?? "") !== requiredMatch) {
+      continue;
+    }
     const value = (row[lookup.column] ?? "").trim();
     if (value) values.add(value);
   }
@@ -407,7 +425,7 @@ export default function SpreadsheetTable({
                     : null;
 
                 const selectOptions = column.lookup
-                  ? getLookupOptions(allData, column.lookup)
+                  ? getLookupOptions(allData, column.lookup, column.filterBy, row)
                   : column.options;
 
                 return (
@@ -434,7 +452,15 @@ export default function SpreadsheetTable({
                         }
                       >
                         <option value="">
-                          {column.required ? "Select…" : "—"}
+                          {selectOptions.length === 0 && column.filterBy
+                            ? `Pick "${
+                                definition.columns.find(
+                                  (c) => c.key === column.filterBy!.ownColumn,
+                                )?.label ?? "the field above"
+                              }" first`
+                            : column.required
+                              ? "Select…"
+                              : "—"}
                         </option>
                         {selectOptions.map((option) => (
                           <option key={option || "blank"} value={option}>

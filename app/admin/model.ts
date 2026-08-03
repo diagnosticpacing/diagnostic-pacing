@@ -31,6 +31,14 @@ export type ColumnDefinition = {
   populatesColumn?: string;
   /** When true, a non-empty value renders an "Open" link to that URL. */
   isUrl?: true;
+  /**
+   * When set alongside `lookup`, narrows the option list to only target
+   * rows whose `matchColumn` equals this row's own `ownColumn` value —
+   * e.g. only show response fields belonging to the maneuver already
+   * chosen earlier in this same row. If `ownColumn` is blank, there are
+   * no options yet (the prerequisite hasn't been picked).
+   */
+  filterBy?: { ownColumn: string; matchColumn: string };
 };
 
 export type SheetDefinition = {
@@ -186,7 +194,6 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Tachycardia",
           "Implanted CRM Pacing",
           "Isoproterenol On",
-          "Isoproterenol Washout",
           "Isoproterenol Off",
           "Adenosine Administered",
         ],
@@ -204,7 +211,6 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Tachy",
           "CRM Paced",
           "Iso On",
-          "Iso Washout",
           "Iso Off",
           "Adenosine",
         ],
@@ -427,9 +433,36 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         idPrefix: "OID-",
       },
       {
+        key: "associatedManeuverName",
+        label: "Associated Maneuver Name",
+        modelUse: "Identifies which maneuver's response field owns this option.",
+        width: "220px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
+        populatesColumn: "associatedManeuverId",
+      },
+      {
+        key: "associatedManeuverId",
+        label: "Associated Maneuver ID",
+        modelUse:
+          "Identifies which maneuver's response field owns this option. Auto-populated from Associated Maneuver Name.",
+        width: "190px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
+      },
+      {
+        key: "associatedManeuverResponsePrompt",
+        label: "Associated Maneuver Response Prompt",
+        modelUse:
+          "Identifies the response field in which this option should appear, narrowed to fields belonging to the maneuver selected above.",
+        width: "260px",
+        lookup: { sheet: "maneuverResponseFields", column: "prompt" },
+        filterBy: { ownColumn: "associatedManeuverId", matchColumn: "associatedManeuverId" },
+        populatesColumn: "associatedFieldId",
+      },
+      {
         key: "associatedFieldId",
         label: "Associated Field ID",
-        modelUse: "Identifies the response field in which this option should appear.",
+        modelUse:
+          "Identifies the response field in which this option should appear. Auto-populated from Associated Maneuver Response Prompt.",
         width: "220px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
       },
@@ -484,9 +517,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "responseFieldPrompt",
         label: "Response Field Prompt",
-        modelUse: "The specific maneuver response field being evaluated.",
+        modelUse:
+          "The specific maneuver response field being evaluated, narrowed to fields belonging to the maneuver selected above.",
         width: "240px",
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
+        filterBy: { ownColumn: "maneuverId", matchColumn: "associatedManeuverId" },
         populatesColumn: "fieldId",
       },
       {

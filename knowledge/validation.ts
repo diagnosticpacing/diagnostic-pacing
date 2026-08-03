@@ -136,6 +136,9 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   }
 
   for (const row of safe("maneuverResponseOptions")) {
+    if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
+      issue(issues, "maneuverResponseOptions", row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
+    }
     if (n(row.associatedFieldId) && !fieldIds.has(n(row.associatedFieldId).toUpperCase())) {
       issue(issues, "maneuverResponseOptions", row, "associatedFieldId", `Unknown field ID "${row.associatedFieldId}".`);
     }
