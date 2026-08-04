@@ -29,8 +29,23 @@ import {
   evaluateDifferential,
   explainDifferentialResult,
   type DifferentialResult,
+  type DifferentialStatus,
 } from "./differential/engine";
 import type { SheetId, SpreadsheetRow } from "./admin/model";
+
+// Display-only relabeling of the differential engine's internal status
+// values — "Possible" reads as "Included" on the cards, since a diagnosis
+// in that tier hasn't been ruled out (it's included in the active
+// differential), which is clearer to a clinician scanning the list than
+// "Possible" sitting next to "Confirmed." The internal DifferentialStatus
+// type, sort logic, and CSS class (`status.toLowerCase()`, still
+// "possible") are all unchanged — same precedent as the Clinical Terms ->
+// Intervals rename (label-only, no underlying key change).
+const DIFFERENTIAL_STATUS_LABEL: Record<DifferentialStatus, string> = {
+  Confirmed: "Confirmed",
+  Possible: "Included",
+  Excluded: "Excluded",
+};
 
 type RailId = "clinicalStates" | "differentialDiagnosis";
 
@@ -513,7 +528,7 @@ export default function Home() {
                       <span
                         className={`status ${result.status.toLowerCase()}`}
                       >
-                        {result.status}
+                        {DIFFERENTIAL_STATUS_LABEL[result.status]}
                       </span>
 
                       <button

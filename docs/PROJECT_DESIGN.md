@@ -1072,3 +1072,21 @@ row 3`, `${column.label}, row 3`) — only the visible numeral is gone.
 outright; a couple were `.adminRowNumber`-only and fully removed).
 The lock button (`ADMIN-ROW-LOCKING-V1-2026-08-03`, moved left the same
 day) is now the first thing in every row.
+
+<!-- DIFFERENTIAL-STATUS-LABEL-2026-08-04 -->
+## Differential Status Label: "Possible" Displays as "Included" (implemented 2026-08-04)
+
+Display-only relabel on the main GUI's differential diagnosis cards:
+the middle tier now reads "Included" instead of "Possible" — a
+diagnosis in that tier hasn't been ruled out (it's included in the
+active differential), which reads more clearly next to "Confirmed" and
+"Excluded" than "Possible" did. `app/page.tsx` adds a
+`DIFFERENTIAL_STATUS_LABEL` map (`Confirmed`→"Confirmed",
+`Possible`→"Included", `Excluded`→"Excluded") and renders through it
+instead of the raw status string. The internal `DifferentialStatus`
+type/literal, the three-tier sort logic, and the CSS class the badge
+gets (still `result.status.toLowerCase()` → `"possible"`) are all
+unchanged — same label-only precedent as the Clinical Terms → Intervals
+rename (`INTERVALS-AND-CLINICAL-REASONING-2026-08-03`): only what the
+clinician reads changed, not the internal vocabulary Clinical Reasoning
+rules, engine logic, or code comments use.
