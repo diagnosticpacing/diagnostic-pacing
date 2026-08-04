@@ -14,11 +14,12 @@ section further down — this is an index, not a replacement.
 - Clinical State measurement architecture for plain intervals (AA, VV,
   PR, and similar) — still direct-entry, unchanged. The original ERP
   card's rhythm-specific display rules are superseded — see
-  `REFRACTORY-PERIODS-V1-2026-08-03` below.
+  `REFRACTORY-PERIODS-V2-2026-08-03` below.
 - Refractory periods (FRP/ERP) are now maneuver results, not direct
   entry: recorded on the back of whichever maneuver produces them
-  (tagged via Type/Direction/Structure/Component# on Maneuver Response
-  Fields), shown in a derived "Refractory Periods" panel under Intervals.
+  (tagged via Type/Direction/Structure on Maneuver Response Fields — one
+  field IS the whole result, Functional a single value and Effective up
+  to three), shown in a derived "Refractory Periods" panel under Intervals.
 - Knowledge base schema v2, including Clinical States, Rule Group ID /
   Required Clinical State on Clinical Reasoning, and the three-value
   Differential Action (Supports/Excludes/Confirms). The Clinical States
@@ -838,8 +839,8 @@ color: var(--text); }` rule on each select context
 since Safari in particular has been inconsistent about fully re-theming
 a select popup from `color-scheme` alone.
 
-<!-- REFRACTORY-PERIODS-V1-2026-08-03 -->
-## Refractory Periods Move From Direct Entry to Maneuver Results (implemented 2026-08-03)
+<!-- REFRACTORY-PERIODS-V2-2026-08-03 -->
+## Refractory Periods Move From Direct Entry to Maneuver Results (implemented 2026-08-03, simplified same day)
 
 Functional and Effective Refractory Periods (FRP/ERP) used to be typed
 directly into a dedicated card on the main workspace — hardcoded fields
@@ -847,13 +848,33 @@ in `workspaceConfigurations` (`app/clinical/model.ts`), completely
 disconnected from which maneuver actually produced them. That never
 matched reality: an ERP or FRP is the *output* of performing a specific
 pacing maneuver (an extrastimulus protocol, an overdrive pace), not an
-ambient value a clinician just happens to observe. This was discussed at
-length before building anything, and settled on: refractory periods are
-now recorded as ordinary Maneuver Response Fields, entered on the back
-of whichever maneuver produces them, alongside that maneuver's other
+ambient value a clinician just happens to observe. Settled on: refractory
+periods are recorded as ordinary Maneuver Response Fields, entered on the
+back of whichever maneuver produces them, alongside that maneuver's other
 results — not as their own dedicated maneuver, since a single maneuver's
 card can (and often will) produce more than one named refractory period
 result mixed in among unrelated fields.
+
+**V1 briefly used a Component # column — replaced same day.** The first
+build gave each component (the "600," the "400," the "300" in a 600/400/300
+result) its own separate Field ID, tagged with a Component # column to
+say which position it filled. That turned out to be more specificity than
+useful: it forced whoever populates the knowledge base to invent 2-3
+separate meaningful prompts per refractory period, and it meant Clinical
+Reasoning's Response Field Prompt picker would show 2-3 entries for what a
+clinician thinks of as one finding. The design was revised the same day
+to the simpler model described below, before any real knowledge base
+content had been entered against the old shape.
+
+**Current model: one field IS the whole refractory period.** Functional
+Refractory Periods are always a single numeric value. Effective
+Refractory Periods are always expressed as a series of 2-3 numbers (e.g.
+400/240 or 600/400/380) — this is a fixed clinical convention, not a
+per-field choice, so the GUI always renders exactly 3 boxes for an
+Effective field with the 3rd treated as optional/blank when only 2
+extrastimuli were performed. There's still no delimited string to parse
+anywhere — the boxes are separate inputs — but they now save under one
+admin-defined Field ID instead of 2-3.
 
 **Why this needed knowledge-base content, not just GUI logic.** The
 mapping from "this field, on this maneuver" to a clinically meaningful
@@ -865,95 +886,81 @@ different Type *and* a different Direction depending entirely on which
 maneuver measured it (the Accessory Pathway's FRP from atrial pacing is
 Antegrade AP FRP; from ventricular overdrive pacing it's Retrograde AP
 ERP) — so Direction can't be inferred from the structure name or from
-the maneuver's own name (that would just be a different flavor of the
-fragile-parsing trap already ruled out elsewhere in this project), it
-has to be its own explicit, admin-set tag.
+the maneuver's own name, it has to be its own explicit, admin-set tag.
 
-**Schema (`app/admin/model.ts`, Maneuver Response Fields):** four new
+**Schema (`app/admin/model.ts`, Maneuver Response Fields):** three
 fixed-`options` columns, all `required` (with "n/a" as a real, selectable
 answer for fields that aren't part of a refractory period — the same
 pattern already used by Units and Available Terms):
 
-- Refractory Period Type — n/a / Functional / Effective
+- Refractory Period Type — n/a / Functional / Effective (this alone
+  determines box count: Functional = 1, Effective = 3-with-3rd-optional)
 - Refractory Period Direction — n/a / Antegrade / Retrograde (n/a is a
   genuine answer here, not just "not applicable" — Atrial and
   Ventricular refractoriness aren't meaningfully antegrade or retrograde)
 - Refractory Period Structure — n/a / Atrial / AV Node / Fast Pathway /
   Slow Pathway / Accessory Pathway 1 / Accessory Pathway 2 / Ventricular
-- Refractory Period Component # — n/a / 1 / 2 / 3
 
-No new sheet. A refractory period's 2-3 components are just 2-3 ordinary
-Number Field response fields on some maneuver, each with its own real
-Field ID — there's no delimited string to parse, ever, which was a
-deliberate requirement (comma/slash-separated free text was explicitly
-rejected during design to avoid "600/300" vs "600 / 300" vs "600/ 300ms"
-inconsistency). `(Type, Direction, Structure, Component#)` must be unique
-across the *entire* workbook, not just within one maneuver — enforced in
-both `validateWorkbook` and `validateRow` (`knowledge/validation.ts`) —
-since nothing else stops two different maneuvers' fields from both
-claiming to be "Effective / Retrograde / Accessory Pathway 1 / Component
-1," and the derived display has no rule for picking a winner if that
-happens.
+No new sheet. `(Type, Direction, Structure)` must be unique across the
+*entire* workbook, not just within one maneuver — enforced in both
+`validateWorkbook` and `validateRow` (`knowledge/validation.ts`) — since
+nothing else stops two different maneuvers' fields from both claiming to
+be "Effective / Retrograde / Accessory Pathway 1," and the derived
+display has no rule for picking a winner if that happens.
 
-**Catalog + derivation (`app/refractoryPeriods/knowledge.ts`, new):**
-`buildRefractoryPeriodCatalog()` scans every maneuver's tagged response
-fields and groups them by `(Type, Direction, Structure)` into one
-definition per named refractory period, sorted by Component#.
-`composeRefractoryPeriodLabel()` builds the display label from the three
-tag dimensions (e.g. Effective + Retrograde + Accessory Pathway 1 →
-"Retrograde AP1 ERP") rather than storing the label as a flat string
-anywhere. `formatRefractoryPeriodValue()` reads a definition's owning
-maneuver's performance for a given Clinical State and slash-joins its
-component values, trailing blanks dropped — the exact same formatting
-rule the old direct-entry ERP card always used, just sourced from
-`ManeuverPerformance.values` (keyed by real Field IDs) instead of the old
-synthetic `erp.<field>.N` measurement keys.
+**Storage.** A Functional field's value lives directly under its own
+Field ID in `ManeuverPerformance.values`, identical to any other Number
+Field. An Effective field's first box also uses the bare Field ID; its
+2nd and 3rd boxes use suffixed keys (`FID-042.2`, `FID-042.3`) — see
+`refractoryPeriodComponentKey()` in `app/refractoryPeriods/knowledge.ts`,
+the single source of truth for this convention, used by both the
+maneuver card (writing) and the catalog (reading).
 
-**Maneuver card UI (`app/maneuvers/ManeuverCard.tsx`):** fields sharing
-the same `(Type, Direction, Structure)` tag now render as one compact
-"value / value / value" row instead of three separate full-width fields,
-wherever they fall among a maneuver's other, untagged response fields —
-echoing the old ERP card's layout, just fed by tagged fields instead of
-direct entry.
+**Catalog + derivation (`app/refractoryPeriods/knowledge.ts`):**
+`buildRefractoryPeriodCatalog()` now does a plain filter+map over every
+tagged response field — one field, one definition, no cross-field
+grouping needed, since a field is never shared across a refractory
+period anymore. `composeRefractoryPeriodLabel()` builds the display
+label from the three tag dimensions (e.g. Effective + Retrograde +
+Accessory Pathway 1 → "Retrograde AP1 ERP"). `formatRefractoryPeriodValue()`
+reads the field's owning maneuver's performance for a given Clinical
+State and slash-joins its values (1 for Functional, up to 3 for
+Effective), trailing blanks dropped.
 
-**Main GUI (`app/page.tsx`):** the old direct-entry Effective Refractory
-Period card is gone, along with `updateEffectiveRefractoryPeriod()` and
-`addAccessoryPathway2()`. In its place, a "Refractory Periods" panel
-(same position — directly under the Intervals section) now reads
-`buildRefractoryPeriodCatalog(maneuverCatalog)` and shows only the
-definitions with an actual recorded value for the active Clinical State.
-This quietly replaces the old manual "Add Accessory Pathway 2" toggle
-with something better: a not-yet-measured AP2 (or any other refractory
-period) simply doesn't appear until it's actually recorded, rather than
-needing a button to reveal a blank slot for it. `ClinicalState.erpDisplay`
-and the `MeasurementField.effectiveRefractoryPeriod` flag are gone from
-`app/clinical/model.ts` entirely — plain intervals (AA, VV, PR, and
-similar) are untouched and still direct-entry, since they're genuinely
-observed values, not maneuver output.
+**Maneuver card UI (`app/maneuvers/ManeuverCard.tsx`):** a Functional-
+tagged field needs no special treatment at all — it's rendered by the
+same "Number Field" control as any other field. An Effective-tagged
+field renders via `RefractoryPeriodTripletControl`, always 3 boxes for
+that one field, wired to the suffixed storage keys above.
 
-**Differential engine (`app/differential/engine.ts`):** unaffected by
-design — a refractory-period-based Clinical Reasoning rule now uses
-Maneuver Considered + an exact Response Field Prompt, the same
-robust, ID-based path every other maneuver-derived rule already used, no
-engine changes needed there. What did shrink is `findMatchingMeasurementField()`'s
-search space for the *other* path (Interval Considered's name-matching
-heuristic): since ERP/FRP fields no longer exist in
-`workspaceConfigurations` at all, that heuristic now only ever needs to
-cover plain intervals — which is what it always should have been scoped
-to.
+**Main GUI (`app/page.tsx`):** unchanged by this same-day simplification
+— it only ever consumed `buildRefractoryPeriodCatalog()`'s output as
+already-formatted strings, so the "Refractory Periods" panel (same
+position, directly under Intervals, showing only definitions with an
+actual recorded value for the active Clinical State) needed no code
+changes.
 
-**Deliberately out of scope for this first pass:**
+**Differential engine (`app/differential/engine.ts`):** no built-in
+comparison support for a multi-value Effective field, by explicit
+decision rather than oversight — the user's own assessment is that
+Clinical Reasoning rules are unlikely to ever compare directly against
+an ERP series (exclusions tend to rest on more solid criteria than a raw
+ERP comparison), and that if a rule ever did need one, values could only
+be compared in like terms anyway (same drive train, same number of
+extrastimuli), which is more complexity than it's worth building
+speculatively. Practically: a Clinical Reasoning row referencing an
+Effective field's Field ID directly would read its bare-Field-ID value —
+i.e. the first/baseline box only, per the storage convention above —
+which is a safe, harmless default (never a wrong comparison, just an
+incomplete one) rather than a trap, since no such rules are expected to
+be authored in the first place. A Functional field's Field ID always
+reads correctly since it only ever has one value.
 
-- **No rhythm-based filtering on the new panel.** The old card only ever
-  showed the ERP slots relevant to the active rhythm (Atrial Pacing vs.
-  Ventricular Pacing). The new panel shows every refractory period with a
-  recorded value for the active Clinical State, full stop — rhythm
-  scoping was an artifact of the old hardcoded-per-rhythm system, and
-  "has this actually been recorded here" is a more honest signal than an
-  assumed rhythm mapping now that the data comes from maneuvers instead.
-- **No enforcement that a tag group's 2-3 components all share the same
-  maneuver.** Clinically they always will (that's the whole point — one
-  maneuver, one result), but nothing currently blocks an admin mistake
-  that splits a group across two maneuvers. If that turns out to be a
-  real failure mode in practice, worth adding as a validation check
-  later; not pre-built speculatively.
+**Deliberately out of scope:**
+
+- **No rhythm-based filtering on the panel.** The old direct-entry card
+  only showed ERP slots relevant to the active rhythm. The new panel
+  shows every refractory period with a recorded value for the active
+  Clinical State, full stop — "has this actually been recorded here" is
+  a more honest signal than an assumed rhythm mapping now that the data
+  comes from maneuvers instead.

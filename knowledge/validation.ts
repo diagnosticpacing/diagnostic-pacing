@@ -37,28 +37,24 @@ const splitList = (value?: string) =>
  * A Response Field's refractory-period identity — the combination that
  * must be unique across the whole workbook, since the main GUI's derived
  * Refractory Periods display looks up "the" field for a given
- * (Type, Direction, Structure, Component) and has no rule for picking a
- * winner if two different fields both claim it. Returns null for a field
- * that isn't tagged as part of a refractory period at all (any of the
- * four columns left at "n/a"), since untagged fields have nothing to
- * collide over.
+ * (Type, Direction, Structure) and has no rule for picking a winner if two
+ * different fields both claim it. One field is the whole refractory period
+ * result now (Functional = one value, Effective = up to three), so there's
+ * no separate Component dimension to key on. Returns null for a field
+ * that isn't tagged as a refractory period at all (Type or Structure left
+ * at "n/a" — Direction alone being "n/a" is a valid, meaningful answer for
+ * structures without a directional distinction).
  */
 function refractoryPeriodTagKey(row: SpreadsheetRow): string | null {
   const type = n(row.refractoryPeriodType);
   const direction = n(row.refractoryPeriodDirection);
   const structure = n(row.refractoryPeriodStructure);
-  const component = n(row.refractoryPeriodComponent);
 
-  if (
-    !type || type === "n/a" ||
-    !direction || direction === "n/a" ||
-    !structure || structure === "n/a" ||
-    !component || component === "n/a"
-  ) {
+  if (!type || type === "n/a" || !structure || structure === "n/a") {
     return null;
   }
 
-  return `${type.toUpperCase()}|${direction.toUpperCase()}|${structure.toUpperCase()}|${component}`;
+  return `${type.toUpperCase()}|${(direction || "n/a").toUpperCase()}|${structure.toUpperCase()}`;
 }
 
 function issue(
@@ -176,7 +172,7 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
           "maneuverResponseFields",
           row,
           "refractoryPeriodStructure",
-          `Another Response Field already claims this same Refractory Period Type/Direction/Structure/Component combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure} / ${row.refractoryPeriodComponent}). Each combination may only be tagged on one field.`,
+          `Another Response Field already claims this same Refractory Period Type/Direction/Structure combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure}). Each combination may only be tagged on one field.`,
         );
       } else {
         seenRefractoryPeriodTags.add(tagKey);
@@ -355,7 +351,7 @@ export function validateRow(
           sheetId,
           row,
           "refractoryPeriodStructure",
-          `Another Response Field already claims this same Refractory Period Type/Direction/Structure/Component combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure} / ${row.refractoryPeriodComponent}). Each combination may only be tagged on one field.`,
+          `Another Response Field already claims this same Refractory Period Type/Direction/Structure combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure}). Each combination may only be tagged on one field.`,
         );
       }
     }

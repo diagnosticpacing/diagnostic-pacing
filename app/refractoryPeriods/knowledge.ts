@@ -2,25 +2,20 @@ import type { ClinicalState } from "@/app/clinical/model";
 import { findPerformance } from "@/app/clinical/model";
 import type {
   ManeuverCatalogEntry,
+  ManeuverCatalogField,
   RefractoryPeriodDirection,
   RefractoryPeriodStructure,
   RefractoryPeriodType,
 } from "@/app/maneuvers/knowledge";
 
-export type RefractoryPeriodComponentDefinition = {
-  component: 1 | 2 | 3;
-  fieldId: string;
-  prompt: string;
-};
-
 /**
- * One named refractory period result — Type + Direction + Structure,
- * grouped from 2-3 tagged Response Fields (its "components") that were
- * found scattered among a maneuver's other, unrelated response fields.
- * Uniqueness of (type, direction, structure, component) is enforced at
+ * One named refractory period result — a single tagged Response Field IS
+ * the whole result now, not a group of separately-tagged sibling fields.
+ * Functional always has exactly one value slot; Effective always has up
+ * to three (a third extrastimulus is optional, left blank if not
+ * performed). Uniqueness of (type, direction, structure) is enforced at
  * save/lock time (`knowledge/validation.ts`), so there's exactly one
- * maneuver behind any given definition — this isn't picking a winner
- * among several, it's just the one place this result can live.
+ * field behind any given definition.
  */
 export type RefractoryPeriodDefinition = {
   id: string;
@@ -28,9 +23,12 @@ export type RefractoryPeriodDefinition = {
   direction: RefractoryPeriodDirection;
   structure: RefractoryPeriodStructure;
   label: string;
+  fieldId: string;
+  prompt: string;
   maneuverId: string;
   maneuverName: string;
-  components: RefractoryPeriodComponentDefinition[];
+  /** How many value boxes this definition renders/stores: 1 for Functional, 3 for Effective. */
+  componentCount: 1 | 3;
 };
 
 const STRUCTURE_ABBREVIATIONS: Record<RefractoryPeriodStructure, string> = {
@@ -47,6 +45,24 @@ const TYPE_ABBREVIATIONS: Record<RefractoryPeriodType, string> = {
   Functional: "FRP",
   Effective: "ERP",
 };
+
+/** Functional Refractory Periods are always a single value; Effective is always up to three. */
+export function refractoryPeriodComponentCount(type: RefractoryPeriodType): 1 | 3 {
+  return type === "Effective" ? 3 : 1;
+}
+
+/**
+ * The storage key for one value slot of a refractory period field within a
+ * ManeuverPerformance's `values` map. The first slot always uses the
+ * field's own fieldId with no suffix — so a Functional field (always one
+ * slot) behaves exactly like any other Number Field, and Effective's first
+ * box is always what a naive lookup by fieldId alone would find. Only the
+ * second and third slots of an Effective field get a suffix, e.g.
+ * `FID-042.2`, `FID-042.3`.
+ */
+export function refractoryPeriodComponentKey(fieldId: string, component: number): string {
+  return component <= 1 ? fieldId : `${fieldId}.${component}`;
+}
 
 /**
  * Composes the clinician-facing label from the three tag dimensions —
@@ -69,93 +85,55 @@ export function composeRefractoryPeriodLabel(
     .join(" ");
 }
 
-function definitionKey(
-  type: RefractoryPeriodType,
-  direction: RefractoryPeriodDirection,
-  structure: RefractoryPeriodStructure,
-): string {
-  return `${type}|${direction}|${structure}`;
+function toDefinition(
+  entry: ManeuverCatalogEntry,
+  field: ManeuverCatalogField,
+): RefractoryPeriodDefinition | null {
+  const tag = field.refractoryPeriod;
+  if (!tag) return null;
+
+  return {
+    id: `${tag.type}|${tag.direction}|${tag.structure}`,
+    type: tag.type,
+    direction: tag.direction,
+    structure: tag.structure,
+    label: composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure),
+    fieldId: field.fieldId,
+    prompt: field.prompt,
+    maneuverId: entry.definition.maneuverId,
+    maneuverName: entry.definition.maneuverName,
+    componentCount: refractoryPeriodComponentCount(tag.type),
+  };
 }
 
 /**
- * Groups every refractory-period-tagged Response Field across the whole
- * maneuver catalog into one definition per (Type, Direction, Structure).
- * Component fields are sorted 1/2/3 within their group. Fields belonging
- * to the same group are expected to live on the same maneuver (that's
- * the whole point — a refractory period is recorded on the back of the
- * maneuver that produced it) but this doesn't hard-require it; if a
- * knowledge base entry ever split a group across two maneuvers, each
- * component's value still resolves independently through its own
- * maneuver's performances, so display degrades gracefully rather than
- * breaking.
+ * Builds one Refractory Period definition per tagged Response Field across
+ * the whole maneuver catalog — no cross-field grouping needed, since a
+ * single field is always the complete result now.
  */
 export function buildRefractoryPeriodCatalog(
   catalog: ManeuverCatalogEntry[],
 ): RefractoryPeriodDefinition[] {
-  const groups = new Map<
-    string,
-    {
-      type: RefractoryPeriodType;
-      direction: RefractoryPeriodDirection;
-      structure: RefractoryPeriodStructure;
-      maneuverId: string;
-      maneuverName: string;
-      components: RefractoryPeriodComponentDefinition[];
-    }
-  >();
+  const definitions: RefractoryPeriodDefinition[] = [];
 
   for (const entry of catalog) {
     for (const field of entry.fields) {
-      const tag = field.refractoryPeriod;
-      if (!tag) continue;
-
-      const key = definitionKey(tag.type, tag.direction, tag.structure);
-      const existing = groups.get(key);
-
-      const component: RefractoryPeriodComponentDefinition = {
-        component: tag.component,
-        fieldId: field.fieldId,
-        prompt: field.prompt,
-      };
-
-      if (existing) {
-        existing.components.push(component);
-      } else {
-        groups.set(key, {
-          type: tag.type,
-          direction: tag.direction,
-          structure: tag.structure,
-          maneuverId: entry.definition.maneuverId,
-          maneuverName: entry.definition.maneuverName,
-          components: [component],
-        });
-      }
+      const definition = toDefinition(entry, field);
+      if (definition) definitions.push(definition);
     }
   }
 
-  return Array.from(groups.entries())
-    .map(([id, group]) => ({
-      id,
-      type: group.type,
-      direction: group.direction,
-      structure: group.structure,
-      label: composeRefractoryPeriodLabel(group.type, group.direction, group.structure),
-      maneuverId: group.maneuverId,
-      maneuverName: group.maneuverName,
-      components: [...group.components].sort((a, b) => a.component - b.component),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return definitions.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**
  * Reads a refractory period's current recorded value for a given Clinical
  * State, formatted the same way the original ERP card always did:
  * slash-joined components with trailing blanks dropped (so a 2-component
- * result never trails a stray "/", and a not-yet-recorded component isn't
- * shown as an empty slot in the middle — only trailing gaps are trimmed,
- * matching how a clinician would naturally write down a partial result).
- * Returns "" if the maneuver hasn't been performed under this state at
- * all, or if no component has a value yet.
+ * Effective result never trails a stray "/"). A Functional definition
+ * (componentCount 1) reads its field directly, with no suffix. Returns ""
+ * if the maneuver hasn't been performed under this state at all, or if no
+ * value has been entered yet.
  */
 export function formatRefractoryPeriodValue(
   definition: RefractoryPeriodDefinition,
@@ -164,9 +142,15 @@ export function formatRefractoryPeriodValue(
   const performance = findPerformance(clinicalState, definition.maneuverId);
   if (!performance) return "";
 
-  const values = definition.components.map(
-    (component) => performance.values[component.fieldId]?.trim() ?? "",
-  );
+  if (definition.componentCount === 1) {
+    return performance.values[definition.fieldId]?.trim() ?? "";
+  }
+
+  const values: string[] = [];
+  for (let component = 1; component <= definition.componentCount; component += 1) {
+    const key = refractoryPeriodComponentKey(definition.fieldId, component);
+    values.push(performance.values[key]?.trim() ?? "");
+  }
 
   while (values.length > 0 && values[values.length - 1] === "") {
     values.pop();

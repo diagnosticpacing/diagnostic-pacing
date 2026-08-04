@@ -20,18 +20,20 @@ export type RefractoryPeriodStructure =
   | "Ventricular";
 
 /**
- * A Response Field tagged as one component of a refractory period result
- * (see the Refractory Period Type/Direction/Structure/Component# columns
- * on Maneuver Response Fields). `direction` is allowed to be "n/a" —
- * unlike type/structure/component, direction genuinely isn't a meaningful
- * distinction for some structures (Atrial, Ventricular refractoriness
- * isn't "antegrade" or "retrograde," it just is what it is).
+ * A Response Field tagged as a refractory period result in its entirety
+ * (see the Refractory Period Type/Direction/Structure columns on Maneuver
+ * Response Fields) — one field IS one named refractory period, not one
+ * component of one. Functional always renders/stores as a single value;
+ * Effective always renders/stores as up to three (a third extrastimulus is
+ * optional). `direction` is allowed to be "n/a" — unlike type/structure,
+ * direction genuinely isn't a meaningful distinction for some structures
+ * (Atrial, Ventricular refractoriness isn't "antegrade" or "retrograde,"
+ * it just is what it is).
  */
 export type RefractoryPeriodTag = {
   type: RefractoryPeriodType;
   direction: RefractoryPeriodDirection;
   structure: RefractoryPeriodStructure;
-  component: 1 | 2 | 3;
 };
 
 export type ManeuverResponseField = {
@@ -103,26 +105,23 @@ const REFRACTORY_PERIOD_STRUCTURES: RefractoryPeriodStructure[] = [
 ];
 
 /**
- * Parses a Response Field's four Refractory Period columns into a single
- * tag, or null if the field isn't part of one. All four columns use "n/a"
- * as their "not applicable" value (never blank, since they're `required`
- * dropdowns) except Direction, which allows "n/a" as a real, meaningful
- * answer for structures without a directional distinction — so an absent
- * *type/structure/component* means "not a refractory period field," but
- * an absent *direction* on an otherwise-tagged field is valid.
+ * Parses a Response Field's three Refractory Period columns into a single
+ * tag, or null if the field isn't one. Type and Structure use "n/a" as
+ * their "not applicable" value (never blank, since they're `required`
+ * dropdowns); Direction also uses "n/a" but as a real, meaningful answer
+ * for structures without a directional distinction — so an absent
+ * *type/structure* means "not a refractory period field," but an absent
+ * *direction* on an otherwise-tagged field is valid.
  */
 function parseRefractoryPeriodTag(row: SpreadsheetRow): RefractoryPeriodTag | null {
   const type = trimmed(row.refractoryPeriodType);
   const direction = trimmed(row.refractoryPeriodDirection);
   const structure = trimmed(row.refractoryPeriodStructure);
-  const component = trimmed(row.refractoryPeriodComponent);
 
   if (!type || type === "n/a") return null;
   if (!structure || structure === "n/a") return null;
-  if (!component || component === "n/a") return null;
   if (!REFRACTORY_PERIOD_TYPES.includes(type as RefractoryPeriodType)) return null;
   if (!REFRACTORY_PERIOD_STRUCTURES.includes(structure as RefractoryPeriodStructure)) return null;
-  if (!["1", "2", "3"].includes(component)) return null;
 
   const resolvedDirection: RefractoryPeriodDirection =
     direction && REFRACTORY_PERIOD_DIRECTIONS.includes(direction as RefractoryPeriodDirection)
@@ -133,7 +132,6 @@ function parseRefractoryPeriodTag(row: SpreadsheetRow): RefractoryPeriodTag | nu
     type: type as RefractoryPeriodType,
     direction: resolvedDirection,
     structure: structure as RefractoryPeriodStructure,
-    component: Number(component) as 1 | 2 | 3,
   };
 }
 

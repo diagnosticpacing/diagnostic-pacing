@@ -226,8 +226,9 @@ export default function Home() {
 
   // Refractory periods are results recorded on the back of whichever
   // maneuver produces them (tagged via Refractory Period Type/Direction/
-  // Structure/Component# on Maneuver Response Fields), not direct entry —
-  // see app/refractoryPeriods/knowledge.ts. Only entries with an actual
+  // Structure on Maneuver Response Fields — one field is the whole
+  // result), not direct entry — see app/refractoryPeriods/knowledge.ts.
+  // Only entries with an actual
   // recorded value for the active Clinical State are shown, so a not-yet-
   // measured Accessory Pathway 2, for instance, simply doesn't appear
   // rather than needing a manual "Add" toggle the way the old direct-

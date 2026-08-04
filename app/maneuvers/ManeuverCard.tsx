@@ -3,7 +3,11 @@
 import { useState } from "react";
 import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
 import type { ManeuverPerformance } from "../clinical/model";
-import { composeRefractoryPeriodLabel } from "../refractoryPeriods/knowledge";
+import {
+  composeRefractoryPeriodLabel,
+  refractoryPeriodComponentCount,
+  refractoryPeriodComponentKey,
+} from "../refractoryPeriods/knowledge";
 
 type ManeuverCardProps = {
   entry: ManeuverCatalogEntry;
@@ -18,18 +22,24 @@ function summarizePerformance(
   entry: ManeuverCatalogEntry,
   performance: ManeuverPerformance,
 ): string {
-  const parts = buildRenderItems(entry.fields)
-    .map((item) => {
-      if (item.kind === "field") {
-        const value = (performance.values[item.field.fieldId] ?? "").trim();
-        return value ? `${item.field.prompt}: ${value}` : null;
+  const parts = entry.fields
+    .map((field) => {
+      const tag = field.refractoryPeriod;
+      if (tag?.type === "Effective") {
+        const label = composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
+        const count = refractoryPeriodComponentCount(tag.type);
+        const values: string[] = [];
+        for (let component = 1; component <= count; component += 1) {
+          values.push(
+            performance.values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
+          );
+        }
+        while (values.length > 0 && values[values.length - 1] === "") values.pop();
+        return values.length > 0 ? `${label}: ${values.join("/")}` : null;
       }
 
-      const values = item.fields.map(
-        (field) => performance.values[field.fieldId]?.trim() ?? "",
-      );
-      while (values.length > 0 && values[values.length - 1] === "") values.pop();
-      return values.length > 0 ? `${item.label}: ${values.join("/")}` : null;
+      const value = (performance.values[field.fieldId] ?? "").trim();
+      return value ? `${field.prompt}: ${value}` : null;
     })
     .filter((part): part is string => part !== null);
 
@@ -131,94 +141,51 @@ function FieldControl({
   );
 }
 
-type RenderItem =
-  | { kind: "field"; field: ManeuverCatalogField }
-  | {
-      kind: "refractoryGroup";
-      key: string;
-      label: string;
-      fields: ManeuverCatalogField[];
-    };
-
 /**
- * Groups a maneuver's response fields for rendering: fields tagged with
- * the same Refractory Period Type/Direction/Structure collapse into one
- * compact multi-box row (matching how the original ERP card presented a
- * 600/400/300 result), wherever they happen to fall among the maneuver's
- * other, untagged fields. Everything else renders exactly as before, one
- * full field per row. A group appears at the position of its first
- * (lowest-order) component; the rest of that group's fields are absorbed
- * into it rather than rendered again.
+ * Renders one Effective Refractory Period field as a compact row of up to
+ * three boxes (matching how the original ERP card presented a
+ * 600/400/300 result) instead of a single input — the field is still one
+ * Field ID / one row in the knowledge base; only the GUI presentation and
+ * the underlying storage keys are split. The third box is always optional
+ * (a third extrastimulus isn't always performed), left blank if unused.
  */
-function buildRenderItems(fields: ManeuverCatalogField[]): RenderItem[] {
-  const items: RenderItem[] = [];
-  const groupIndexByKey = new Map<string, number>();
-
-  for (const field of fields) {
-    const tag = field.refractoryPeriod;
-    if (!tag) {
-      items.push({ kind: "field", field });
-      continue;
-    }
-
-    const key = `${tag.type}|${tag.direction}|${tag.structure}`;
-    const existingIndex = groupIndexByKey.get(key);
-
-    if (existingIndex === undefined) {
-      groupIndexByKey.set(key, items.length);
-      items.push({
-        kind: "refractoryGroup",
-        key,
-        label: composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure),
-        fields: [field],
-      });
-    } else {
-      const item = items[existingIndex];
-      if (item.kind === "refractoryGroup") item.fields.push(field);
-    }
-  }
-
-  for (const item of items) {
-    if (item.kind === "refractoryGroup") {
-      item.fields.sort(
-        (a, b) => (a.refractoryPeriod?.component ?? 0) - (b.refractoryPeriod?.component ?? 0),
-      );
-    }
-  }
-
-  return items;
-}
-
-function RefractoryPeriodGroupControl({
-  label,
-  fields,
+function RefractoryPeriodTripletControl({
+  field,
   values,
   onChange,
 }: {
-  label: string;
-  fields: ManeuverCatalogField[];
+  field: ManeuverCatalogField;
   values: Record<string, string>;
-  onChange: (fieldId: string, next: string) => void;
+  onChange: (key: string, next: string) => void;
 }) {
-  const units = fields.find((field) => field.units && field.units !== "n/a")?.units ?? "";
+  const tag = field.refractoryPeriod;
+  if (!tag) return null;
+
+  const label = composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
+  const count = refractoryPeriodComponentCount(tag.type);
+  const keys = Array.from({ length: count }, (_, index) =>
+    refractoryPeriodComponentKey(field.fieldId, index + 1),
+  );
 
   return (
     <div className="maneuverField maneuverFieldRefractoryGroup">
       <label>{label}</label>
       <div className="maneuverFieldRefractoryGroupRow">
-        {fields.map((field, index) => (
-          <div key={field.fieldId} className="maneuverFieldRefractoryGroupItem">
+        {keys.map((key, index) => (
+          <div key={key} className="maneuverFieldRefractoryGroupItem">
             {index > 0 && <span aria-hidden="true">/</span>}
             <input
-              aria-label={field.prompt}
+              aria-label={`${field.prompt} — value ${index + 1}`}
               title={field.prompt}
               inputMode="decimal"
-              value={values[field.fieldId] ?? ""}
-              onChange={(event) => onChange(field.fieldId, event.target.value)}
+              value={values[key] ?? ""}
+              onChange={(event) => onChange(key, event.target.value)}
             />
           </div>
         ))}
-        {units && <span className="maneuverFieldRefractoryGroupUnits">{units}</span>}
+        {field.units && field.units !== "n/a" && (
+          <span className="maneuverFieldRefractoryGroupUnits">{field.units}</span>
+        )}
       </div>
     </div>
   );
@@ -304,25 +271,23 @@ export default function ManeuverCard({
             </p>
           ) : (
             <div className="maneuverFieldList">
-              {buildRenderItems(entry.fields).map((item) => {
-                if (item.kind === "refractoryGroup") {
+              {entry.fields.map((field) => {
+                if (field.refractoryPeriod?.type === "Effective") {
                   return (
-                    <RefractoryPeriodGroupControl
-                      key={item.key}
-                      label={item.label}
-                      fields={item.fields}
+                    <RefractoryPeriodTripletControl
+                      key={field.fieldId}
+                      field={field}
                       values={draftValues}
-                      onChange={(fieldId, next) =>
+                      onChange={(key, next) =>
                         setDraftValues((current) => ({
                           ...current,
-                          [fieldId]: next,
+                          [key]: next,
                         }))
                       }
                     />
                   );
                 }
 
-                const field = item.field;
                 return (
                   <div className="maneuverField" key={field.fieldId}>
                     {field.inputType.toLowerCase() !== "checkbox" && (
