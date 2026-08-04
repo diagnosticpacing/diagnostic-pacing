@@ -430,10 +430,10 @@ export default function SpreadsheetTable({
 
   const gridTemplateColumns = [
     "48px",
+    "54px",
     ...definition.columns.map(
       (column) => `${columnWidths[column.key] ?? DEFAULT_COLUMN_WIDTH}px`,
     ),
-    "54px",
     "50px",
   ].join(" ");
 
@@ -446,6 +446,8 @@ export default function SpreadsheetTable({
         <div className="adminTableHeader adminRowNumberHeader">
           #
         </div>
+
+        <div className="adminTableHeader adminLockHeader" />
 
         {definition.columns.map((column) => {
           const isSorted = sortState?.columnKey === column.key;
@@ -486,7 +488,6 @@ export default function SpreadsheetTable({
           );
         })}
 
-        <div className="adminTableHeader adminLockHeader" />
         <div className="adminTableHeader adminDeleteHeader" />
 
         {sortedRows.map((row, rowIndex) => {
@@ -509,6 +510,25 @@ export default function SpreadsheetTable({
               }}
             >
               <div className="adminRowNumber">{rowIndex + 1}</div>
+
+              <div className="adminLockCell">
+                <button
+                  type="button"
+                  className={isLocked ? "adminLockButton isLocked" : "adminLockButton"}
+                  aria-label={
+                    isLocked ? `Unlock row ${rowIndex + 1}` : `Lock row ${rowIndex + 1}`
+                  }
+                  aria-pressed={isLocked}
+                  title={
+                    isLocked
+                      ? "Unlock to edit this row"
+                      : "Lock this row to protect it from accidental edits"
+                  }
+                  onClick={() => handleToggleLock(row)}
+                >
+                  <LockIcon locked={isLocked} />
+                </button>
+              </div>
 
               {definition.columns.map((column) => {
                 const value = row[column.key] ?? "";
@@ -679,25 +699,6 @@ export default function SpreadsheetTable({
                   </div>
                 );
               })}
-
-              <div className="adminLockCell">
-                <button
-                  type="button"
-                  className={isLocked ? "adminLockButton isLocked" : "adminLockButton"}
-                  aria-label={
-                    isLocked ? `Unlock row ${rowIndex + 1}` : `Lock row ${rowIndex + 1}`
-                  }
-                  aria-pressed={isLocked}
-                  title={
-                    isLocked
-                      ? "Unlock to edit this row"
-                      : "Lock this row to protect it from accidental edits"
-                  }
-                  onClick={() => handleToggleLock(row)}
-                >
-                  <LockIcon locked={isLocked} />
-                </button>
-              </div>
 
               <div className="adminDeleteCell">
                 <button

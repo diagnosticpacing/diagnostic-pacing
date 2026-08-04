@@ -757,8 +757,12 @@ pick, an accidental clear, editing the wrong row. Row locking is a
 deliberate, opt-in guard against that, not a permissions system.
 
 Every row in every sheet can be locked or unlocked via a padlock
-button in a new row-action column (next to the existing delete
-button). A locked row disables every control in that row — reusing
+button in a row-action column. Originally placed next to the delete
+button on the right; moved to the left, right after the row number,
+on 2026-08-04 for visibility (`app/admin/components/SpreadsheetTable.tsx`
+— purely a JSX/`gridTemplateColumns` reorder, no CSS or behavior
+changes, since the lock styling already targeted elements by class
+rather than by position). A locked row disables every control in that row — reusing
 the same disabling mechanism already built for the Maneuver/Interval
 `disabledWhenFilled` mutual exclusion — and gets a deliberately new,
 distinct visual treatment (a violet diagonal hatch + top/bottom band,
