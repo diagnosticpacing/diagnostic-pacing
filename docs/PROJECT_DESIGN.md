@@ -1021,3 +1021,29 @@ so picking the name auto-fills the ID — the exact same two-column shape
 already used by Response Options' Associated Maneuver Name/ID pair, no
 new mechanism needed. `associatedManeuverId` itself is unchanged other
 than its `modelUse` text now noting it auto-populates.
+
+<!-- MANEUVER-BASE-RANK-2026-08-04 -->
+## Maneuver Definitions: Base Rank (implemented 2026-08-04)
+
+The maneuver card grid (`MANEUVER-CARD-GRID-2026-08-03`) has always
+reordered by relevance score, but ties (equal relevance — currently the
+common case, since real Clinical Reasoning data is still sparse and the
+fallback score is coarse) fell back to whatever order the knowledge base
+happened to return rows in, with no way for an admin to control it.
+Added `baseRank` to Maneuver Definitions (`app/admin/model.ts`),
+identical in spirit to the Diagnoses sheet's existing `baseRank`: a
+required, fixed, admin-set number, lower first. `app/page.tsx`'s
+`sortedManeuverCatalog` sort now uses it as the tiebreaker after
+relevance score, same two-tier pattern as the differential engine's
+diagnosis sort (`DIFFERENTIAL-HIERARCHY-2026-08-02`).
+
+This gives direct control over the grid's default layout right now,
+since ties currently dominate — and remains exactly what it says on the
+tin (a *tiebreaker*, not an override) once real relevance scoring
+differentiates maneuvers further: a maneuver that's actually more
+relevant to the live differential still sorts above one with a "better"
+Base Rank. `ManeuverDefinition.baseRank` (`app/maneuvers/knowledge.ts`)
+parses a blank/invalid value to `Number.MAX_SAFE_INTEGER` (sorts last)
+rather than `0` (which would misleadingly promote it to first), mirroring
+the same unparseable-sorts-last convention `parseDiagnosis`'s `baseRank`
+parsing already used in `app/differential/engine.ts`.

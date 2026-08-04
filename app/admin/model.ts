@@ -352,6 +352,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         required: true,
       },
       {
+        key: "baseRank",
+        label: "Base Rank",
+        modelUse:
+          "Fixed default order for the maneuver card grid before any relevance scoring is applied, and the tiebreaker when two maneuvers score equally relevant. Lower numbers appear first.",
+        width: "130px",
+        required: true,
+      },
+      {
         key: "relevantDiagnoses",
         label: "Relevant Diagnoses",
         modelUse:

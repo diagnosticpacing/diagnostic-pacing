@@ -218,11 +218,18 @@ export default function Home() {
       .map((result) => result.diagnosis.abbreviatedName.toUpperCase()),
   );
 
-  const sortedManeuverCatalog = [...maneuverCatalog].sort(
-    (a, b) =>
+  // Relevance score first (highest first); Base Rank breaks ties (lowest
+  // first) — this is the knob that controls the grid's default layout
+  // before any relevance scoring differentiates maneuvers, and still
+  // settles ties once it does, same tiebreak role Base Rank already
+  // plays for diagnoses in the differential engine.
+  const sortedManeuverCatalog = [...maneuverCatalog].sort((a, b) => {
+    const relevanceDelta =
       scoreManeuverRelevance(b.definition, activeDiagnosisAbbreviations) -
-      scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations),
-  );
+      scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations);
+    if (relevanceDelta !== 0) return relevanceDelta;
+    return a.definition.baseRank - b.definition.baseRank;
+  });
 
   // Refractory periods are results recorded on the back of whichever
   // maneuver produces them (tagged via Refractory Period Type/Direction/

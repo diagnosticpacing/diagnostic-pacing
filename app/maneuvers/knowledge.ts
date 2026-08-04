@@ -3,6 +3,7 @@ import type { SheetId, SpreadsheetRow } from "@/app/admin/model";
 export type ManeuverDefinition = {
   maneuverId: string;
   maneuverName: string;
+  baseRank: number;
   relevantDiagnoses: string[];
   requiredStates: string[];
   technique: string;
@@ -79,6 +80,15 @@ const toOrder = (value?: string) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+// Unparseable/blank sorts last rather than first (0 would misleadingly
+// promote a maneuver with a missing Base Rank to the top of the grid) —
+// same convention as Diagnoses' baseRank tiebreak in the differential
+// engine.
+const toBaseRank = (value?: string) => {
+  const parsed = Number.parseFloat(trimmed(value));
+  return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+};
+
 function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null {
   const maneuverId = trimmed(row.maneuverId);
   if (!maneuverId) return null;
@@ -86,6 +96,7 @@ function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null
   return {
     maneuverId,
     maneuverName: trimmed(row.maneuverName),
+    baseRank: toBaseRank(row.baseRank),
     relevantDiagnoses: splitList(row.relevantDiagnoses),
     requiredStates: splitList(row.requiredStates),
     technique: trimmed(row.technique),
