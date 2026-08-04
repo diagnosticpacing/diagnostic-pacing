@@ -44,6 +44,12 @@ section further down — this is an index, not a replacement.
   demo array and fake percentage-confidence bar. Both the card grid's
   relevance ordering and the differential rail now read from the same
   live knowledge base via the public `GET /api/knowledge/public` route.
+- The knowledge base save pipeline now self-heals from schema changes:
+  `pruneUnknownColumns()` (`app/admin/model.ts`) strips any row key that
+  isn't in the current schema before validating/storing, so removing a
+  column (as happened when Refractory Period Component # was dropped)
+  can never permanently block saving again — see the tail end of
+  `REFRACTORY-PERIODS-V2-2026-08-03` below.
 
 **Still open / intentionally deferred:**
 
@@ -63,7 +69,21 @@ section further down — this is an index, not a replacement.
   saves since — treat it as historical, not current, until re-verified.
 
 <!-- ERP-CLINICAL-STATE-DESIGN-V1 -->
-## Clinical State Measurement Architecture
+## Clinical State Measurement Architecture (SUPERSEDED — see REFRACTORY-PERIODS-V2-2026-08-03)
+
+**Everything below this point through "Rhythm-Specific ERP Display
+Rules" describes the original hardcoded, direct-entry ERP/FRP card —
+fields in `workspaceConfigurations`, the `erp.<field>.N` storage keys,
+the rhythm-specific field ordering, the manual "Add Accessory Pathway
+2" button. None of it exists in code anymore.** Refractory periods are
+now recorded as maneuver results (tagged Response Fields) and rendered
+by a derived, read-only panel — see `REFRACTORY-PERIODS-V2-2026-08-03`
+much further down, which is the current, accurate design. Left in place
+below only as a historical record of what the original direct-entry
+model looked like and why it was replaced (the "an ERP is the *output*
+of a maneuver, not an ambient observation" reasoning that motivated the
+rebuild). Plain intervals (AA, VV, PR, and similar) are the one part of
+this section still accurate — those are still direct-entry, unchanged.
 
 Intervals, Functional Refractory Periods, and Effective Refractory Periods are
 Clinical State-specific data. Each Clinical State owns its own context,
