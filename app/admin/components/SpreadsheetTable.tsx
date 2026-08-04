@@ -429,7 +429,6 @@ export default function SpreadsheetTable({
   };
 
   const gridTemplateColumns = [
-    "48px",
     "54px",
     ...definition.columns.map(
       (column) => `${columnWidths[column.key] ?? DEFAULT_COLUMN_WIDTH}px`,
@@ -443,10 +442,6 @@ export default function SpreadsheetTable({
         className="adminSpreadsheet"
         style={{ gridTemplateColumns }}
       >
-        <div className="adminTableHeader adminRowNumberHeader">
-          #
-        </div>
-
         <div className="adminTableHeader adminLockHeader" />
 
         {definition.columns.map((column) => {
@@ -509,8 +504,6 @@ export default function SpreadsheetTable({
                 else rowRefs.current.delete(row.__rowId);
               }}
             >
-              <div className="adminRowNumber">{rowIndex + 1}</div>
-
               <div className="adminLockCell">
                 <button
                   type="button"
@@ -720,7 +713,7 @@ export default function SpreadsheetTable({
             className="adminEmptySpreadsheetRow"
             style={{
               gridColumn: `1 / span ${
-                definition.columns.length + 3
+                definition.columns.length + 2
               }`,
             }}
           >

@@ -3022,12 +3022,10 @@ button.adminTableHeader.isSorted {
   color: var(--accent, #5bd6dc);
 }
 
-.adminRowNumberHeader,
 .adminDeleteHeader {
   text-align: center;
 }
 
-.adminRowNumber,
 .adminDeleteCell {
   display: flex;
   min-height: 45px;
@@ -3036,12 +3034,6 @@ button.adminTableHeader.isSorted {
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.012);
-}
-
-.adminRowNumber {
-  color: var(--quiet);
-  font-size: 9px;
-  user-select: none;
 }
 
 .adminCell {
@@ -3291,7 +3283,6 @@ button.adminTableHeader.isSorted {
 }
 
 .adminSpreadsheetRow.isHighlighted > .adminCell,
-.adminSpreadsheetRow.isHighlighted > .adminRowNumber,
 .adminSpreadsheetRow.isHighlighted > .adminDeleteCell {
   animation: adminRowHighlight 4s ease-out;
 }
@@ -3433,7 +3424,6 @@ button.adminTableHeader.isSorted {
   text-transform: none;
 }
 
-.adminRowNumberHeader,
 .adminDeleteHeader {
   justify-content: flex-end;
   min-height: 112px;
@@ -3484,7 +3474,6 @@ button.adminTableHeader.isSorted {
   text-transform: none;
 }
 
-.adminRowNumberHeader,
 .adminDeleteHeader {
   min-height: 150px;
   justify-content: flex-end;
@@ -3538,7 +3527,6 @@ button.adminTableHeader.isSorted {
   min-height: 68px;
 }
 
-.adminRowNumber,
 .adminDeleteCell {
   min-height: 69px;
 }
@@ -4084,7 +4072,6 @@ button.adminTableHeader.isSorted {
  * individually, the same pattern already used for isHighlighted.
  */
 .adminSpreadsheetRow.isLocked > .adminCell,
-.adminSpreadsheetRow.isLocked > .adminRowNumber,
 .adminSpreadsheetRow.isLocked > .adminLockCell,
 .adminSpreadsheetRow.isLocked > .adminDeleteCell {
   position: relative;
@@ -4107,11 +4094,6 @@ button.adminTableHeader.isSorted {
 .adminSpreadsheetRow.isLocked > .adminCell textarea {
   cursor: not-allowed;
   opacity: 0.78;
-}
-
-.adminSpreadsheetRow.isLocked > .adminRowNumber {
-  color: var(--locked);
-  font-weight: 800;
 }
 
 .adminDeleteCell button:disabled {

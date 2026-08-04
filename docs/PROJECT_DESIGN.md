@@ -758,11 +758,14 @@ deliberate, opt-in guard against that, not a permissions system.
 
 Every row in every sheet can be locked or unlocked via a padlock
 button in a row-action column. Originally placed next to the delete
-button on the right; moved to the left, right after the row number,
+button on the right; moved to the left, at the very start of the row,
 on 2026-08-04 for visibility (`app/admin/components/SpreadsheetTable.tsx`
 — purely a JSX/`gridTemplateColumns` reorder, no CSS or behavior
 changes, since the lock styling already targeted elements by class
-rather than by position). A locked row disables every control in that row — reusing
+rather than by position). The row-number (`#`) column that used to sit
+to its left was removed the same day (see
+`ADMIN-HIDE-ROW-NUMBERS-2026-08-04` below), so the lock button is now
+the leftmost thing in every row. A locked row disables every control in that row — reusing
 the same disabling mechanism already built for the Maneuver/Interval
 `disabledWhenFilled` mutual exclusion — and gets a deliberately new,
 distinct visual treatment (a violet diagonal hatch + top/bottom band,
@@ -1051,3 +1054,21 @@ parses a blank/invalid value to `Number.MAX_SAFE_INTEGER` (sorts last)
 rather than `0` (which would misleadingly promote it to first), mirroring
 the same unparseable-sorts-last convention `parseDiagnosis`'s `baseRank`
 parsing already used in `app/differential/engine.ts`.
+
+<!-- ADMIN-HIDE-ROW-NUMBERS-2026-08-04 -->
+## Admin Spreadsheet: Row Numbers Removed (implemented 2026-08-04)
+
+The `#` row-number column at the start of every admin sheet is gone —
+purely cosmetic, no data or behavior it exposed anywhere else.
+`app/admin/components/SpreadsheetTable.tsx`: removed the `48px` track
+from `gridTemplateColumns`, the `#` header cell, and each row's
+`adminRowNumber` div; the empty-state row's `gridColumn` span dropped
+from `+3` to `+2` extra tracks to match. `rowIndex` itself is untouched
+and still backs every row's accessibility labels (`Lock row 3`, `Delete
+row 3`, `${column.label}, row 3`) — only the visible numeral is gone.
+`app/globals.css`: pruned every now-dead `.adminRowNumber`/
+`.adminRowNumberHeader` selector (some shared a rule with
+`.adminDeleteCell`/`.adminDeleteHeader`, trimmed rather than deleted
+outright; a couple were `.adminRowNumber`-only and fully removed).
+The lock button (`ADMIN-ROW-LOCKING-V1-2026-08-03`, moved left the same
+day) is now the first thing in every row.
