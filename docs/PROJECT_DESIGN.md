@@ -1348,3 +1348,27 @@ and hover rule) is now dead and was pruned from `app/globals.css`; new
 using the same filled-cyan language as `.adminPrimaryButton`/
 `.downloadCardAction` but sized up (46px tall, 180px minimum width) to
 read as the card's primary action.
+
+<!-- REMOVE-WORKSPACE-REFERENCE-TABS-2026-08-04 -->
+## Removed the Workspace/Reference Top-Bar Toggle (implemented 2026-08-04)
+
+The topbar's center `<nav className="tabs">` — "Workspace" (permanently
+`active`, unclickable) and "Reference" (no handler at all) — was a draft
+holdover from before the app had any real second surface to switch to.
+Now that `PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04` gives "Reference" a
+real destination (the `/knowledge` link in the About modal, opening in
+its own tab), the fake toggle that never did anything is just
+confusing, so it's gone rather than wired up — the About modal is
+already the entry point, and a second, non-functional nav implying the
+same destination would be redundant.
+
+- **`app/page.tsx`**: removed the `<nav className="tabs">` block
+  entirely from the topbar.
+- **`app/globals.css`**: `.topbar`'s grid went from three columns
+  (`1fr auto 1fr`, the center one sized to the now-gone nav) to two
+  (`1fr auto` — brand info left, `.topActions` right). Deleted the now
+  fully dead `.tabs`, `.tabs button`, and `.tabs button.active` rules,
+  along with the `@media (max-width: 1100px)` block's `.topbar`/`.tabs`
+  overrides — that breakpoint used to collapse to `1fr auto` and hide
+  the nav on narrower screens, which is exactly the new unconditional
+  base layout, so the override became redundant rather than needed.

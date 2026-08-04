@@ -400,11 +400,6 @@ export default function Home() {
           </button>
         </div>
 
-        <nav className="tabs">
-          <button className="active">Workspace</button>
-          <button>Reference</button>
-        </nav>
-
         <div className="topActions">
           <div className="activeCase">
             <span />
