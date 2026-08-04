@@ -1212,3 +1212,50 @@ own:
   `.effectiveRefractoryPeriodUnit`, `.refractoryPeriodValue`, and their
   two responsive media-query blocks — all now genuinely dead, since
   nothing in the new markup references them.
+
+<!-- CLINICAL-STATE-CARD-EQUAL-WEIGHT-2026-08-04 -->
+## Clinical States Rail Cards: Equal Visual Weight for Phase/Rhythm/Iso (implemented 2026-08-04)
+
+On the left-hand Clinical States rail, each card previously gave Phase,
+Rhythm, and Iso status three different visual treatments: Phase was a
+bold `<strong>` headline, Rhythm a plain muted `<p>` line below it, and
+Iso status was buried as a small span inside the `.clinicalStateMeta`
+row (sharing that row, and its smallest type size, with the unrelated
+measurement count). That was an unintentional hierarchy among three
+fields that are actually peers for identifying a clinical state — none
+of them is more important than the others.
+
+- **Layout.** `app/page.tsx` now renders Phase, Rhythm, and Iso as a
+  `.clinicalStateFields` three-column grid, one `.clinicalStateField`
+  per value: a tiny uppercase `.clinicalStateFieldLabel` ("Phase" /
+  "Rhythm" / "Iso") over a `.clinicalStateFieldValue`. All three labels
+  share one type scale and all three values share another — no field is
+  bigger, bolder, or better-positioned than the others. Each value
+  carries a `title` attribute with the full text, since the column is
+  narrow enough that long Rhythm/Phase strings can truncate.
+- **Iso value.** Shown as the bare trimmed `isoproterenol` string (or
+  "Off" when blank) rather than the `medicationSummary()`-formatted
+  "Iso off" — the field's own label already says "Iso," so repeating it
+  in the value would be redundant now that it has equal footing with
+  Phase and Rhythm. `medicationSummary()` itself is untouched and still
+  used by `clinicalStateSummary()` for the maneuver-card compact
+  summary, which is a different, unlabeled context; its now-unused
+  import was removed from `app/page.tsx`.
+- **Measurement count.** Kept as its own line below the field grid in a
+  simplified `.clinicalStateMeta` (now a single left-aligned span,
+  since Iso status is no longer sharing that row) — it's a count of
+  recorded values, not an identifying attribute of the state, so it
+  deliberately stays visually secondary to the three equal-weight
+  fields above it.
+- **CSS.** `app/globals.css`: replaced `.clinicalStateCard > strong`
+  and `.clinicalStateCard > p` with `.clinicalStateFields` /
+  `.clinicalStateField` / `.clinicalStateFieldLabel` /
+  `.clinicalStateFieldValue`; dropped the `:last-child` right-align
+  rule from `.clinicalStateMeta span` (only one span remains) and the
+  `justify-content: space-between` from `.clinicalStateMeta` itself.
+  A pre-existing, already-fully-overridden "Clinical State architecture
+  v1" CSS block earlier in the file (labeled as such in a comment) still
+  defines its own dead `.clinicalStateCard strong`/`p`/`.clinicalStateMeta`
+  rules — these were already inert before this change (the "v2" rules
+  edited here have matched selectors later in the cascade and already
+  won), so they were left alone rather than pruned in this pass.

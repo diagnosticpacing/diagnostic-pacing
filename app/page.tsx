@@ -8,7 +8,6 @@ import {
   createClinicalState,
   createInitialCase,
   findPerformance,
-  medicationSummary,
   phaseOptions,
   rhythmOptions,
   sedationOptions,
@@ -449,15 +448,37 @@ export default function Home() {
                   </span>
                 </div>
 
-                <strong>{clinicalState.context.phase}</strong>
-                <p>{clinicalState.context.rhythm}</p>
+                <div className="clinicalStateFields">
+                  <div className="clinicalStateField">
+                    <span className="clinicalStateFieldLabel">Phase</span>
+                    <span
+                      className="clinicalStateFieldValue"
+                      title={clinicalState.context.phase}
+                    >
+                      {clinicalState.context.phase}
+                    </span>
+                  </div>
+                  <div className="clinicalStateField">
+                    <span className="clinicalStateFieldLabel">Rhythm</span>
+                    <span
+                      className="clinicalStateFieldValue"
+                      title={clinicalState.context.rhythm}
+                    >
+                      {clinicalState.context.rhythm}
+                    </span>
+                  </div>
+                  <div className="clinicalStateField">
+                    <span className="clinicalStateFieldLabel">Iso</span>
+                    <span
+                      className="clinicalStateFieldValue"
+                      title={clinicalState.context.isoproterenol.trim() || "Off"}
+                    >
+                      {clinicalState.context.isoproterenol.trim() || "Off"}
+                    </span>
+                  </div>
+                </div>
 
                 <div className="clinicalStateMeta">
-                  <span>
-                    {medicationSummary(
-                      clinicalState.context.isoproterenol,
-                    )}
-                  </span>
                   <span>
                     {enteredMeasurementCount(clinicalState)} measurements
                   </span>
