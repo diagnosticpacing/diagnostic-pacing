@@ -837,3 +837,45 @@ export function normalizeWorkbookSheets(
 
   return normalized;
 }
+
+/**
+ * Drops any row key that isn't `__rowId`, `__locked`, or one of the current
+ * sheet definition's columns — the mirror image of what
+ * `normalizeWorkbookSheets` does for missing *sheets*, but for stale
+ * *columns*. A row can end up carrying a key like this after a column is
+ * removed from `sheetDefinitions` (as happened when the Refractory Period
+ * Component # column was dropped) — without this, that leftover key would
+ * fail `validateWorkbook`'s "Unexpected column" check on every future save,
+ * forever, with no way for an admin to clear it from the spreadsheet UI
+ * (there's no cell for a column that no longer exists). Called once, at
+ * save time, right after `normalizeWorkbookSheets` — so a schema change
+ * heals itself on the next save instead of permanently blocking one.
+ * Each drop is logged server-side for auditability, since this is silently
+ * discarding data (recoverable from revision history if it ever matters).
+ */
+export function pruneUnknownColumns(
+  sheets: Record<SheetId, SpreadsheetRow[]>,
+): Record<SheetId, SpreadsheetRow[]> {
+  const pruned = emptyData();
+
+  for (const sheetId of Object.keys(pruned) as SheetId[]) {
+    const definition = sheetDefinitions[sheetId];
+    const allowed = new Set(["__rowId", "__locked", ...definition.columns.map((c) => c.key)]);
+
+    pruned[sheetId] = (sheets[sheetId] ?? []).map((row) => {
+      const cleaned: SpreadsheetRow = { __rowId: row.__rowId };
+      for (const key of Object.keys(row)) {
+        if (allowed.has(key)) {
+          cleaned[key] = row[key];
+        } else {
+          console.warn(
+            `[knowledge] Dropping unexpected column "${key}" from ${sheetId} row ${row.__rowId} (not in current schema).`,
+          );
+        }
+      }
+      return cleaned;
+    });
+  }
+
+  return pruned;
+}

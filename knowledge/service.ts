@@ -1,4 +1,4 @@
-import { initialData, normalizeWorkbookSheets } from "@/app/admin/model";
+import { initialData, normalizeWorkbookSheets, pruneUnknownColumns } from "@/app/admin/model";
 import { getKnowledgeRepository } from "./repository";
 import { assertValidWorkbook, WorkbookValidationError } from "./validation";
 import {
@@ -43,8 +43,11 @@ async function createRevision(
 
   // Normalize before validating/storing so a workbook saved or restored
   // from before a sheet existed (e.g. Clinical States) doesn't crash
-  // validation or leave a missing key in what gets written.
-  const normalizedSheets = normalizeWorkbookSheets(sheets);
+  // validation or leave a missing key in what gets written. Prune after
+  // normalizing so a column dropped from the schema after this data was
+  // saved (e.g. the old Refractory Period Component # column) doesn't
+  // permanently block every future save with an "Unexpected column" error.
+  const normalizedSheets = pruneUnknownColumns(normalizeWorkbookSheets(sheets));
 
   const next = currentRevision + 1;
   const now = new Date().toISOString();

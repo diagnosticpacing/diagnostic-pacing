@@ -964,3 +964,22 @@ reads correctly since it only ever has one value.
   Clinical State, full stop — "has this actually been recorded here" is
   a more honest signal than an assumed rhythm mapping now that the data
   comes from maneuvers instead.
+
+**Fallout: production data still had the old Component # column.** Right
+after this same-day simplification shipped, saving the knowledge base
+started failing with `Unexpected column "refractoryperiodcomponent"` —
+some row saved to production Blob storage before the column was removed
+still carried it, and `validateWorkbook`'s "Unexpected column" check
+(correctly) rejected it on every save attempt, with no way to clear it
+from the admin UI since there's no cell for a column that no longer
+exists in the schema. Fixed generally rather than by hand-editing that
+one row: `pruneUnknownColumns()` (`app/admin/model.ts`) now runs right
+after `normalizeWorkbookSheets()` in `knowledge/service.ts`'s
+`createRevision`, stripping any row key that isn't `__rowId`, `__locked`,
+or a column the current schema actually defines, logging each drop
+server-side. This is the mirror image of what `normalizeWorkbookSheets`
+already did for a *missing* sheet (fill it in rather than crash) — here,
+a *removed* column heals itself on the next save instead of blocking
+every save indefinitely. Since every save creates a new, previous-
+revision-preserving entry in the workbook's revision history, nothing
+here is unrecoverable if a stripped value ever turns out to have mattered.
