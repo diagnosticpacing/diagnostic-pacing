@@ -252,15 +252,6 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Compact label displayed where the full clinical state name would be too long, and the value used elsewhere to reference this state.",
         width: "170px",
         required: true,
-        options: [
-          "NSR",
-          "Brady",
-          "Tachy",
-          "CRM Paced",
-          "Iso On",
-          "Iso Off",
-          "Adenosine",
-        ],
       },
       {
         key: "notes",

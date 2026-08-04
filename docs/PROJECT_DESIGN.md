@@ -1372,3 +1372,48 @@ same destination would be redundant.
   overrides — that breakpoint used to collapse to `1fr auto` and hide
   the nav on narrower screens, which is exactly the new unconditional
   base layout, so the override became redundant rather than needed.
+
+<!-- CLINICAL-STATE-CARD-WRAP-AND-ABBREVIATION-2026-08-04 -->
+## Clinical States Rail Cards: Wrap Instead of Truncate + KB Abbreviation Lookup (implemented 2026-08-04)
+
+The Phase/Rhythm/Iso value grid added in
+`CLINICAL-STATE-CARD-EQUAL-WEIGHT-2026-08-04` truncated with an
+ellipsis rather than wrapping, so values like "Normal Sinus Rhythm" or
+"Pre-ablation" were getting cut off in the narrow three-column grid.
+Two changes, decided together in conversation:
+
+- **Wrap, don't truncate (the actual fix).** `app/globals.css`'s
+  `.clinicalStateFieldValue` drops `white-space: nowrap` /
+  `text-overflow: ellipsis` in favor of `overflow-wrap: break-word` /
+  `word-break: break-word`. Cards grow taller to fit — nothing in
+  `.clinicalStateCards`' grid or `.clinicalStateCard` constrains card
+  height, so this was a pure CSS change. This is the guarantee: no
+  value is ever cut off, regardless of length or whether an
+  abbreviation exists.
+- **Abbreviate via the Clinical States knowledge-base sheet, where
+  available.** The admin Clinical States sheet's Abbreviated Name
+  column was a fixed dropdown (`options: ["NSR", "Brady", "Tachy",
+  "CRM Paced", "Iso On", "Iso Off", "Adenosine"]`) that Murph didn't
+  choose the values for — changed to a plain open text field
+  (`app/admin/model.ts`) so Murph can name the abbreviations directly.
+  `app/page.tsx` adds `abbreviateClinicalStateLabel(value,
+  clinicalStates)`: looks up `value` against the sheet's Full Name
+  column (already loaded into `knowledgeSheets` for the maneuver
+  catalog) and returns the matching row's Abbreviated Name, or `value`
+  unchanged if there's no match. Applied to all three rail-card fields
+  (Phase, Rhythm, Iso), independently, with no special-casing between
+  them — deliberately generic rather than hardcoded to Rhythm, so any
+  value that later gets a matching Clinical States row (whenever that
+  happens) starts abbreviating automatically with no further code
+  changes. Nothing breaks either way: the lookup always falls back to
+  the full value, and the wrap fix above means an unabbreviated value
+  is still fully readable, just taller.
+  - Note: the Clinical States sheet's declared vocabulary today
+    (rhythm and pharmacologic conditions like "Normal Sinus Rhythm" /
+    "Isoproterenol On") only realistically overlaps with the Rhythm
+    field's `rhythmOptions` values, and only partially (e.g. "Atrial
+    Pacing" isn't in the sheet at all). Phase (`Pre-ablation` /
+    `Post-ablation`) and the free-text Iso dose field aren't part of
+    that vocabulary today, so wiring them in doesn't do anything yet —
+    it's there so it works automatically if Murph ever extends the
+    sheet to cover them, without needing to revisit this code.

@@ -78,6 +78,31 @@ function clampRailWidth(width: number): number {
   return Math.min(RAIL_WIDTH_MAX, viewportCap, Math.max(RAIL_WIDTH_MIN, width));
 }
 
+/**
+ * Looks up `value` against the Clinical States knowledge-base sheet's Full
+ * Name column and, if a row matches, returns its Abbreviated Name instead —
+ * e.g. "Normal Sinus Rhythm" -> "NSR", once that row exists. Falls back to
+ * `value` unchanged whenever there's no match (the sheet is still empty,
+ * the row hasn't been added yet, or the value — Phase, for instance — isn't
+ * part of this vocabulary at all), so it's safe to call before or after the
+ * knowledge base is populated. This only ever shortens display text; the
+ * Clinical States rail cards wrap rather than truncate regardless, so
+ * nothing is ever cut off even when no abbreviation is available.
+ */
+function abbreviateClinicalStateLabel(
+  value: string,
+  clinicalStates: SpreadsheetRow[] | undefined,
+): string {
+  const trimmed = value.trim();
+  if (!trimmed || !clinicalStates) return value;
+
+  const match = clinicalStates.find(
+    (row) => (row.fullName ?? "").trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+  const abbreviation = match?.abbreviatedName?.trim();
+  return abbreviation ? abbreviation : value;
+}
+
 function Panel({
   eyebrow,
   title,
@@ -455,7 +480,10 @@ export default function Home() {
                       className="clinicalStateFieldValue"
                       title={clinicalState.context.phase}
                     >
-                      {clinicalState.context.phase}
+                      {abbreviateClinicalStateLabel(
+                        clinicalState.context.phase,
+                        knowledgeSheets.clinicalStates,
+                      )}
                     </span>
                   </div>
                   <div className="clinicalStateField">
@@ -464,7 +492,10 @@ export default function Home() {
                       className="clinicalStateFieldValue"
                       title={clinicalState.context.rhythm}
                     >
-                      {clinicalState.context.rhythm}
+                      {abbreviateClinicalStateLabel(
+                        clinicalState.context.rhythm,
+                        knowledgeSheets.clinicalStates,
+                      )}
                     </span>
                   </div>
                   <div className="clinicalStateField">
@@ -473,7 +504,10 @@ export default function Home() {
                       className="clinicalStateFieldValue"
                       title={clinicalState.context.isoproterenol.trim() || "Off"}
                     >
-                      {clinicalState.context.isoproterenol.trim() || "Off"}
+                      {abbreviateClinicalStateLabel(
+                        clinicalState.context.isoproterenol.trim() || "Off",
+                        knowledgeSheets.clinicalStates,
+                      )}
                     </span>
                   </div>
                 </div>
