@@ -901,23 +901,6 @@ button {
   font-size: 20px;
 }
 
-.modalClose {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 1px solid var(--strong-border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 20px;
-}
-
-.modalClose:hover {
-  color: var(--text);
-}
-
 .modalBody {
   padding: 22px;
 }
@@ -1010,6 +993,37 @@ button {
   border: 1px solid rgba(240, 185, 106, 0.18);
   border-radius: 9px;
   background: rgba(240, 185, 106, 0.08);
+}
+
+/*
+ * The About modal doubles as the site's landing page (it opens
+ * automatically on load), so dismissing it needs to be one deliberate,
+ * unmissable action rather than a small corner × — replaced by a large
+ * centered "OK" button along the bottom edge of the card.
+ */
+.modalFooter {
+  display: flex;
+  justify-content: center;
+  padding: 18px 22px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.modalOkButton {
+  min-width: 180px;
+  min-height: 46px;
+  padding: 0 32px;
+  border: 1px solid rgba(91, 214, 220, 0.4);
+  border-radius: 10px;
+  background: var(--cyan);
+  color: #042026;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.modalOkButton:hover {
+  background: rgba(91, 214, 220, 0.88);
 }
 
 @media (max-width: 1100px) {

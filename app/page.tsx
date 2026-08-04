@@ -1055,15 +1055,6 @@ export default function Home() {
                 <p>Open-source project</p>
                 <h2 id="about-title">About Diagnostic Pacing Maneuvers</h2>
               </div>
-
-              <button
-                aria-label="Close About window"
-                className="modalClose"
-                onClick={() => setAboutOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
             </header>
 
             <div className="modalBody">
@@ -1095,7 +1086,8 @@ export default function Home() {
                   <Link
                     className="downloadCardAction"
                     href="/knowledge"
-                    onClick={() => setAboutOpen(false)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     Open
                   </Link>
@@ -1106,6 +1098,16 @@ export default function Home() {
                 This early GUI draft contains demonstration content only. The
                 clinical reasoning engine has not yet been connected.
               </p>
+            </div>
+
+            <div className="modalFooter">
+              <button
+                className="modalOkButton"
+                onClick={() => setAboutOpen(false)}
+                type="button"
+              >
+                OK
+              </button>
             </div>
           </section>
         </div>

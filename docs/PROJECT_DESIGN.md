@@ -1329,3 +1329,22 @@ one set of components, two ways to render them.
   filled-cyan treatment as `.adminPrimaryButton`, distinct from the
   muted `.downloadCard button` styling the (now-removed) placeholder
   cards used.
+
+<!-- ABOUT-MODAL-LANDING-PAGE-2026-08-04 -->
+### Follow-up, same day: new-tab link + OK button (2026-08-04)
+
+Two corrections once the above was live: the Knowledge Base card's link
+now opens `/knowledge` in a new browser tab (`target="_blank"
+rel="noopener noreferrer"`, and its `onClick={() => setAboutOpen(false)}`
+was dropped) so the clinical workspace tab stays exactly where the user
+left it rather than navigating away underneath them. And since the
+About modal now doubles as the site's landing page (it opens on every
+load), its small corner `×` close button was replaced with a large,
+unmissable "OK" button centered along the bottom of the card — a
+single deliberate dismissal action fits a landing page better than a
+corner affordance easy to miss on first visit. `.modalClose` (button
+and hover rule) is now dead and was pruned from `app/globals.css`; new
+`.modalFooter`/`.modalOkButton` rules add the bottom bar, the latter
+using the same filled-cyan language as `.adminPrimaryButton`/
+`.downloadCardAction` but sized up (46px tall, 180px minimum width) to
+read as the card's primary action.
