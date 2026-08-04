@@ -26,7 +26,6 @@ export type MeasurementField = {
   id: string;
   label: string;
   unit: "ms";
-  effectiveRefractoryPeriod?: true;
 };
 
 export type MeasurementSection = {
@@ -62,9 +61,6 @@ export type ClinicalState = {
   id: string;
   context: ClinicalStateContext;
   measurements: Record<string, string>;
-  erpDisplay: {
-    showAccessoryPathway2: boolean;
-  };
   performances: ManeuverPerformance[];
 };
 
@@ -85,19 +81,6 @@ const interval = (id: string, label: string): MeasurementField => ({
   unit: "ms",
 });
 
-const functionalRp = (id: string, label: string): MeasurementField => ({
-  id: `frp.${id}`,
-  label,
-  unit: "ms",
-});
-
-const effectiveRp = (id: string, label: string): MeasurementField => ({
-  id: `erp.${id}`,
-  label,
-  unit: "ms",
-  effectiveRefractoryPeriod: true,
-});
-
 const comprehensivePacingIntervals: MeasurementField[] = [
   interval("aa", "AA"),
   interval("vv", "VV"),
@@ -109,39 +92,20 @@ const comprehensivePacingIntervals: MeasurementField[] = [
   interval("qt", "QT"),
 ];
 
-const functionalRefractoryPeriodFields: MeasurementField[] = [
-  functionalRp("fast-pathway", "Fast Pathway"),
-  functionalRp("slow-pathway", "Slow Pathway"),
-  functionalRp("av-node", "AV Node"),
-  functionalRp("retrograde", "Retrograde"),
-];
-
-const effectiveRefractoryPeriodFields: MeasurementField[] = [
-  effectiveRp("atrial", "Atrial"),
-  effectiveRp("fast-pathway", "Fast Pathway"),
-  effectiveRp("slow-pathway", "Slow Pathway"),
-  effectiveRp("accessory-pathway-1", "Accessory Pathway 1"),
-  effectiveRp("accessory-pathway-2", "Accessory Pathway 2"),
-  effectiveRp("av-node", "AV Node"),
-  effectiveRp("ventricular", "Ventricular"),
-  effectiveRp("retrograde", "Retrograde"),
-];
-
+// Functional and Effective Refractory Periods used to be direct-entry
+// fields here (see ADMIN-ROW-LOCKING-era history in PROJECT_DESIGN.md's
+// git log for the old shape). They're now results recorded on the back
+// of whichever maneuver actually produces them, tagged via the
+// Refractory Period Type/Direction/Structure/Component# columns on
+// Maneuver Response Fields — see app/refractoryPeriods/knowledge.ts and
+// the derived "Refractory Periods" panel in app/page.tsx. Plain intervals
+// (AA, VV, PR, etc.) are unaffected and stay directly-entered here, since
+// they're genuinely observed, not the output of a specific maneuver.
 const comprehensivePacingSections: MeasurementSection[] = [
   {
     id: "intervals",
     title: "Intervals",
     fields: comprehensivePacingIntervals,
-  },
-  {
-    id: "functional-refractory-periods",
-    title: "Functional Refractory Periods",
-    fields: functionalRefractoryPeriodFields,
-  },
-  {
-    id: "effective-refractory-periods",
-    title: "Effective Refractory Periods",
-    fields: effectiveRefractoryPeriodFields,
   },
 ];
 
@@ -200,37 +164,6 @@ export const workspaceConfigurations: Record<
   },
 };
 
-export function effectiveRefractoryPeriodComponentId(
-  fieldId: string,
-  componentNumber: 1 | 2 | 3,
-): string {
-  return `${fieldId}.${componentNumber}`;
-}
-
-export function effectiveRefractoryPeriodValues(
-  measurements: Record<string, string>,
-  fieldId: string,
-): [string, string, string] {
-  return [
-    measurements[effectiveRefractoryPeriodComponentId(fieldId, 1)] ?? "",
-    measurements[effectiveRefractoryPeriodComponentId(fieldId, 2)] ?? "",
-    measurements[effectiveRefractoryPeriodComponentId(fieldId, 3)] ?? "",
-  ];
-}
-
-export function formatEffectiveRefractoryPeriod(
-  measurements: Record<string, string>,
-  fieldId: string,
-): string {
-  const values = [...effectiveRefractoryPeriodValues(measurements, fieldId)];
-
-  while (values.length > 0 && values[values.length - 1].trim() === "") {
-    values.pop();
-  }
-
-  return values.map((value) => value.trim()).join("/");
-}
-
 export function createClinicalState(
   id: string,
   overrides: Partial<ClinicalStateContext> = {},
@@ -247,9 +180,6 @@ export function createClinicalState(
       ...overrides,
     },
     measurements: {},
-    erpDisplay: {
-      showAccessoryPathway2: false,
-    },
     performances: [],
   };
 }

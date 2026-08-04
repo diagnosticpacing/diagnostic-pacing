@@ -33,6 +33,34 @@ const splitList = (value?: string) =>
     .map((v) => v.trim())
     .filter(Boolean);
 
+/**
+ * A Response Field's refractory-period identity — the combination that
+ * must be unique across the whole workbook, since the main GUI's derived
+ * Refractory Periods display looks up "the" field for a given
+ * (Type, Direction, Structure, Component) and has no rule for picking a
+ * winner if two different fields both claim it. Returns null for a field
+ * that isn't tagged as part of a refractory period at all (any of the
+ * four columns left at "n/a"), since untagged fields have nothing to
+ * collide over.
+ */
+function refractoryPeriodTagKey(row: SpreadsheetRow): string | null {
+  const type = n(row.refractoryPeriodType);
+  const direction = n(row.refractoryPeriodDirection);
+  const structure = n(row.refractoryPeriodStructure);
+  const component = n(row.refractoryPeriodComponent);
+
+  if (
+    !type || type === "n/a" ||
+    !direction || direction === "n/a" ||
+    !structure || structure === "n/a" ||
+    !component || component === "n/a"
+  ) {
+    return null;
+  }
+
+  return `${type.toUpperCase()}|${direction.toUpperCase()}|${structure.toUpperCase()}|${component}`;
+}
+
 function issue(
   issues: ValidationIssue[],
   sheetId: SheetId,
@@ -134,9 +162,25 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
   }
 
+  const seenRefractoryPeriodTags = new Set<string>();
   for (const row of safe("maneuverResponseFields")) {
     if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
       issue(issues, "maneuverResponseFields", row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
+    }
+
+    const tagKey = refractoryPeriodTagKey(row);
+    if (tagKey) {
+      if (seenRefractoryPeriodTags.has(tagKey)) {
+        issue(
+          issues,
+          "maneuverResponseFields",
+          row,
+          "refractoryPeriodStructure",
+          `Another Response Field already claims this same Refractory Period Type/Direction/Structure/Component combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure} / ${row.refractoryPeriodComponent}). Each combination may only be tagged on one field.`,
+        );
+      } else {
+        seenRefractoryPeriodTags.add(tagKey);
+      }
     }
   }
 
@@ -298,6 +342,22 @@ export function validateRow(
   if (sheetId === "maneuverResponseFields") {
     if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
       issue(issues, sheetId, row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
+    }
+
+    const tagKey = refractoryPeriodTagKey(row);
+    if (tagKey) {
+      const collidesWith = safe(sheetId).some(
+        (other) => other.__rowId !== row.__rowId && refractoryPeriodTagKey(other) === tagKey,
+      );
+      if (collidesWith) {
+        issue(
+          issues,
+          sheetId,
+          row,
+          "refractoryPeriodStructure",
+          `Another Response Field already claims this same Refractory Period Type/Direction/Structure/Component combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure} / ${row.refractoryPeriodComponent}). Each combination may only be tagged on one field.`,
+        );
+      }
     }
   }
 

@@ -8,6 +8,32 @@ export type ManeuverDefinition = {
   technique: string;
 };
 
+export type RefractoryPeriodType = "Functional" | "Effective";
+export type RefractoryPeriodDirection = "Antegrade" | "Retrograde" | "n/a";
+export type RefractoryPeriodStructure =
+  | "Atrial"
+  | "AV Node"
+  | "Fast Pathway"
+  | "Slow Pathway"
+  | "Accessory Pathway 1"
+  | "Accessory Pathway 2"
+  | "Ventricular";
+
+/**
+ * A Response Field tagged as one component of a refractory period result
+ * (see the Refractory Period Type/Direction/Structure/Component# columns
+ * on Maneuver Response Fields). `direction` is allowed to be "n/a" —
+ * unlike type/structure/component, direction genuinely isn't a meaningful
+ * distinction for some structures (Atrial, Ventricular refractoriness
+ * isn't "antegrade" or "retrograde," it just is what it is).
+ */
+export type RefractoryPeriodTag = {
+  type: RefractoryPeriodType;
+  direction: RefractoryPeriodDirection;
+  structure: RefractoryPeriodStructure;
+  component: 1 | 2 | 3;
+};
+
 export type ManeuverResponseField = {
   fieldId: string;
   associatedManeuverId: string;
@@ -18,6 +44,7 @@ export type ManeuverResponseField = {
   units: string;
   required: boolean;
   helpText: string;
+  refractoryPeriod: RefractoryPeriodTag | null;
 };
 
 export type ManeuverResponseOption = {
@@ -63,6 +90,53 @@ function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null
   };
 }
 
+const REFRACTORY_PERIOD_TYPES: RefractoryPeriodType[] = ["Functional", "Effective"];
+const REFRACTORY_PERIOD_DIRECTIONS: RefractoryPeriodDirection[] = ["Antegrade", "Retrograde"];
+const REFRACTORY_PERIOD_STRUCTURES: RefractoryPeriodStructure[] = [
+  "Atrial",
+  "AV Node",
+  "Fast Pathway",
+  "Slow Pathway",
+  "Accessory Pathway 1",
+  "Accessory Pathway 2",
+  "Ventricular",
+];
+
+/**
+ * Parses a Response Field's four Refractory Period columns into a single
+ * tag, or null if the field isn't part of one. All four columns use "n/a"
+ * as their "not applicable" value (never blank, since they're `required`
+ * dropdowns) except Direction, which allows "n/a" as a real, meaningful
+ * answer for structures without a directional distinction — so an absent
+ * *type/structure/component* means "not a refractory period field," but
+ * an absent *direction* on an otherwise-tagged field is valid.
+ */
+function parseRefractoryPeriodTag(row: SpreadsheetRow): RefractoryPeriodTag | null {
+  const type = trimmed(row.refractoryPeriodType);
+  const direction = trimmed(row.refractoryPeriodDirection);
+  const structure = trimmed(row.refractoryPeriodStructure);
+  const component = trimmed(row.refractoryPeriodComponent);
+
+  if (!type || type === "n/a") return null;
+  if (!structure || structure === "n/a") return null;
+  if (!component || component === "n/a") return null;
+  if (!REFRACTORY_PERIOD_TYPES.includes(type as RefractoryPeriodType)) return null;
+  if (!REFRACTORY_PERIOD_STRUCTURES.includes(structure as RefractoryPeriodStructure)) return null;
+  if (!["1", "2", "3"].includes(component)) return null;
+
+  const resolvedDirection: RefractoryPeriodDirection =
+    direction && REFRACTORY_PERIOD_DIRECTIONS.includes(direction as RefractoryPeriodDirection)
+      ? (direction as RefractoryPeriodDirection)
+      : "n/a";
+
+  return {
+    type: type as RefractoryPeriodType,
+    direction: resolvedDirection,
+    structure: structure as RefractoryPeriodStructure,
+    component: Number(component) as 1 | 2 | 3,
+  };
+}
+
 function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {
   const fieldId = trimmed(row.fieldId);
   const associatedManeuverId = trimmed(row.associatedManeuverId);
@@ -78,6 +152,7 @@ function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {
     units: trimmed(row.units),
     required: trimmed(row.required).toLowerCase() === "yes",
     helpText: trimmed(row.helpText),
+    refractoryPeriod: parseRefractoryPeriodTag(row),
   };
 }
 

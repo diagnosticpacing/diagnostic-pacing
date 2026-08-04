@@ -1,6 +1,5 @@
 import type { SheetId, SpreadsheetRow } from "@/app/admin/model";
 import {
-  effectiveRefractoryPeriodValues,
   findPerformance,
   workspaceConfigurations,
   type CaseRecord,
@@ -162,12 +161,21 @@ function normalizeIntervalTerm(value: string): string {
 }
 
 /**
- * Finds the measurement field within a rhythm's workspace configuration that
- * best matches a Clinical Reasoning row's freeform Interval Name (e.g. "AH
- * Interval", "Fast Pathway ERP"). This is a name-matching heuristic, not a
- * formal ID linkage — the Intervals sheet has no field-level identifiers to
- * join against, so this is the intentional first-pass approach until the
+ * Finds the measurement field within a rhythm's workspace configuration
+ * that best matches a Clinical Reasoning row's freeform Interval Name
+ * (e.g. "AH Interval"). This is a name-matching heuristic, not a formal ID
+ * linkage — the Intervals sheet has no field-level identifiers to join
+ * against, so this is the intentional first-pass approach until the
  * knowledge base grows a more direct mapping.
+ *
+ * Refractory periods (ERP/FRP) no longer flow through this path at all —
+ * they're recorded as tagged Maneuver Response Fields now, not direct-
+ * entry workspace measurements (see app/refractoryPeriods/knowledge.ts),
+ * so a Clinical Reasoning row about one uses Maneuver Considered + an
+ * exact Response Field Prompt instead of Interval Considered's fuzzy name
+ * match. This function's search space is smaller and more honest as a
+ * result — it now only ever needs to cover plain intervals (AH, HV, QRS,
+ * and similar), which is exactly what it was always meant for.
  */
 function findMatchingMeasurementField(
   rhythm: Rhythm,
@@ -195,11 +203,6 @@ function readMeasurementValue(
   measurements: Record<string, string>,
   field: MeasurementField,
 ): string | undefined {
-  if (field.effectiveRefractoryPeriod) {
-    // Comparisons run against the first (baseline) component of a
-    // multi-component ERP value.
-    return effectiveRefractoryPeriodValues(measurements, field.id)[0];
-  }
   return measurements[field.id];
 }
 

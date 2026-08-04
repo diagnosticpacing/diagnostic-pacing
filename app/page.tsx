@@ -14,9 +14,6 @@ import {
   upsertPerformance,
   workspaceConfigurations,
   type ClinicalStateContext,
-  effectiveRefractoryPeriodComponentId,
-  effectiveRefractoryPeriodValues,
-  formatEffectiveRefractoryPeriod,
 } from "./clinical/model";
 import {
   buildManeuverCatalog,
@@ -24,6 +21,10 @@ import {
   type ManeuverCatalogEntry,
 } from "./maneuvers/knowledge";
 import ManeuverCard from "./maneuvers/ManeuverCard";
+import {
+  buildRefractoryPeriodCatalog,
+  formatRefractoryPeriodValue,
+} from "./refractoryPeriods/knowledge";
 import {
   evaluateDifferential,
   explainDifferentialResult,
@@ -223,6 +224,22 @@ export default function Home() {
       scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations),
   );
 
+  // Refractory periods are results recorded on the back of whichever
+  // maneuver produces them (tagged via Refractory Period Type/Direction/
+  // Structure/Component# on Maneuver Response Fields), not direct entry —
+  // see app/refractoryPeriods/knowledge.ts. Only entries with an actual
+  // recorded value for the active Clinical State are shown, so a not-yet-
+  // measured Accessory Pathway 2, for instance, simply doesn't appear
+  // rather than needing a manual "Add" toggle the way the old direct-
+  // entry ERP card did.
+  const refractoryPeriodCatalog = buildRefractoryPeriodCatalog(maneuverCatalog);
+  const visibleRefractoryPeriods = refractoryPeriodCatalog
+    .map((definition) => ({
+      definition,
+      value: formatRefractoryPeriodValue(definition, activeClinicalState),
+    }))
+    .filter((entry) => entry.value !== "");
+
   function saveManeuverPerformance(
     maneuverId: string,
     values: Record<string, string>,
@@ -236,62 +253,6 @@ export default function Home() {
   const activeWorkspace =
     workspaceConfigurations[activeClinicalState.context.rhythm];
 
-  const effectiveRefractoryPeriodSection =
-    activeWorkspace.sections.find((section) =>
-      section.fields.some((field) => field.effectiveRefractoryPeriod),
-    );
-
-  const effectiveRefractoryPeriodBadge =
-    activeClinicalState.context.rhythm === "Atrial Pacing"
-      ? "Antegrade"
-      : activeClinicalState.context.rhythm === "Ventricular Pacing"
-        ? "Retrograde"
-        : activeClinicalState.context.rhythm;
-
-  const effectiveRefractoryPeriodFieldOrder =
-    activeClinicalState.context.rhythm === "Atrial Pacing"
-      ? [
-          "erp.fast-pathway",
-          "erp.slow-pathway",
-          "erp.accessory-pathway-1",
-          ...(activeClinicalState.erpDisplay.showAccessoryPathway2
-            ? ["erp.accessory-pathway-2"]
-            : []),
-          "erp.av-node",
-          "erp.atrial",
-        ]
-      : activeClinicalState.context.rhythm === "Ventricular Pacing"
-        ? [
-            "erp.accessory-pathway-1",
-            ...(activeClinicalState.erpDisplay.showAccessoryPathway2
-              ? ["erp.accessory-pathway-2"]
-              : []),
-            "erp.retrograde",
-            "erp.ventricular",
-          ]
-        : [];
-
-  const visibleEffectiveRefractoryPeriodFields =
-    effectiveRefractoryPeriodFieldOrder
-      .map((fieldId) =>
-        effectiveRefractoryPeriodSection?.fields.find(
-          (field) => field.id === fieldId,
-        ),
-      )
-      .filter(
-        (
-          field,
-        ): field is NonNullable<
-          typeof effectiveRefractoryPeriodSection
-        >["fields"][number] => Boolean(field),
-      );
-
-  const standardMeasurementSections =
-    activeWorkspace.sections.filter(
-      (section) =>
-        !section.fields.some((field) => field.effectiveRefractoryPeriod),
-    );
-
   const enteredMeasurementCount = (
     clinicalState: (typeof caseRecord.clinicalStates)[number],
   ) => {
@@ -300,20 +261,9 @@ export default function Home() {
     return workspace.sections.reduce(
       (count, section) =>
         count +
-        section.fields.filter((field) => {
-          if (field.effectiveRefractoryPeriod) {
-            return (
-              formatEffectiveRefractoryPeriod(
-                clinicalState.measurements,
-                field.id,
-              ) !== ""
-            );
-          }
-
-          return (
-            clinicalState.measurements[field.id]?.trim() !== ""
-          );
-        }).length,
+        section.fields.filter(
+          (field) => clinicalState.measurements[field.id]?.trim() !== "",
+        ).length,
       0,
     );
   };
@@ -375,54 +325,6 @@ export default function Home() {
     }));
 
     logStateChange(label, value ? `${value} ms` : "");
-  }
-
-  function updateEffectiveRefractoryPeriod(
-    fieldId: string,
-    componentNumber: 1 | 2 | 3,
-    value: string,
-    label: string,
-  ) {
-    const componentId = effectiveRefractoryPeriodComponentId(
-      fieldId,
-      componentNumber,
-    );
-
-    let formattedValue = "";
-
-    updateActiveClinicalState((current) => {
-      const measurements = {
-        ...current.measurements,
-        [componentId]: value,
-      };
-
-      formattedValue = formatEffectiveRefractoryPeriod(
-        measurements,
-        fieldId,
-      );
-
-      return {
-        ...current,
-        measurements,
-      };
-    });
-
-    logStateChange(
-      label,
-      formattedValue ? `${formattedValue} ms` : "",
-    );
-  }
-
-  function addAccessoryPathway2() {
-    updateActiveClinicalState((current) => ({
-      ...current,
-      erpDisplay: {
-        ...current.erpDisplay,
-        showAccessoryPathway2: true,
-      },
-    }));
-
-    logStateChange("ERP display", "Added Accessory Pathway 2");
   }
 
   function addClinicalState() {
@@ -777,7 +679,7 @@ export default function Home() {
           </div>
         </div>
 
-        {standardMeasurementSections.map((section) => (
+        {activeWorkspace.sections.map((section) => (
           <div className="clinicalMeasurementRow" key={section.id}>
             <div className="intervalsHeading">
               <span>{section.title}</span>
@@ -790,75 +692,6 @@ export default function Home() {
               }}
             >
               {section.fields.map((field) => {
-                if (field.effectiveRefractoryPeriod) {
-                  const values = effectiveRefractoryPeriodValues(
-                    activeClinicalState.measurements,
-                    field.id,
-                  );
-
-                  return (
-                    <div
-                      className="toolbarField intervalField erpField"
-                      key={field.id}
-                    >
-                      <label>{field.label}</label>
-
-                      <div className="erpSeriesInput">
-                        {values.map((value, index) => {
-                          const componentNumber = (index + 1) as 1 | 2 | 3;
-                          const componentId =
-                            effectiveRefractoryPeriodComponentId(
-                              field.id,
-                              componentNumber,
-                            );
-
-                          return (
-                            <div
-                              className="erpSeriesComponent"
-                              key={componentId}
-                            >
-                              {index > 0 && (
-                                <span
-                                  className="erpSeriesSeparator"
-                                  aria-hidden="true"
-                                >
-                                  /
-                                </span>
-                              )}
-
-                              <input
-                                id={`measurement-${componentId}`}
-                                inputMode="numeric"
-                                value={value}
-                                onChange={(event) =>
-                                  updateActiveClinicalState((current) => ({
-                                    ...current,
-                                    measurements: {
-                                      ...current.measurements,
-                                      [componentId]: event.target.value,
-                                    },
-                                  }))
-                                }
-                                onBlur={(event) =>
-                                  updateEffectiveRefractoryPeriod(
-                                    field.id,
-                                    componentNumber,
-                                    event.target.value,
-                                    field.label,
-                                  )
-                                }
-                                aria-label={`${field.label}, value ${componentNumber} in milliseconds`}
-                              />
-                            </div>
-                          );
-                        })}
-
-                        <span className="erpSeriesUnit">{field.unit}</span>
-                      </div>
-                    </div>
-                  );
-                }
-
                 return (
                   <div
                     className="toolbarField intervalField"
@@ -910,110 +743,52 @@ export default function Home() {
         )}
       </section>
 
-      {effectiveRefractoryPeriodSection && (
-        <section
-          className="effectiveRefractoryPeriodCard"
-          aria-labelledby="effective-refractory-periods-heading"
-        >
-          <header className="effectiveRefractoryPeriodCardHeader">
-            <div>
-              <p>Clinical state measurements</p>
-              <h2 id="effective-refractory-periods-heading">
-                Effective Refractory Periods
-              </h2>
-            </div>
-
-            <span className="effectiveRefractoryPeriodStateLabel">
-              {effectiveRefractoryPeriodBadge}
-            </span>
-          </header>
-
-          <div className="effectiveRefractoryPeriodGrid">
-            {visibleEffectiveRefractoryPeriodFields.map((field) => {
-              const values = effectiveRefractoryPeriodValues(
-                activeClinicalState.measurements,
-                field.id,
-              );
-
-              return (
-                <div className="effectiveRefractoryPeriodItem" key={field.id}>
-                  <div className="effectiveRefractoryPeriodItemHeader">
-                    <label className="effectiveRefractoryPeriodLabel">
-                      {field.label}
-                    </label>
-
-                    {field.id === "erp.accessory-pathway-1" &&
-                      !activeClinicalState.erpDisplay.showAccessoryPathway2 && (
-                        <button
-                          className="addAccessoryPathwayButton"
-                          onClick={addAccessoryPathway2}
-                          type="button"
-                        >
-                          Add
-                        </button>
-                      )}
-                  </div>
-
-                  <div className="effectiveRefractoryPeriodInputs">
-                    {values.map((value, index) => {
-                      const componentNumber = (index + 1) as 1 | 2 | 3;
-                      const componentId =
-                        effectiveRefractoryPeriodComponentId(
-                          field.id,
-                          componentNumber,
-                        );
-
-                      return (
-                        <div
-                          className="effectiveRefractoryPeriodComponent"
-                          key={componentId}
-                        >
-                          {index > 0 && (
-                            <span
-                              className="effectiveRefractoryPeriodSeparator"
-                              aria-hidden="true"
-                            >
-                              /
-                            </span>
-                          )}
-
-                          <input
-                            id={`measurement-${componentId}`}
-                            inputMode="numeric"
-                            value={value}
-                            onChange={(event) =>
-                              updateActiveClinicalState((current) => ({
-                                ...current,
-                                measurements: {
-                                  ...current.measurements,
-                                  [componentId]: event.target.value,
-                                },
-                              }))
-                            }
-                            onBlur={(event) =>
-                              updateEffectiveRefractoryPeriod(
-                                field.id,
-                                componentNumber,
-                                event.target.value,
-                                field.label,
-                              )
-                            }
-                            aria-label={`${field.label}, value ${componentNumber} in milliseconds`}
-                          />
-                        </div>
-                      );
-                    })}
-
-                    <span className="effectiveRefractoryPeriodUnit">
-                      {field.unit}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+      <section
+        className="effectiveRefractoryPeriodCard"
+        aria-labelledby="refractory-periods-heading"
+      >
+        <header className="effectiveRefractoryPeriodCardHeader">
+          <div>
+            <p>Clinical state measurements</p>
+            <h2 id="refractory-periods-heading">Refractory Periods</h2>
           </div>
-        </section>
-      )}
+        </header>
+
+        {maneuverCatalogStatus === "ready" &&
+          visibleRefractoryPeriods.length === 0 && (
+            <p className="maneuverCatalogStatus">
+              No refractory periods recorded yet for{" "}
+              {activeClinicalStateLabel} — record one on the back of
+              whichever maneuver card produces it.
+            </p>
+          )}
+
+        {visibleRefractoryPeriods.length > 0 && (
+          <div className="effectiveRefractoryPeriodGrid">
+            {visibleRefractoryPeriods.map(({ definition, value }) => (
+              <div
+                className="effectiveRefractoryPeriodItem"
+                key={definition.id}
+              >
+                <div className="effectiveRefractoryPeriodItemHeader">
+                  <label className="effectiveRefractoryPeriodLabel">
+                    {definition.label}
+                  </label>
+                </div>
+
+                <div className="effectiveRefractoryPeriodInputs">
+                  <span className="refractoryPeriodValue">{value}</span>
+                  <span className="effectiveRefractoryPeriodUnit">ms</span>
+                </div>
+
+                <p className="refractoryPeriodSource">
+                  via {definition.maneuverName}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="workspace">
 

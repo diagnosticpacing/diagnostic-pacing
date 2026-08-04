@@ -449,6 +449,51 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         options: ["n/a", "ms", "mV", "mA"],
       },
       {
+        key: "refractoryPeriodType",
+        label: "Refractory Period Type",
+        modelUse:
+          "Tags this field as one component of a Functional or Effective Refractory Period result recorded on this maneuver's back side, rather than an ordinary field. Leave n/a for fields that aren't part of a refractory period. Functional and Effective are clinically distinct measurements of the same structure, not interchangeable labels.",
+        width: "190px",
+        required: true,
+        options: ["n/a", "Functional", "Effective"],
+      },
+      {
+        key: "refractoryPeriodDirection",
+        label: "Refractory Period Direction",
+        modelUse:
+          "Which conduction direction this refractory period component describes — determined by which maneuver produced it (e.g. atrial pacing measures antegrade, ventricular pacing measures retrograde), not a free choice per field. Leave n/a for structures where direction isn't a meaningful distinction (e.g. Atrial, Ventricular) or for non-refractory-period fields.",
+        width: "200px",
+        required: true,
+        options: ["n/a", "Antegrade", "Retrograde"],
+      },
+      {
+        key: "refractoryPeriodStructure",
+        label: "Refractory Period Structure",
+        modelUse:
+          "Which anatomical structure this refractory period component measures. Combined with Type and Direction, this is what the derived Refractory Periods display groups and labels by — e.g. Effective + Retrograde + Accessory Pathway 1 renders as \"Retrograde AP1 ERP\". Leave n/a for non-refractory-period fields.",
+        width: "220px",
+        required: true,
+        options: [
+          "n/a",
+          "Atrial",
+          "AV Node",
+          "Fast Pathway",
+          "Slow Pathway",
+          "Accessory Pathway 1",
+          "Accessory Pathway 2",
+          "Ventricular",
+        ],
+      },
+      {
+        key: "refractoryPeriodComponent",
+        label: "Refractory Period Component #",
+        modelUse:
+          "Which numbered position (1st, 2nd, or 3rd value) this field fills within its refractory period group, e.g. the \"300\" in 600/400/300. Leave n/a for non-refractory-period fields.",
+        width: "150px",
+        required: true,
+        options: ["n/a", "1", "2", "3"],
+      },
+      {
         key: "required",
         label: "Required",
         modelUse: "Controls whether the maneuver can be accepted without completing this field.",
