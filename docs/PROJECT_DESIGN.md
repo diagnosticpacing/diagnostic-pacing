@@ -416,8 +416,10 @@ which are intentionally top-of-chain picks with nothing to narrow by:
 - **Maneuver Definitions**: Relevant Diagnoses, Required States — first-
   tier multi-select picks (populated from Diagnoses/Clinical States).
   Nothing earlier in the row to scope by. Unscoped by design.
-- **Response Fields**: Associated Maneuver ID — first-tier pick
-  (populated from Maneuver Definitions). Unscoped by design.
+- **Response Fields**: Associated Maneuver is the first-tier pick
+  (populated from Maneuver Definitions' Maneuver Name); Associated
+  Maneuver ID auto-populates from it — the same shape as Response
+  Options' Associated Maneuver Name/ID pair below.
 - **Response Options**: Associated Maneuver Name is the first-tier pick
   (unscoped); Associated Maneuver Response Prompt is explicitly scoped
   to that maneuver's own fields (`filterBy` on `associatedManeuverId`) —
@@ -516,7 +518,7 @@ Current column-by-column map:
 | Sheet | Column | lookup | filterBy | populatesColumn(From) |
 |---|---|---|---|---|
 | Maneuver Definitions | Relevant Diagnoses, Required States | ✓ (unscoped, first-tier) | — | — |
-| Response Fields | Associated Maneuver ID | ✓ (unscoped, first-tier) | — | — |
+| Response Fields | Associated Maneuver | ✓ (unscoped, first-tier) | — | → Associated Maneuver ID |
 | Response Options | Associated Maneuver Name | ✓ (unscoped, first-tier) | — | → Associated Maneuver ID |
 | Response Options | Associated Maneuver Response Prompt | ✓ | on `associatedManeuverId` | → Associated Field ID |
 | Clinical Reasoning | Maneuver Considered | ✓ (unscoped, first-tier) | — | → Maneuver ID |
@@ -1003,3 +1005,19 @@ a *removed* column heals itself on the next save instead of blocking
 every save indefinitely. Since every save creates a new, previous-
 revision-preserving entry in the workbook's revision history, nothing
 here is unrecoverable if a stripped value ever turns out to have mattered.
+
+<!-- RESPONSE-FIELDS-MANEUVER-NAME-2026-08-04 -->
+## Response Fields: Associated Maneuver Name Auto-Populate (implemented 2026-08-04)
+
+Response Fields' `associatedManeuverId` was a lookup dropdown but still
+asked the admin to pick a maneuver *by ID* — the one first-tier pick in
+the whole knowledge base still using an ID rather than a human-readable
+name, inconsistent with every other first-tier maneuver pick (Maneuver
+Considered, Associated Maneuver Name on Response Options). Added
+`associatedManeuverName` ("Associated Maneuver," lookup on Maneuver
+Definitions' `maneuverName`) immediately to the left of
+`associatedManeuverId`, with `populatesColumn: "associatedManeuverId"`
+so picking the name auto-fills the ID — the exact same two-column shape
+already used by Response Options' Associated Maneuver Name/ID pair, no
+new mechanism needed. `associatedManeuverId` itself is unchanged other
+than its `modelUse` text now noting it auto-populates.

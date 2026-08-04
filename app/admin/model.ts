@@ -393,9 +393,18 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         idPrefix: "FID-",
       },
       {
+        key: "associatedManeuverName",
+        label: "Associated Maneuver",
+        modelUse: "Identifies which maneuver owns this response field.",
+        width: "220px",
+        lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
+        populatesColumn: "associatedManeuverId",
+      },
+      {
         key: "associatedManeuverId",
         label: "Associated Maneuver ID",
-        modelUse: "Identifies which maneuver owns this response field.",
+        modelUse:
+          "Identifies which maneuver owns this response field. Auto-populated from Associated Maneuver.",
         width: "200px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
       },
