@@ -774,47 +774,54 @@ export default function Home() {
         className="effectiveRefractoryPeriodCard"
         aria-labelledby="refractory-periods-heading"
       >
-        <header className="effectiveRefractoryPeriodCardHeader">
-          <div>
-            <p>Clinical state measurements</p>
-            <h2 id="refractory-periods-heading">Refractory Periods</h2>
+        <div className="clinicalMeasurementRow">
+          <div className="intervalsHeading">
+            <span id="refractory-periods-heading">Refractory Periods</span>
           </div>
-        </header>
 
-        {maneuverCatalogStatus === "ready" &&
-          visibleRefractoryPeriods.length === 0 && (
-            <p className="maneuverCatalogStatus">
-              No refractory periods recorded yet for{" "}
-              {activeClinicalStateSummary} — record one on the back of
-              whichever maneuver card produces it.
-            </p>
-          )}
+          {maneuverCatalogStatus === "ready" &&
+            visibleRefractoryPeriods.length === 0 && (
+              <p className="maneuverCatalogStatus">
+                No refractory periods recorded yet for{" "}
+                {activeClinicalStateSummary} — record one on the back of
+                whichever maneuver card produces it.
+              </p>
+            )}
 
-        {visibleRefractoryPeriods.length > 0 && (
-          <div className="effectiveRefractoryPeriodGrid">
-            {visibleRefractoryPeriods.map(({ definition, value }) => (
-              <div
-                className="effectiveRefractoryPeriodItem"
-                key={definition.id}
-              >
-                <div className="effectiveRefractoryPeriodItemHeader">
-                  <label className="effectiveRefractoryPeriodLabel">
+          {visibleRefractoryPeriods.length > 0 && (
+            <div
+              className="clinicalMeasurementFields"
+              style={{
+                gridTemplateColumns: `repeat(${visibleRefractoryPeriods.length}, minmax(150px, 1fr))`,
+              }}
+            >
+              {visibleRefractoryPeriods.map(({ definition, value }) => (
+                <div
+                  className="toolbarField intervalField"
+                  key={definition.id}
+                >
+                  <label htmlFor={`refractory-period-${definition.id}`}>
                     {definition.label}
                   </label>
-                </div>
 
-                <div className="effectiveRefractoryPeriodInputs">
-                  <span className="refractoryPeriodValue">{value}</span>
-                  <span className="effectiveRefractoryPeriodUnit">ms</span>
-                </div>
+                  <div className="unitInput">
+                    <input
+                      id={`refractory-period-${definition.id}`}
+                      value={value}
+                      readOnly
+                      aria-label={`${definition.label} in milliseconds, via ${definition.maneuverName}`}
+                    />
+                    <span>ms</span>
+                  </div>
 
-                <p className="refractoryPeriodSource">
-                  via {definition.maneuverName}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+                  <p className="refractoryPeriodSource">
+                    via {definition.maneuverName}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="workspace">

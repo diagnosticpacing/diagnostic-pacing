@@ -1172,3 +1172,43 @@ tooltip and an `aria-label` on the wrapping element instead.
   `title`-tooltip truncation, a deliberate, different tradeoff for a
   row that can hold several small chips at once rather than one
   prominent summary.
+
+<!-- REFRACTORY-PERIODS-STYLE-GUIDE-2026-08-04 -->
+## Refractory Periods Panel: Adopt the Active State/Intervals Style Guide (implemented 2026-08-04)
+
+The Refractory Periods panel (under the Active Clinical State pane)
+had its own bespoke visual design — a distinct header (`Clinical state
+measurements` eyebrow + `Refractory Periods` h2) and its own 4-column
+bordered item grid — inherited from the original direct-entry ERP card
+design and never brought in line with the rest of the workspace's
+established look after `REFRACTORY-PERIODS-V2-2026-08-03` replaced its
+content model. Rebuilt to reuse the exact same classes the Active
+Clinical State toolbar and Intervals row already use, rather than its
+own:
+
+- **Header.** The eyebrow text is gone. The panel now uses
+  `.intervalsHeading` — the same left-accented, cyan-striped caption
+  column already shared by the Active Clinical State toolbar heading
+  and the Intervals row label — holding just "Refractory Periods."
+- **Layout.** `app/page.tsx`'s markup is now one `.clinicalMeasurementRow`
+  (label column + content column, identical grid shape to the
+  Intervals row), with recorded values rendered as
+  `.clinicalMeasurementFields` of `.toolbarField`/`.unitInput` boxes —
+  the exact same read-only-styled input-with-unit-suffix control
+  Intervals uses, just with a `readOnly` `<input>` instead of an
+  editable one (recording still happens on the maneuver card, not
+  here). The "via {maneuver}" provenance line is kept, styled with the
+  pre-existing `.refractoryPeriodSource` caption class.
+- **Container.** `app/globals.css`'s `.effectiveRefractoryPeriodCard`
+  keeps its class name (a long list of unrelated layout rules —
+  monitor-rail margins, responsive width bounds — already key off it
+  structurally), but its own border/radius/background/shadow values
+  were changed to match `.caseStrip` exactly, rather than the
+  close-but-not-quite values it had before.
+- **Pruned.** `.effectiveRefractoryPeriodCardHeader` (+ its `p`/`h2`
+  children), `.effectiveRefractoryPeriodGrid`, `.effectiveRefractoryPeriodItem`
+  (+ its `nth-child` border variants), `.effectiveRefractoryPeriodItemHeader`,
+  `.effectiveRefractoryPeriodLabel`, `.effectiveRefractoryPeriodInputs`,
+  `.effectiveRefractoryPeriodUnit`, `.refractoryPeriodValue`, and their
+  two responsive media-query blocks — all now genuinely dead, since
+  nothing in the new markup references them.
