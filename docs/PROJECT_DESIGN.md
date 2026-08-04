@@ -1145,3 +1145,30 @@ the card's actual upper-right corner, not just visually near it. The
 "Also recorded under:" caption text was dropped in the move (no room
 for it in the corner); the chips carry that context in their `title`
 tooltip and an `aria-label` on the wrapping element instead.
+
+**Second same-day round, two more changes from user feedback:**
+
+- **"Suggested next" tag removed entirely.** The maneuver grid is
+  already sorted by relevance (`MANEUVER-CARD-GRID-2026-08-03`,
+  `MANEUVER-BASE-RANK-2026-08-04`), so a tag restating "this one's
+  suggested" on top of that ordering was redundant — and it was the
+  other occupant of the corner this whole stretch of work has been
+  trying to free up. Removed the `isSuggested` prop end to end
+  (`ManeuverCard.tsx`, and the `relevanceScore`/`isSuggested={...}`
+  plumbing in `app/page.tsx`'s card-grid map) along with the
+  `.maneuverSuggestedTag` CSS, rather than just hiding the tag —
+  `scoreManeuverRelevance()` itself is untouched and still drives the
+  actual sort. The state-history chips now have the corner to
+  themselves.
+- **The active-state summary now wraps instead of truncating.** The
+  front "Performed — …" badge and the card-back header's state span
+  both had single-line `overflow: hidden` + ellipsis, which — now that
+  Phase is spelled out in full and isoproterenol is free text — was
+  clipping real information off-card rather than gracefully shortening
+  it. Both switched to `white-space: normal` (multi-line) instead of
+  truncating; the badge's `border-radius` was knocked down from a full
+  999px pill to 8px, since a wrapped two-line pill reads oddly. The
+  corner history chips are unaffected — they keep their ellipsis +
+  `title`-tooltip truncation, a deliberate, different tradeoff for a
+  row that can hold several small chips at once rather than one
+  prominent summary.

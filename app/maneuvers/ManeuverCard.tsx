@@ -17,7 +17,6 @@ type ManeuverCardProps = {
    * rather than just a count, so a clinician can see *what* those states
    * were (Phase/Iso/Sedation) without leaving the card. */
   otherStatesPerformed: ClinicalState[];
-  isSuggested: boolean;
   activeClinicalStateSummary: string;
   onSave: (values: Record<string, string>) => void;
 };
@@ -199,7 +198,6 @@ export default function ManeuverCard({
   entry,
   performance,
   otherStatesPerformed,
-  isSuggested,
   activeClinicalStateSummary,
   onSave,
 }: ManeuverCardProps) {
@@ -224,10 +222,6 @@ export default function ManeuverCard({
             <h3>{entry.definition.maneuverName || "Untitled maneuver"}</h3>
 
             <div className="maneuverCardTopRight">
-              {isSuggested && (
-                <span className="maneuverSuggestedTag">Suggested next</span>
-              )}
-
               {otherStatesPerformed.length > 0 && (
                 <div
                   className="maneuverOtherStatesChips"

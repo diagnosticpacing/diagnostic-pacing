@@ -851,10 +851,6 @@ export default function Home() {
             sortedManeuverCatalog.length > 0 && (
               <div className="maneuverGrid">
                 {sortedManeuverCatalog.map((entry) => {
-                  const relevanceScore = scoreManeuverRelevance(
-                    entry.definition,
-                    activeDiagnosisAbbreviations,
-                  );
                   // The actual other states this maneuver's been recorded
                   // under, not just a count — the card needs to show what
                   // each one was (Phase/Iso/Sedation), not merely how many.
@@ -877,7 +873,6 @@ export default function Home() {
                         entry.definition.maneuverId,
                       )}
                       otherStatesPerformed={otherStatesPerformed}
-                      isSuggested={relevanceScore > 0}
                       activeClinicalStateSummary={activeClinicalStateSummary}
                       onSave={(values) =>
                         saveManeuverPerformance(

@@ -3771,19 +3771,6 @@ button.adminTableHeader.isSorted {
   line-height: 1.3;
 }
 
-.maneuverSuggestedTag {
-  flex: 0 0 auto;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(240, 185, 106, 0.16);
-  color: var(--amber);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .maneuverTechnique {
   margin: 0;
   color: var(--muted);
@@ -3798,21 +3785,29 @@ button.adminTableHeader.isSorted {
   gap: 6px;
 }
 
+/*
+ * Wraps rather than truncates — Phase is shown in full now
+ * (Pre-ablation/Post-ablation/Post-ablation 2, see
+ * CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04) and isoproterenol is free
+ * text, so this can run longer than a single-line pill comfortably
+ * holds. Losing part of the active Clinical State to an ellipsis would
+ * be worse than a two-line badge. border-radius is deliberately modest
+ * rather than a full 999px pill, which reads oddly once wrapped.
+ */
 .maneuverPerformedBadge {
   display: inline-flex;
   align-self: flex-start;
   max-width: 100%;
   padding: 3px 8px;
-  overflow: hidden;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   color: var(--quiet);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  text-overflow: ellipsis;
+  line-height: 1.4;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .maneuverPerformedBadge.isPerformed {
@@ -3882,7 +3877,7 @@ button.adminTableHeader.isSorted {
 
 .maneuverCardBackHeader {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 8px;
@@ -3892,14 +3887,14 @@ button.adminTableHeader.isSorted {
 .maneuverCardBackHeader span {
   flex: 0 1 auto;
   max-width: 55%;
-  overflow: hidden;
   color: var(--muted);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  text-align: right;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .maneuverFieldList {
