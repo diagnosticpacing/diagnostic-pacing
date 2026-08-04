@@ -67,6 +67,12 @@ type SpreadsheetTableProps = {
   definition: SheetDefinition;
   rows: SpreadsheetRow[];
   allData: Record<SheetId, SpreadsheetRow[]>;
+  /** True on the public read-only knowledge base viewer. Every cell
+   * renders disabled and the lock/delete columns are omitted entirely
+   * (there is nothing to protect or remove when nothing is editable).
+   * Sorting, column resizing, and cross-sheet reference jump-links stay
+   * live, since those are just viewing conveniences. */
+  readOnly?: boolean;
   onAddRow: () => void;
   onCellChange: (
     rowId: string,
@@ -274,6 +280,7 @@ export default function SpreadsheetTable({
   definition,
   rows,
   allData,
+  readOnly = false,
   onAddRow,
   onCellChange,
   onDeleteRow,
@@ -429,11 +436,11 @@ export default function SpreadsheetTable({
   };
 
   const gridTemplateColumns = [
-    "54px",
+    ...(readOnly ? [] : ["54px"]),
     ...definition.columns.map(
       (column) => `${columnWidths[column.key] ?? DEFAULT_COLUMN_WIDTH}px`,
     ),
-    "50px",
+    ...(readOnly ? [] : ["50px"]),
   ].join(" ");
 
   return (
@@ -442,7 +449,7 @@ export default function SpreadsheetTable({
         className="adminSpreadsheet"
         style={{ gridTemplateColumns }}
       >
-        <div className="adminTableHeader adminLockHeader" />
+        {!readOnly && <div className="adminTableHeader adminLockHeader" />}
 
         {definition.columns.map((column) => {
           const isSorted = sortState?.columnKey === column.key;
@@ -483,7 +490,7 @@ export default function SpreadsheetTable({
           );
         })}
 
-        <div className="adminTableHeader adminDeleteHeader" />
+        {!readOnly && <div className="adminTableHeader adminDeleteHeader" />}
 
         {sortedRows.map((row, rowIndex) => {
           const isHighlighted = row.__rowId === highlightRowId;
@@ -494,7 +501,11 @@ export default function SpreadsheetTable({
               className={[
                 "adminSpreadsheetRow",
                 isHighlighted && "isHighlighted",
-                isLocked && "isLocked",
+                // The violet "protected" hatch is an editorial signal —
+                // meaningless (and visually heavy applied to every single
+                // row) on the read-only public viewer, so it's suppressed
+                // there regardless of the row's actual lock state.
+                !readOnly && isLocked && "isLocked",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -504,24 +515,26 @@ export default function SpreadsheetTable({
                 else rowRefs.current.delete(row.__rowId);
               }}
             >
-              <div className="adminLockCell">
-                <button
-                  type="button"
-                  className={isLocked ? "adminLockButton isLocked" : "adminLockButton"}
-                  aria-label={
-                    isLocked ? `Unlock row ${rowIndex + 1}` : `Lock row ${rowIndex + 1}`
-                  }
-                  aria-pressed={isLocked}
-                  title={
-                    isLocked
-                      ? "Unlock to edit this row"
-                      : "Lock this row to protect it from accidental edits"
-                  }
-                  onClick={() => handleToggleLock(row)}
-                >
-                  <LockIcon locked={isLocked} />
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="adminLockCell">
+                  <button
+                    type="button"
+                    className={isLocked ? "adminLockButton isLocked" : "adminLockButton"}
+                    aria-label={
+                      isLocked ? `Unlock row ${rowIndex + 1}` : `Lock row ${rowIndex + 1}`
+                    }
+                    aria-pressed={isLocked}
+                    title={
+                      isLocked
+                        ? "Unlock to edit this row"
+                        : "Lock this row to protect it from accidental edits"
+                    }
+                    onClick={() => handleToggleLock(row)}
+                  >
+                    <LockIcon locked={isLocked} />
+                  </button>
+                </div>
+              )}
 
               {definition.columns.map((column) => {
                 const value = row[column.key] ?? "";
@@ -537,12 +550,18 @@ export default function SpreadsheetTable({
                   }))
                   .find((peer) => peer.value.trim() !== "");
                 const isDisabledByPeer = Boolean(blockingColumn);
-                const isDisabledForEditing = isDisabledByPeer || isLocked;
+                const isDisabledForEditing =
+                  isDisabledByPeer || isLocked || readOnly;
 
                 const cellClassName = [
                   "adminCell",
                   isRequiredEmpty && "isRequiredEmpty",
-                  isDisabledByPeer && "isDisabledByPeer",
+                  // Reuses the existing lightweight "can't edit this"
+                  // treatment for the read-only viewer too, rather than
+                  // the heavier isLocked hatch — that one's reserved for
+                  // flagging a deliberately protected row mid-edit, not
+                  // "this whole page is a viewer."
+                  (isDisabledByPeer || readOnly) && "isDisabledByPeer",
                 ]
                   .filter(Boolean)
                   .join(" ");
@@ -693,17 +712,19 @@ export default function SpreadsheetTable({
                 );
               })}
 
-              <div className="adminDeleteCell">
-                <button
-                  type="button"
-                  aria-label={`Delete row ${rowIndex + 1}`}
-                  title={isLocked ? "Unlock this row before deleting it" : "Delete row"}
-                  disabled={isLocked}
-                  onClick={() => onDeleteRow(row.__rowId)}
-                >
-                  ×
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="adminDeleteCell">
+                  <button
+                    type="button"
+                    aria-label={`Delete row ${rowIndex + 1}`}
+                    title={isLocked ? "Unlock this row before deleting it" : "Delete row"}
+                    disabled={isLocked}
+                    onClick={() => onDeleteRow(row.__rowId)}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -713,7 +734,7 @@ export default function SpreadsheetTable({
             className="adminEmptySpreadsheetRow"
             style={{
               gridColumn: `1 / span ${
-                definition.columns.length + 2
+                definition.columns.length + (readOnly ? 0 : 2)
               }`,
             }}
           >
@@ -722,18 +743,21 @@ export default function SpreadsheetTable({
             <div>
               <h3>No rows yet</h3>
               <p>
-                The spreadsheet remains visible so you can review the
-                structure and guidance before entering data.
+                {readOnly
+                  ? "Nothing has been recorded on this sheet yet."
+                  : "The spreadsheet remains visible so you can review the structure and guidance before entering data."}
               </p>
             </div>
 
-            <button
-              className="adminPrimaryButton"
-              type="button"
-              onClick={onAddRow}
-            >
-              Add First Row
-            </button>
+            {!readOnly && (
+              <button
+                className="adminPrimaryButton"
+                type="button"
+                onClick={onAddRow}
+              >
+                Add First Row
+              </button>
+            )}
           </div>
         )}
       </div>

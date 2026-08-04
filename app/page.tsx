@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
+import Link from "next/link";
 
 import {
   clinicalStateSummary,
@@ -98,7 +99,11 @@ function Panel({
 }
 
 export default function Home() {
-  const [aboutOpen, setAboutOpen] = useState(false);
+  // Opens on every load, not just on the About button — it's the site's
+  // one link to the read-only Knowledge Base, and there's no other nav
+  // pointing there. Still closeable/reopenable via the About button as
+  // before.
+  const [aboutOpen, setAboutOpen] = useState(true);
   const [caseRecord, setCaseRecord] = useState(createInitialCase);
   const [activeClinicalStateId, setActiveClinicalStateId] = useState(
     "clinical-state-1",
@@ -1076,30 +1081,24 @@ export default function Home() {
               </p>
 
               <div className="downloadSection">
-                <h3>Open-source downloads</h3>
+                <h3>Knowledge base</h3>
 
                 <div className="downloadCard">
                   <div>
-                    <strong>Diagnostic engine package</strong>
+                    <strong>Browse the clinical knowledge base</strong>
                     <span>
-                      Framework-independent TypeScript reasoning engine
+                      Every maneuver, diagnosis, and reasoning rule the
+                      workspace uses — read-only, with a download to
+                      Excel any time
                     </span>
                   </div>
-                  <button disabled type="button">
-                    Coming soon
-                  </button>
-                </div>
-
-                <div className="downloadCard">
-                  <div>
-                    <strong>Clinical logic and rules</strong>
-                    <span>
-                      Versioned maneuver definitions and diagnostic rules
-                    </span>
-                  </div>
-                  <button disabled type="button">
-                    Coming soon
-                  </button>
+                  <Link
+                    className="downloadCardAction"
+                    href="/knowledge"
+                    onClick={() => setAboutOpen(false)}
+                  >
+                    Open
+                  </Link>
                 </div>
               </div>
 

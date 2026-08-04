@@ -50,6 +50,11 @@ section further down — this is an index, not a replacement.
   column (as happened when Refractory Period Component # was dropped)
   can never permanently block saving again — see the tail end of
   `REFRACTORY-PERIODS-V2-2026-08-03` below.
+- Public read-only knowledge base viewer at `/knowledge` — no login,
+  same live data and schema as the admin editor via a new `readOnly`
+  mode on `SpreadsheetTable`/`Toolbar`, plus Excel download. Linked from
+  a single working card in the About modal, which now also opens
+  automatically on page load — see `PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04`.
 
 **Still open / intentionally deferred:**
 
@@ -1259,3 +1264,68 @@ of them is more important than the others.
   rules — these were already inert before this change (the "v2" rules
   edited here have matched selectors later in the cascade and already
   won), so they were left alone rather than pruned in this pass.
+
+<!-- PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04 -->
+## Public Read-Only Knowledge Base Viewer (implemented 2026-08-04)
+
+The knowledge base previously had no public-facing way to browse or
+export it — the About modal gestured at "downloading" it via two
+disabled "Coming soon" placeholder cards (Diagnostic engine package /
+Clinical logic and rules), and the only working viewer was the
+authenticated `/admin` editor. Decided, in conversation, to build a
+genuine read-only clone of the admin spreadsheet UI rather than a
+static export: same live data, same schema, same browsing conveniences
+(sort, column resize, cross-sheet reference jump-links), just with
+every mutation path removed, reachable with no login.
+
+**Why parameterize instead of forking `app/admin/`.** A literal copy of
+the admin tree would drift the moment a future column, sheet, or
+validation rule changed in the real editor and didn't get hand-mirrored
+into the clone. Instead, the existing admin components gained an opt-in
+`readOnly` mode and a new thin page reuses them directly — one schema,
+one set of components, two ways to render them.
+
+- **`app/admin/components/SpreadsheetTable.tsx`**: new `readOnly?: boolean`
+  prop. When true: the lock and delete columns (and their header cells)
+  aren't rendered at all — nothing to protect or remove when nothing is
+  editable — and `gridTemplateColumns` drops their `54px`/`50px` tracks
+  accordingly. Every cell renders `disabled`, reusing the existing
+  lightweight `isDisabledByPeer` visual treatment (a subtle background
+  tint) rather than the heavier violet `isLocked` hatch — that hatch is
+  a deliberate "this row is protected" editorial signal inside the admin
+  editor, and would read as a wall-to-wall warning pattern if applied to
+  every row on a page where nothing was ever editable to begin with.
+  Sorting, column resizing, and cross-sheet reference jump-links are
+  untouched and still work. The empty-sheet state drops its "Add First
+  Row" button and adjusts its copy and `gridColumn` span math for the
+  now-narrower (no lock/delete columns) grid.
+- **`app/admin/components/Toolbar.tsx`**: new `readOnly?: boolean` prop
+  hides Add Row and Save, replaces the dirty/saved indicator (meaningless
+  with nothing editable) with a plain "Read-only" label, and keeps
+  Download Workbook, which needed no changes — `exportKnowledgeWorkbook`
+  already just serializes whatever `sheets`/`revision` it's given.
+- **`app/knowledge/page.tsx` + `KnowledgeClient.tsx`** (new route,
+  `/knowledge`, no auth): reuses `AdminTabs`, `ManeuverWorkspace`,
+  `SpreadsheetTable readOnly`, and `Toolbar readOnly` as-is. Loads from
+  the pre-existing unauthenticated `GET /api/knowledge/public` (added
+  under `MANEUVER-CARD-GRID-2026-08-03` for the main workspace's own
+  read needs) instead of the authenticated `/api/knowledge`, and reads
+  `{ revision, sheets }`
+  directly off that response rather than the admin route's
+  `{ revision, workbook: { sheets } }` shape. No Save/Add Row/lock
+  handlers exist on this page at all — `SpreadsheetTable`'s mutation
+  callback props are still required by its type signature, so no-op
+  stubs are passed rather than making those props optional just for
+  this one read-only caller.
+- **About modal (`app/page.tsx`)**: the two disabled "Coming soon"
+  cards under "Open-source downloads" are replaced with one working
+  card — "Browse the clinical knowledge base" — linking to `/knowledge`,
+  under a renamed "Knowledge base" heading. The modal now also opens
+  automatically on every page load (`aboutOpen` now defaults to `true`
+  rather than `false`), since `/knowledge` has no other entry point in
+  the site's navigation; it's still reachable afterward via the
+  existing About button exactly as before. A new `.downloadCardAction`
+  class in `app/globals.css` gives that one real link the same
+  filled-cyan treatment as `.adminPrimaryButton`, distinct from the
+  muted `.downloadCard button` styling the (now-removed) placeholder
+  cards used.
