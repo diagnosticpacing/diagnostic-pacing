@@ -1132,3 +1132,16 @@ could occasionally run long — same overflow protection added to the
 front badge and the card-back header's state span, which previously
 had no overflow handling because the old ordinal label was always
 short.
+
+**Same-day refinement, two changes from user feedback:** (1) "Pre"/
+"Post" alone weren't specific enough — `phaseAbbreviation()` is gone
+and `clinicalStateSummary()` now uses the Phase value verbatim
+(Pre-ablation/Post-ablation/Post-ablation 2); Sedation stays abbreviated
+(Awake/Sedated/GA), which reads fine even short. (2) The other-states
+chip row moved out of `.maneuverPerformedStatus` (which is about the
+*active* state) into a new `.maneuverCardTopRight` column in the card's
+header row, stacked under the "Suggested next" tag and right-aligned —
+the card's actual upper-right corner, not just visually near it. The
+"Also recorded under:" caption text was dropped in the move (no room
+for it in the corner); the chips carry that context in their `title`
+tooltip and an `aria-label` on the wrapping element instead.

@@ -222,9 +222,32 @@ export default function ManeuverCard({
         <article className="maneuverCardFace maneuverCardFront">
           <div className="maneuverCardTop">
             <h3>{entry.definition.maneuverName || "Untitled maneuver"}</h3>
-            {isSuggested && (
-              <span className="maneuverSuggestedTag">Suggested next</span>
-            )}
+
+            <div className="maneuverCardTopRight">
+              {isSuggested && (
+                <span className="maneuverSuggestedTag">Suggested next</span>
+              )}
+
+              {otherStatesPerformed.length > 0 && (
+                <div
+                  className="maneuverOtherStatesChips"
+                  aria-label="Also recorded under other clinical states"
+                >
+                  {otherStatesPerformed.map((clinicalState) => {
+                    const summary = clinicalStateSummary(clinicalState.context);
+                    return (
+                      <span
+                        className="maneuverOtherStateChip"
+                        key={clinicalState.id}
+                        title={`Also recorded under: ${summary}`}
+                      >
+                        {summary}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {entry.definition.technique && (
@@ -246,28 +269,6 @@ export default function ManeuverCard({
               </>
             ) : (
               <span className="maneuverPerformedBadge">Not yet performed</span>
-            )}
-
-            {otherStatesPerformed.length > 0 && (
-              <div className="maneuverOtherStates">
-                <p className="maneuverOtherStatesNote">
-                  Also recorded under:
-                </p>
-                <div className="maneuverOtherStatesChips">
-                  {otherStatesPerformed.map((clinicalState) => {
-                    const summary = clinicalStateSummary(clinicalState.context);
-                    return (
-                      <span
-                        className="maneuverOtherStateChip"
-                        key={clinicalState.id}
-                        title={summary}
-                      >
-                        {summary}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
             )}
           </div>
 

@@ -3747,6 +3747,23 @@ button.adminTableHeader.isSorted {
   gap: 8px;
 }
 
+/*
+ * Right-hand column of the card's top row: the "Suggested next" tag and
+ * the compact other-Clinical-States history both live here, in the
+ * card's upper-right corner, stacked and right-aligned — kept out of
+ * .maneuverPerformedStatus below (which is about the *active* state)
+ * since the two are different concerns and the card has very little
+ * spare room.
+ */
+.maneuverCardTopRight {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 60%;
+}
+
 .maneuverCardTop h3,
 .maneuverCardBackHeader h3 {
   margin: 0;
@@ -3811,32 +3828,21 @@ button.adminTableHeader.isSorted {
   line-height: 1.5;
 }
 
-.maneuverOtherStates {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.maneuverOtherStatesNote {
-  margin: 0;
-  color: var(--quiet);
-  font-size: 9px;
-  font-style: italic;
-}
-
 /*
  * Compact key/grid for "which other Clinical States has this maneuver
  * already been recorded under" — a short wrapping row of pill chips
- * (Phase · Iso · Sedation each) rather than a sentence, since a maneuver
- * card has very little room and a case can accumulate several Clinical
- * States. Each chip is self-describing (the abbreviations are plain
- * clinical shorthand, not codes needing a separate legend) and truncates
- * with an ellipsis + full text on hover, since the isoproterenol value is
- * free text and could occasionally run long.
+ * (Phase · Iso · Sedation each) rather than a sentence, pinned to the
+ * card's upper-right corner (inside .maneuverCardTopRight) since a
+ * maneuver card has very little room and a case can accumulate several
+ * Clinical States. Each chip is self-describing (the abbreviations are
+ * plain clinical shorthand, not codes needing a separate legend) and
+ * truncates with an ellipsis + full text on hover, since the
+ * isoproterenol value is free text and could occasionally run long.
  */
 .maneuverOtherStatesChips {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
 }
 
