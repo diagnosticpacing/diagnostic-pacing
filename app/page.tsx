@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 
 import {
+  clinicalStateSummary,
   createClinicalState,
   createInitialCase,
   findPerformance,
@@ -13,6 +14,7 @@ import {
   sedationOptions,
   upsertPerformance,
   workspaceConfigurations,
+  type ClinicalState,
   type ClinicalStateContext,
 } from "./clinical/model";
 import {
@@ -212,12 +214,14 @@ export default function Home() {
       (clinicalState) => clinicalState.id === activeClinicalStateId,
     ) ?? caseRecord.clinicalStates[0];
 
-  const activeClinicalStateIndex = caseRecord.clinicalStates.findIndex(
-    (clinicalState) => clinicalState.id === activeClinicalState.id,
+  // Compact, clinically meaningful stand-in for the old ordinal "Clinical
+  // State 1"/"Clinical State 2" label — Phase, isoproterenol status, and
+  // sedation level, the three things that actually distinguish one
+  // recorded state from another (see clinicalStateSummary in
+  // app/clinical/model.ts).
+  const activeClinicalStateSummary = clinicalStateSummary(
+    activeClinicalState.context,
   );
-  const activeClinicalStateLabel = `Clinical State ${
-    activeClinicalStateIndex === -1 ? 1 : activeClinicalStateIndex + 1
-  }`;
 
   const differentialResults: DifferentialResult[] = evaluateDifferential(
     caseRecord,
@@ -781,7 +785,7 @@ export default function Home() {
           visibleRefractoryPeriods.length === 0 && (
             <p className="maneuverCatalogStatus">
               No refractory periods recorded yet for{" "}
-              {activeClinicalStateLabel} — record one on the back of
+              {activeClinicalStateSummary} — record one on the back of
               whichever maneuver card produces it.
             </p>
           )}
@@ -821,7 +825,7 @@ export default function Home() {
             Ordered by relevance to the current differential — no separate
             &ldquo;already performed&rdquo; section, since a maneuver can
             become relevant again under a different Clinical State. Showing
-            results for <strong>{activeClinicalStateLabel}</strong>.
+            results for <strong>{activeClinicalStateSummary}</strong>.
           </p>
 
           {maneuverCatalogStatus === "loading" && (
@@ -851,7 +855,10 @@ export default function Home() {
                     entry.definition,
                     activeDiagnosisAbbreviations,
                   );
-                  const otherStatesPerformedCount =
+                  // The actual other states this maneuver's been recorded
+                  // under, not just a count — the card needs to show what
+                  // each one was (Phase/Iso/Sedation), not merely how many.
+                  const otherStatesPerformed: ClinicalState[] =
                     caseRecord.clinicalStates.filter(
                       (clinicalState) =>
                         clinicalState.id !== activeClinicalState.id &&
@@ -859,7 +866,7 @@ export default function Home() {
                           clinicalState,
                           entry.definition.maneuverId,
                         ) !== null,
-                    ).length;
+                    );
 
                   return (
                     <ManeuverCard
@@ -869,9 +876,9 @@ export default function Home() {
                         activeClinicalState,
                         entry.definition.maneuverId,
                       )}
-                      otherStatesPerformedCount={otherStatesPerformedCount}
+                      otherStatesPerformed={otherStatesPerformed}
                       isSuggested={relevanceScore > 0}
-                      activeClinicalStateLabel={activeClinicalStateLabel}
+                      activeClinicalStateSummary={activeClinicalStateSummary}
                       onSave={(values) =>
                         saveManeuverPerformance(
                           entry.definition.maneuverId,

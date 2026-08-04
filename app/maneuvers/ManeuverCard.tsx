@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
-import type { ManeuverPerformance } from "../clinical/model";
+import { clinicalStateSummary, type ClinicalState, type ManeuverPerformance } from "../clinical/model";
 import {
   composeRefractoryPeriodLabel,
   refractoryPeriodComponentCount,
@@ -12,9 +12,13 @@ import {
 type ManeuverCardProps = {
   entry: ManeuverCatalogEntry;
   performance: ManeuverPerformance | null;
-  otherStatesPerformedCount: number;
+  /** The other Clinical States (besides the active one) this maneuver has
+   * already been recorded under — rendered as a compact chip per state
+   * rather than just a count, so a clinician can see *what* those states
+   * were (Phase/Iso/Sedation) without leaving the card. */
+  otherStatesPerformed: ClinicalState[];
   isSuggested: boolean;
-  activeClinicalStateLabel: string;
+  activeClinicalStateSummary: string;
   onSave: (values: Record<string, string>) => void;
 };
 
@@ -194,9 +198,9 @@ function RefractoryPeriodTripletControl({
 export default function ManeuverCard({
   entry,
   performance,
-  otherStatesPerformedCount,
+  otherStatesPerformed,
   isSuggested,
-  activeClinicalStateLabel,
+  activeClinicalStateSummary,
   onSave,
 }: ManeuverCardProps) {
   const [flipped, setFlipped] = useState(false);
@@ -230,8 +234,11 @@ export default function ManeuverCard({
           <div className="maneuverPerformedStatus">
             {performance ? (
               <>
-                <span className="maneuverPerformedBadge isPerformed">
-                  Performed — {activeClinicalStateLabel}
+                <span
+                  className="maneuverPerformedBadge isPerformed"
+                  title={`Performed — ${activeClinicalStateSummary}`}
+                >
+                  Performed — {activeClinicalStateSummary}
                 </span>
                 <p className="maneuverResultSummary">
                   {summarizePerformance(entry, performance)}
@@ -241,11 +248,26 @@ export default function ManeuverCard({
               <span className="maneuverPerformedBadge">Not yet performed</span>
             )}
 
-            {otherStatesPerformedCount > 0 && (
-              <p className="maneuverOtherStatesNote">
-                Also recorded in {otherStatesPerformedCount} other clinical
-                state{otherStatesPerformedCount === 1 ? "" : "s"}.
-              </p>
+            {otherStatesPerformed.length > 0 && (
+              <div className="maneuverOtherStates">
+                <p className="maneuverOtherStatesNote">
+                  Also recorded under:
+                </p>
+                <div className="maneuverOtherStatesChips">
+                  {otherStatesPerformed.map((clinicalState) => {
+                    const summary = clinicalStateSummary(clinicalState.context);
+                    return (
+                      <span
+                        className="maneuverOtherStateChip"
+                        key={clinicalState.id}
+                        title={summary}
+                      >
+                        {summary}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
 
@@ -261,7 +283,9 @@ export default function ManeuverCard({
         <article className="maneuverCardFace maneuverCardBack">
           <header className="maneuverCardBackHeader">
             <h3>{entry.definition.maneuverName}</h3>
-            <span>{activeClinicalStateLabel}</span>
+            <span title={activeClinicalStateSummary}>
+              {activeClinicalStateSummary}
+            </span>
           </header>
 
           {entry.fields.length === 0 ? (

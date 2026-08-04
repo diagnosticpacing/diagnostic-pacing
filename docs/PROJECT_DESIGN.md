@@ -1090,3 +1090,45 @@ unchanged — same label-only precedent as the Clinical Terms → Intervals
 rename (`INTERVALS-AND-CLINICAL-REASONING-2026-08-03`): only what the
 clinician reads changed, not the internal vocabulary Clinical Reasoning
 rules, engine logic, or code comments use.
+
+<!-- CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04 -->
+## Clinical State Display: Real Details Instead of "Clinical State N" (implemented 2026-08-04)
+
+The main GUI labeled the active Clinical State as "Clinical State 1,"
+"Clinical State 2," and so on — an ordinal with no clinical meaning,
+shown on every maneuver card's "Performed —" badge, the maneuver grid's
+subhead, and the Refractory Periods panel's empty-state text. Working
+backwards from the actual workflow: what a clinician needs to know
+about a state is what it *was* — Phase (pre/post-ablation), whether
+isoproterenol was running, and sedation level — not which number it
+happened to be created in. The Clinical States rail cards already
+showed this detail; the rest of the GUI didn't.
+
+**New helpers (`app/clinical/model.ts`):** `phaseAbbreviation()` (Pre /
+Post / Post 2), `sedationAbbreviation()` (Awake / Sedated / GA — the
+exact three-way shorthand requested), and `clinicalStateSummary()`,
+which composes all three plus the existing `medicationSummary()` (Iso
+off / Iso &lt;value&gt;) into one compact string, e.g. "Pre · Iso off ·
+Awake". `app/page.tsx`'s `activeClinicalStateLabel` variable (an
+ordinal string) is now `activeClinicalStateSummary` (this compact
+string), threaded through every place the old ordinal label appeared.
+
+**Maneuver cards, and the "tight space" problem.** A card's front
+badge now reads "Performed — Pre · Iso off · Awake" instead of
+"Performed — Clinical State 1." The harder problem was the "also
+recorded under N other states" line — previously just a count, but the
+user needs to see *which* states, and a card has very little room to
+say it, especially as a case accumulates several states. Solved with a
+compact chip row rather than a paragraph: `ManeuverCard.tsx`'s
+`otherStatesPerformed` prop changed from a `number` to the actual
+`ClinicalState[]`, and the card renders one small pill per state
+(`.maneuverOtherStateChip`, `app/globals.css`), each showing its own
+`clinicalStateSummary()`. No separate legend/key was needed — the
+abbreviations (Pre/Post, Iso off/Iso &lt;value&gt;, Awake/Sedated/GA)
+are already plain clinical shorthand a reader recognizes on sight, not
+opaque codes. Each chip also carries the full text as a `title` tooltip
+and truncates with an ellipsis, since isoproterenol is free text and
+could occasionally run long — same overflow protection added to the
+front badge and the card-back header's state span, which previously
+had no overflow handling because the old ordinal label was always
+short.

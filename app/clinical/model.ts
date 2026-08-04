@@ -233,3 +233,53 @@ export function createInitialCase(): CaseRecord {
 export function medicationSummary(value: string): string {
   return value.trim() ? `Iso ${value.trim()}` : "Iso off";
 }
+
+/** Short form of a Phase, for space-constrained displays (maneuver card
+ * badges/chips) rather than the full dropdown option text. */
+export function phaseAbbreviation(phase: Phase): string {
+  switch (phase) {
+    case "Pre-ablation":
+      return "Pre";
+    case "Post-ablation":
+      return "Post";
+    case "Post-ablation 2":
+      return "Post 2";
+    default:
+      return phase;
+  }
+}
+
+/** Short form of a Sedation level, for space-constrained displays. */
+export function sedationAbbreviation(sedation: Sedation): string {
+  switch (sedation) {
+    case "Awake":
+      return "Awake";
+    case "Conscious sedation":
+      return "Sedated";
+    case "General Anesthesia":
+      return "GA";
+    default:
+      return sedation;
+  }
+}
+
+/**
+ * A Clinical State's identity, compactly: Phase, isoproterenol status, and
+ * sedation level — the three things that actually distinguish one
+ * recorded state from another for a clinician scanning the workspace
+ * (e.g. "Pre · Iso off · Awake"). Replaces the old ordinal "Clinical
+ * State 1"/"Clinical State 2" labeling, which carried no clinical
+ * information — a maneuver's front badge or a "recorded under" chip needs
+ * to say *what* the state was, not which number it happened to be created
+ * in. Rhythm and the other drug fields (adenosine, epinephrine) are
+ * deliberately left out of this compact form — already visible on the
+ * Clinical States rail card, and not what this project's users have
+ * asked to see repeated on every maneuver card.
+ */
+export function clinicalStateSummary(context: ClinicalStateContext): string {
+  return [
+    phaseAbbreviation(context.phase),
+    medicationSummary(context.isoproterenol),
+    sedationAbbreviation(context.sedation),
+  ].join(" · ");
+}
