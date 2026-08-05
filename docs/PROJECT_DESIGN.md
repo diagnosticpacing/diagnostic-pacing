@@ -1568,3 +1568,68 @@ questions Murph resolved directly:
   label, so the card needed its own separate, permanent title. The
   now-dead `.refractoryPeriodSource` rule (the old always-visible "via"
   line) was removed.
+
+<!-- REPORT-GENERATOR-2026-08-05 -->
+## Case Report Generator (implemented 2026-08-05)
+
+Wired the topbar's previously-dead "Report" button to a plain-text,
+copy/print-friendly case summary — the first version of a reporting
+function for this project. Deliberately simple per the request: no
+formatting beyond an indented text outline, no PDF/rich export.
+
+- **`app/report/generate.ts`**: `generateCaseReport(caseRecord,
+  maneuverCatalog)` is a pure function (no DOM/browser APIs) returning
+  the full report as one string. Reuses the exact same building blocks
+  the Refractory Periods panel and its two-row redesign already
+  established — `buildRefractoryPeriodCatalog`,
+  `collectRefractoryPeriodFindings` — rather than re-deriving refractory
+  period logic from scratch, so the report and the on-screen panel can
+  never disagree about what counts as a recorded finding.
+- **Structure** (exact section numbering as specified):
+  1. Baseline State — `caseRecord.clinicalStates[0]` specifically (the
+     first Clinical State recorded, whatever its Phase/Rhythm actually
+     are), its Rhythm name, and every non-blank measurement recorded
+     for it, labeled via `workspaceConfigurations[rhythm]`.
+  2. Pre-Ablation Measurements, split 2.a Off Isoproterenol / 2.b On
+     Isoproterenol, each split into 2.a.1/2.b.1 Antegrade and
+     2.a.2/2.b.2 Retrograde refractory period findings. Every Clinical
+     State tagged Pre-ablation is included, not just ones after the
+     baseline — the baseline state itself typically qualifies too,
+     since a fresh case starts Pre-ablation/Iso off by default, and
+     that's correct: baseline is exactly where initial refractory
+     periods are usually measured in a real study.
+  3. Rhythms Induced — every Clinical State after the baseline whose
+     Rhythm is exactly `"Tachycardia"`, each labeled "Clinical State
+     {N}: Tachycardia — {phase}, {iso}" (N matching the same numbering
+     shown on the rail cards, since there's no other name to give an
+     induced rhythm) followed by its recorded intervals.
+  4. Post-Ablation Measurements — same shape as section 2, for every
+     Clinical State *not* tagged Pre-ablation (i.e. Post-ablation or
+     Post-ablation 2, collapsed together — same two-bucket
+     simplification the Refractory Periods panel's state tag already
+     uses, for consistency).
+  - Refractory period lines omit the direction word
+    (`composeRefractoryPeriodLabel(type, "n/a", structure)`, e.g. "AVN
+    ERP" not "Antegrade AVN ERP") since the enclosing 2.a.1/2.a.2-style
+    heading already says it. Empty subsections print "None recorded"
+    rather than a blank gap, so the outline's shape stays visible even
+    for a mostly-empty case.
+- **`app/page.tsx`**: the Report button now opens a `.reportModal`
+  (same `.modalBackdrop`/`.modalHeader` shell as the About modal, but
+  its own sizing/close-button treatment — this one's a transient
+  triggered dialog, not a landing page, so a small corner × is the
+  right fit here rather than the About modal's unmissable-OK-button
+  pattern) showing the generated text in a `<pre>`. Two actions in the
+  footer: **Copy all text** (`navigator.clipboard.writeText`, with a
+  2.2s "Copied"/error state) and **Print**
+  (`window.print()`). `reportText` is recomputed on every render —
+  cheap enough not to need memoizing — so it's always current with
+  whatever's in `caseRecord` when the modal opens.
+- **Print isolation** (`app/globals.css`): a `@media print` rule hides
+  every element (`visibility: hidden`, not `display: none`, so layout
+  doesn't jump) except `.reportPrintable`, which gets pinned to the
+  page origin via `position: fixed` — deliberately fixed rather than
+  absolute, so it escapes `.reportModalBody`'s on-screen scroll
+  clipping and the modal's own sizing entirely. This means printing
+  works straight from the in-page preview with no popup window and no
+  separate print-only document to keep in sync.

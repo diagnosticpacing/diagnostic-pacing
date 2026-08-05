@@ -33,6 +33,7 @@ import {
   type DifferentialResult,
   type DifferentialStatus,
 } from "./differential/engine";
+import { generateCaseReport } from "./report/generate";
 import type { SheetId, SpreadsheetRow } from "./admin/model";
 
 // Display-only relabeling of the differential engine's internal status
@@ -129,6 +130,10 @@ export default function Home() {
   // pointing there. Still closeable/reopenable via the About button as
   // before.
   const [aboutOpen, setAboutOpen] = useState(true);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCopyState, setReportCopyState] = useState<
+    "idle" | "copied" | "error"
+  >("idle");
   const [caseRecord, setCaseRecord] = useState(createInitialCase);
   const [activeClinicalStateId, setActiveClinicalStateId] = useState(
     "clinical-state-1",
@@ -228,6 +233,12 @@ export default function Home() {
     );
   }, [diagnosisRailWidth]);
 
+  useEffect(() => {
+    if (reportCopyState === "idle") return;
+    const timeout = window.setTimeout(() => setReportCopyState("idle"), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [reportCopyState]);
+
   function startRailResize(rail: RailId, event: ReactMouseEvent) {
     event.preventDefault();
     railResizeRef.current = {
@@ -303,6 +314,22 @@ export default function Home() {
 
   const antegradeRefractoryPeriods = buildRefractoryPeriodRow("Antegrade");
   const retrogradeRefractoryPeriods = buildRefractoryPeriodRow("Retrograde");
+
+  // Plain-text, print/copy-friendly case report — see app/report/generate.ts
+  // for the section-by-section structure. Recomputed on every render from
+  // whatever's currently in caseRecord; cheap enough (a handful of Clinical
+  // States and a small maneuver catalog) not to need memoizing.
+  const reportText = generateCaseReport(caseRecord, maneuverCatalog);
+
+  async function copyReportText() {
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setReportCopyState("copied");
+    } catch (error) {
+      console.error("Could not copy the report to the clipboard.", error);
+      setReportCopyState("error");
+    }
+  }
 
   function saveManeuverPerformance(
     maneuverId: string,
@@ -447,7 +474,14 @@ export default function Home() {
           <button className="primaryButton" type="button">
             Save case
           </button>
-          <button className="secondaryButton" type="button">
+          <button
+            className="secondaryButton"
+            onClick={() => {
+              setReportCopyState("idle");
+              setReportOpen(true);
+            }}
+            type="button"
+          >
             Report
           </button>
         </div>
@@ -1194,6 +1228,63 @@ export default function Home() {
                 type="button"
               >
                 OK
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {reportOpen ? (
+        <div
+          className="modalBackdrop"
+          role="presentation"
+          onMouseDown={() => setReportOpen(false)}
+        >
+          <section
+            aria-label="Case report"
+            aria-modal="true"
+            className="reportModal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modalHeader">
+              <div>
+                <p>Plain text, ready to copy or print</p>
+                <h2>Case report</h2>
+              </div>
+
+              <button
+                aria-label="Close case report"
+                className="reportCloseButton"
+                onClick={() => setReportOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="reportModalBody">
+              <pre className="reportPrintable">{reportText}</pre>
+            </div>
+
+            <div className="modalFooter reportModalFooter">
+              <button
+                className="modalOkButton"
+                onClick={() => void copyReportText()}
+                type="button"
+              >
+                {reportCopyState === "copied"
+                  ? "Copied"
+                  : reportCopyState === "error"
+                    ? "Couldn't copy — try again"
+                    : "Copy all text"}
+              </button>
+              <button
+                className="modalOkButton"
+                onClick={() => window.print()}
+                type="button"
+              >
+                Print
               </button>
             </div>
           </section>
