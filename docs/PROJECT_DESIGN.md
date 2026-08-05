@@ -1471,3 +1471,35 @@ Two changes, decided together in conversation:
     that vocabulary today, so wiring them in doesn't do anything yet —
     it's there so it works automatically if Murph ever extends the
     sheet to cover them, without needing to revisit this code.
+
+<!-- ABOUT-MODAL-POLISH-2026-08-05 -->
+## About Modal Polish: Renamed Header, Contact Placeholder (implemented 2026-08-05)
+
+Small copy and content pass on the About modal, now that it's also the
+site's landing page:
+
+- **Header.** The "Open-source project" eyebrow above the title is
+  gone — that framing will be covered elsewhere later rather than
+  asserted here. The title itself changed from "About Diagnostic
+  Pacing Maneuvers" to "About DiagnosticPacing.org", matching the
+  project's actual domain/identity rather than the app's internal
+  working name.
+- **New "Get involved" card.** A second `.downloadSection`, in the
+  same `.downloadCard` two-line-text-plus-action format as the
+  Knowledge Base card above it: "Contribute or critique" with copy
+  inviting feedback, corrections, and contributions, and explicitly
+  noting email isn't wired up for DiagnosticPacing.org yet. The action
+  is a `<button className="downloadCardAction" disabled>Contact</button>`
+  — same cyan-filled visual treatment as the working "Open" link next
+  to the Knowledge Base card, so the two cards read as one family, but
+  inert since there's nowhere for it to go yet.
+- **CSS.** `app/globals.css` adds `.downloadCardAction:disabled`
+  (dimmed opacity, `not-allowed` cursor, hover suppressed) — the same
+  "same style, visibly inert" pattern `.adminPrimaryButton:disabled`
+  already uses elsewhere in the app, applied here for consistency
+  rather than inventing a new disabled treatment.
+- Follow-up when email is wired up: swap the `<button disabled>` for
+  a real `mailto:` link or contact route, drop the `disabled`/`title`
+  attributes, and this becomes a working card with no other changes
+  needed — the placeholder was built to convert cleanly rather than
+  needing to be rebuilt.

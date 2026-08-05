@@ -1081,8 +1081,7 @@ export default function Home() {
           >
             <header className="modalHeader">
               <div>
-                <p>Open-source project</p>
-                <h2 id="about-title">About Diagnostic Pacing Maneuvers</h2>
+                <h2 id="about-title">About DiagnosticPacing.org</h2>
               </div>
             </header>
 
@@ -1120,6 +1119,29 @@ export default function Home() {
                   >
                     Open
                   </Link>
+                </div>
+              </div>
+
+              <div className="downloadSection">
+                <h3>Get involved</h3>
+
+                <div className="downloadCard">
+                  <div>
+                    <strong>Contribute or critique</strong>
+                    <span>
+                      Feedback, corrections, and contributions are
+                      welcome — email isn&rsquo;t wired up for
+                      DiagnosticPacing.org yet, but it&rsquo;s coming
+                    </span>
+                  </div>
+                  <button
+                    className="downloadCardAction"
+                    disabled
+                    title="Coming soon"
+                    type="button"
+                  >
+                    Contact
+                  </button>
                 </div>
               </div>
 

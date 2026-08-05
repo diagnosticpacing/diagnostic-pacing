@@ -965,6 +965,19 @@ button {
   background: rgba(91, 214, 220, 0.88);
 }
 
+/* Contact isn't wired up yet — same cyan treatment as the working
+   Knowledge Base action so the two cards read as one family, just
+   dimmed and inert, matching how disabled primary buttons already look
+   elsewhere (e.g. .adminPrimaryButton:disabled). */
+.downloadCardAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.downloadCardAction:disabled:hover {
+  background: var(--cyan);
+}
+
 .modalNotice {
   margin-bottom: 0 !important;
   padding: 11px 12px;
