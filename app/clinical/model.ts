@@ -64,10 +64,77 @@ export type ClinicalState = {
   performances: ManeuverPerformance[];
 };
 
+/**
+ * A single ablation application/session — strictly for the case report,
+ * never wired to clinical reasoning or the Pre-/Post-ablation Phase tag
+ * anywhere else (that association is still made manually, the same way it
+ * always has been, by however the user tags each Clinical State's Phase).
+ * Lives on CaseRecord directly, not inside a Clinical State — it has no
+ * Rhythm/Sedation/measurements of its own and isn't a "moment" in the
+ * study the way a Clinical State is.
+ */
+export const ablationModalityOptions = [
+  "Radio Frequency",
+  "Pulsed Field",
+  "Cryo",
+] as const;
+
+export type AblationModality = (typeof ablationModalityOptions)[number];
+
+export type AblationSession = {
+  id: string;
+  modalities: AblationModality[];
+  location: string;
+  count: string;
+  durationSeconds: string;
+};
+
+export function createAblationSession(id: string): AblationSession {
+  return { id, modalities: [], location: "", count: "", durationSeconds: "" };
+}
+
+/** True once any field on the session has something in it — gates the "+"
+ * button so it can't spawn a run of empty "ABL Session N" badges. */
+export function hasAblationSessionData(session: AblationSession): boolean {
+  return (
+    session.modalities.length > 0 ||
+    session.location.trim() !== "" ||
+    session.count.trim() !== "" ||
+    session.durationSeconds.trim() !== ""
+  );
+}
+
+export function abbreviateAblationModality(modality: AblationModality): string {
+  switch (modality) {
+    case "Radio Frequency":
+      return "RF";
+    case "Pulsed Field":
+      return "PFA";
+    case "Cryo":
+      return "Cryo";
+    default:
+      return modality;
+  }
+}
+
+/** Tooltip text for a collapsed "ABL Session N" badge — the only place its
+ * modality/location/count/duration are still visible once collapsed. */
+export function summarizeAblationSession(session: AblationSession): string {
+  const parts: string[] = [];
+  if (session.modalities.length > 0) parts.push(session.modalities.join(", "));
+  if (session.location.trim()) parts.push(session.location.trim());
+  if (session.count.trim()) parts.push(`${session.count.trim()} ablations`);
+  if (session.durationSeconds.trim()) {
+    parts.push(`${session.durationSeconds.trim()}s`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "No details recorded";
+}
+
 export type CaseRecord = {
   id: string;
   title: string;
   clinicalStates: ClinicalState[];
+  ablationSessions: AblationSession[];
 };
 
 export type WorkspaceConfiguration = {
@@ -227,6 +294,7 @@ export function createInitialCase(): CaseRecord {
     id: "case-1",
     title: "Untitled study",
     clinicalStates: [createClinicalState("clinical-state-1")],
+    ablationSessions: [createAblationSession("ablation-session-1")],
   };
 }
 

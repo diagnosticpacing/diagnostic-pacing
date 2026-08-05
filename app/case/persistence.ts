@@ -1,4 +1,9 @@
-import type { CaseRecord, ClinicalState } from "@/app/clinical/model";
+import { ablationModalityOptions } from "@/app/clinical/model";
+import type {
+  AblationSession,
+  CaseRecord,
+  ClinicalState,
+} from "@/app/clinical/model";
 
 // Same reasoning as the knowledge base's "no patient data is being
 // transmitted" design: a case can legitimately contain de-identified but
@@ -68,16 +73,45 @@ function isValidClinicalState(value: unknown): value is ClinicalState {
   );
 }
 
+const ablationModalitySet: ReadonlySet<string> = new Set(ablationModalityOptions);
+
+function isValidAblationSession(value: unknown): value is AblationSession {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Record<string, unknown>;
+
+  return (
+    typeof session.id === "string" &&
+    Array.isArray(session.modalities) &&
+    session.modalities.every(
+      (modality) => typeof modality === "string" && ablationModalitySet.has(modality),
+    ) &&
+    typeof session.location === "string" &&
+    typeof session.count === "string" &&
+    typeof session.durationSeconds === "string"
+  );
+}
+
 function isValidCaseRecord(value: unknown): value is CaseRecord {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
+
+  // ablationSessions is optional here on purpose — a case file exported
+  // before the Ablation section existed won't have it at all, and that's
+  // fine (importCaseRecordFromFile defaults it to []), but if it's
+  // present it needs to actually be well-formed.
+  const ablationSessions = record.ablationSessions;
+  const hasValidAblationSessions =
+    ablationSessions === undefined ||
+    (Array.isArray(ablationSessions) &&
+      ablationSessions.every(isValidAblationSession));
 
   return (
     typeof record.id === "string" &&
     typeof record.title === "string" &&
     Array.isArray(record.clinicalStates) &&
     record.clinicalStates.length > 0 &&
-    record.clinicalStates.every(isValidClinicalState)
+    record.clinicalStates.every(isValidClinicalState) &&
+    hasValidAblationSessions
   );
 }
 
@@ -120,5 +154,10 @@ export async function importCaseRecordFromFile(file: File): Promise<CaseRecord> 
     throw new Error("That case file is missing required data.");
   }
 
-  return candidate;
+  // Older exports (before the Ablation section existed) won't have this
+  // field at all — default it rather than rejecting the whole file.
+  return {
+    ...candidate,
+    ablationSessions: candidate.ablationSessions ?? [],
+  };
 }

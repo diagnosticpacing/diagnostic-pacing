@@ -1520,6 +1520,195 @@ button {
   white-space: nowrap;
 }
 
+/*
+ * Ablation — shares .effectiveRefractoryPeriodCard's grid/box treatment
+ * verbatim (165px header column via .intervalsHeading, same margin/
+ * border/background/shadow) so it lines up with Intervals/Refractory
+ * Periods/Active Clinical State. Unlike those, this card is a single
+ * line and stays a single line no matter how many ablation sessions
+ * exist — nowrap plus horizontal scroll, never a second row. That's a
+ * deliberate exception to this app's usual "expand vertically rather
+ * than clip, hide, or scroll" rule (see .stateToolbarRow above): here
+ * the user explicitly wants the opposite guarantee, so scroll is the
+ * only fallback left once a run of collapsed session badges plus the
+ * active entry fields no longer fit.
+ */
+.ablationRow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  min-width: 0;
+  padding: 0 17px;
+  overflow-x: auto;
+}
+
+/* A finalized session, collapsed to a small marker once it's no longer
+   the last (active) one — see summarizeAblationSession for the tooltip
+   text, the only place its data is still visible once collapsed. */
+.ablationSessionBadge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--strong-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  white-space: nowrap;
+}
+
+.ablationSessionBadge span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ablationSessionRemove {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--quiet);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ablationSessionRemove:hover {
+  color: var(--text);
+}
+
+/* The one always-live session — always the last item in the array, see
+   the addAblationSession/updateAblationSession comment in page.tsx. */
+.ablationActiveFields {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.ablationField {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.ablationFieldLabel {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ablationModalityToggles {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.ablationModalityToggle {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--strong-border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ablationModalityToggle:hover {
+  border-color: rgba(91, 214, 220, 0.5);
+}
+
+.ablationModalityToggle.active {
+  border-color: rgba(91, 214, 220, 0.62);
+  background: rgba(91, 214, 220, 0.11);
+  color: var(--cyan);
+}
+
+.ablationField input {
+  width: 92px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--strong-border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  outline: none;
+}
+
+.ablationField input:focus {
+  border-color: rgba(91, 214, 220, 0.62);
+  box-shadow: 0 0 0 3px rgba(91, 214, 220, 0.08);
+}
+
+.ablationCountField input {
+  width: 52px;
+}
+
+.ablationDurationInput {
+  position: relative;
+}
+
+.ablationDurationInput input {
+  width: 56px;
+  padding-right: 20px;
+}
+
+.ablationDurationInput span {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  color: var(--muted);
+  font-size: 9px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.ablationAddButton {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(91, 214, 220, 0.34);
+  border-radius: 7px;
+  background: rgba(91, 214, 220, 0.06);
+  color: var(--cyan);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ablationAddButton:hover:not(:disabled) {
+  border-color: rgba(91, 214, 220, 0.58);
+  background: rgba(91, 214, 220, 0.11);
+}
+
+.ablationAddButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .clinicalWorkspacePlaceholder {
   min-height: 100px;
   padding: 23px;

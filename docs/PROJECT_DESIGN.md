@@ -1795,3 +1795,76 @@ prominent.
   previously-dragged width (already in localStorage) is unaffected by
   this change - it only shifts the starting point for a case where
   nothing's been saved yet.
+
+<!-- ABLATION-SECTION-2026-08-05 -->
+## Ablation Section (implemented 2026-08-05)
+
+New always-visible section below Refractory Periods, capturing
+intervention detail strictly for the case report - modality, location,
+number of ablations, duration. As discussed before building it: this is
+deliberately not wired to clinical reasoning or to the Pre-/Post-ablation
+Phase tag anywhere else, and it isn't shaped like a Clinical State
+(no Rhythm/Sedation/measurements of its own, no differential-engine
+role) - it's case-level procedural data, a sibling to clinicalStates on
+CaseRecord, not something nested inside one.
+
+The one hard constraint driving the whole design: this section must stay
+a single line, always, no matter how many ablation sessions get
+recorded. That's the opposite of this app's usual rule for the Active
+Clinical State toolbar ("expand vertically rather than clip, hide, or
+scroll" - see ACTIVE-STATE-SINGLE-ROW-2026-08-05 above), which is fine -
+different sections can make different tradeoffs, and here the tradeoff
+that satisfies "one line, ever" is horizontal scroll instead of adding a
+row.
+
+- app/clinical/model.ts: `ablationModalityOptions` ("Radio Frequency" /
+  "Pulsed Field" / "Cryo"), `AblationSession` (`id`, `modalities:
+  AblationModality[]`, `location`, `count`, `durationSeconds` - the
+  latter three are free text per the spec, same convention as
+  Isoproterenol/Adenosine/Epinephrin already being free-text rather than
+  strictly-numeric inputs), `createAblationSession`,
+  `hasAblationSessionData` (gates the "+" button - see below),
+  `abbreviateAblationModality` (RF / PFA / Cryo, for the tight toggle
+  buttons), `summarizeAblationSession` (the collapsed badge's tooltip
+  text). `CaseRecord` gained `ablationSessions: AblationSession[]`;
+  `createInitialCase()` seeds it with one blank session so the entry row
+  is always present.
+- app/page.tsx: exactly one session is ever "active" - whichever is
+  last in the array - and it's live-bound to input onChange/onBlur the
+  same way every other free-text field in this app already works.
+  Clicking "+" (`addAblationSession`) just appends a fresh blank session;
+  the previous last one collapsing to an "ABL Session N" badge is a pure
+  rendering consequence of no longer being at the last index, not a
+  separate "commit" step or flag on the data. "+" is disabled
+  (`hasAblationSessionData`) until the active session has at least one
+  field filled in, so it can't spawn a run of empty badges from
+  double-clicks. Session ids come from a `useRef` counter, not
+  `Date.now()` - this avoids adding a second instance of the
+  react-hooks/purity finding that already exists (and is accepted as
+  pre-existing) for `addClinicalState`'s ordinal id. Removing a session
+  (the small × on each collapsed badge) is a small addition beyond what
+  was asked, in case a session gets collapsed by mistake.
+  Modality renders as three small toggle buttons (a real multiselect -
+  more than one can be active - rather than a native `<select multiple>`,
+  which would need much more vertical room than one line allows) rather
+  than a dropdown, so what's selected is always visible without opening
+  anything.
+- app/globals.css: `.ablationCard` shares `.effectiveRefractoryPeriodCard`'s
+  box/grid treatment verbatim (same 165px `.intervalsHeading` header
+  column, same margin/border/background/shadow) by literally sharing
+  that class name, the same reuse precedent Refractory Periods already
+  set for Intervals. `.ablationRow` is `flex-wrap: nowrap` with
+  `overflow-x: auto` - collapsed badges and the active entry fields all
+  have `flex: 0 0 auto` (fixed width, never shrink/wrap), so the row
+  can only ever grow sideways and scroll, never wrap to a second line.
+- app/case/persistence.ts: `isValidCaseRecord` treats `ablationSessions`
+  as optional (a case file saved before this feature existed won't have
+  it), validating it only when present via a new
+  `isValidAblationSession` check; `importCaseRecordFromFile` defaults a
+  missing `ablationSessions` to `[]` on the way out, so older exports
+  still open cleanly instead of getting rejected.
+
+Not done yet, and flagged to Murph rather than assumed: the case report
+generator (app/report/generate.ts) doesn't include Ablation data at all
+yet. This section was scoped to GUI capture only per the request - report
+wiring is a clear next step whenever it's wanted.
