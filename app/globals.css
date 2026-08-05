@@ -2604,11 +2604,14 @@ button {
   }
 }
 
-/* Active Clinical State complete-field layout v1
+/* Active Clinical State complete-field layout v2
  *
- * All context fields must remain visible.
- * When one row is insufficient, the card expands vertically and adds
- * another row rather than clipping, hiding, or scrolling fields.
+ * All context fields fit in a single row at normal widths — Phase,
+ * Rhythm, and Sedation get a bit more room for their longer <select>
+ * text, and Isoproterenol/Adenosine/Epinephrin (short numeric inputs)
+ * don't need much. Only at the narrower breakpoints below, where six
+ * fields genuinely won't fit alongside the 165px heading, does the row
+ * wrap to two or more rows rather than clipping or hiding a field.
  */
 
 .stateToolbarRow {
@@ -2618,15 +2621,19 @@ button {
    * Column 1 is the Active Clinical State heading — fixed at the same
    * 165px the Intervals/Refractory Periods row headers use
    * (.intervalsHeading / .clinicalMeasurementRow), so all three section
-   * headers line up in one visual column instead of the heading
-   * growing with the row's available width.
-   * Columns 2–4 hold three fields per row.
+   * headers line up in one visual column. Columns 2–7 are the six
+   * context fields, left to right in the order they're rendered:
+   * Phase, Rhythm, Sedation, Isoproterenol, Adenosine, Epinephrin.
    */
   grid-template-columns:
     165px
-    repeat(3, minmax(150px, 1fr));
+    minmax(100px, 0.85fr)
+    minmax(140px, 1.3fr)
+    minmax(130px, 1.15fr)
+    minmax(80px, 0.7fr)
+    minmax(80px, 0.7fr)
+    minmax(80px, 0.7fr);
 
-  grid-template-rows: auto auto;
   align-items: stretch;
   width: 100%;
   min-width: 0;
@@ -2634,43 +2641,8 @@ button {
   overflow: visible;
 }
 
-/* Active Clinical State heading spans both context rows. */
 .stateToolbarRow > :first-child {
-  grid-column: 1;
-  grid-row: 1 / 3;
   min-width: 0;
-}
-
-/* Row 1: Phase, Rhythm, Sedation. */
-.stateToolbarRow > :nth-child(2) {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.stateToolbarRow > :nth-child(3) {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.stateToolbarRow > :nth-child(4) {
-  grid-column: 4;
-  grid-row: 1;
-}
-
-/* Row 2: Isoproterenol, Adenosine, Epinephrine. */
-.stateToolbarRow > :nth-child(5) {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.stateToolbarRow > :nth-child(6) {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.stateToolbarRow > :nth-child(7) {
-  grid-column: 4;
-  grid-row: 2;
 }
 
 /* Every field must be allowed to shrink within its grid cell. */
@@ -2710,19 +2682,9 @@ button {
 }
 
 /*
- * Preserve clear cell boundaries across both rows.
- * Existing borders remain authoritative; these ensure the second row
- * reads as part of the same structured card.
- */
-.stateToolbarRow > :nth-child(5),
-.stateToolbarRow > :nth-child(6),
-.stateToolbarRow > :nth-child(7) {
-  border-top: 1px solid var(--border);
-}
-
-/*
- * At moderately narrow widths, use two field columns and allow the
- * card to add a third row. Nothing is hidden.
+ * At moderately narrow widths, six fields no longer fit in one row
+ * alongside the heading — fall back to two field columns and let the
+ * card add a third row. Nothing is hidden.
  */
 @media (max-width: 1240px) {
   .stateToolbarRow {

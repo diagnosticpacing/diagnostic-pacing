@@ -1738,3 +1738,33 @@ rather than three different header treatments.
   height of both direction rows, the same effect
   `.stateToolbarRow > :first-child { grid-row: 1 / 3 }` achieves
   explicitly for the Active Clinical State heading.
+
+<!-- ACTIVE-STATE-SINGLE-ROW-2026-08-05 -->
+## Active Clinical State: Single-Row Field Layout (implemented 2026-08-05)
+
+The "Active Clinical State complete-field layout v1" pass (documented
+earlier this session) deliberately split Phase/Rhythm/Sedation/
+Isoproterenol/Adenosine/Epinephrin across two rows so nothing would
+clip at typical widths. Reconsidered per Murph's observation that most
+of those fields don't need to be wide - replaced that with a genuine
+single row at normal widths, sized per field rather than uniformly:
+
+- app/globals.css: the live (non-media) .stateToolbarRow rule is now
+  165px (heading) followed by six explicit minmax() columns instead of
+  a uniform repeat(3, minmax(150px, 1fr)) split across two rows -
+  Rhythm and Sedation get the most room (minmax(140px, 1.3fr) /
+  minmax(130px, 1.15fr), since their select options include text like
+  "Normal Sinus Rhythm" and "General Anesthesia"), Phase a bit less
+  (minmax(100px, 0.85fr)), and the three numeric medication inputs the
+  least (minmax(80px, 0.7fr) each, since a dose value never needs much
+  width). All seven cells (heading + six fields) now rely on plain grid
+  auto-placement into that one row - the explicit nth-child-based
+  two-row placement rules (and the row-2 top-border rule that went with
+  them) were removed as no longer needed.
+- Left the two narrower fallback breakpoints alone (max-width: 1240px
+  drops to 2 field columns x 3 rows, max-width: 760px stacks everything
+  into 1 column) - six fields plus the heading genuinely don't fit in
+  one row once the center workspace gets that narrow, and those
+  breakpoints already handle it by adding rows rather than clipping or
+  hiding a field, which is still the right fallback there. Single-row
+  is specifically a normal/wide-viewport change.
