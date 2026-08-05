@@ -1909,3 +1909,86 @@ viewing or editing.
   handling: the active session's own remove button was never rendered
   (only collapsed badges get one), so `ablationSessions` can shrink but
   never go below one item - `lastAblationSession` is always defined.
+
+<!-- MANEUVER-CARD-REDESIGN-2026-08-05 -->
+## Maneuver Card Redesign (implemented 2026-08-05)
+
+Murph sketched a new layout: Maneuver Name + Performed History on top,
+a big Findings box in the middle, Enter Result + Maneuver Details on the
+bottom. Three follow-up questions resolved the design before building:
+Maneuver Details is a placeholder for now (Technique text today, a
+diagram later) revealed via a third card-flip state; and rather than a
+separate merged "history" list, every individual finding on the front of
+the card gets its own Pre/Post-ablation + Iso on/off state tag.
+
+- **Shared state tag, moved out of Refractory Periods.**
+  `formatRefractoryPeriodStateTag` (Pre/Post · Iso on/off) was scoped to
+  that one panel, but Maneuver Card findings need the exact same tag now.
+  Moved the logic to `app/clinical/model.ts` as `formatClinicalStateTag`;
+  `refractoryPeriods/knowledge.ts` now just re-exports the old name as an
+  alias (`export const formatRefractoryPeriodStateTag =
+  formatClinicalStateTag;`) so nothing else in that file needed to
+  change.
+- **Findings are no longer scoped to the active Clinical State.**
+  Previously a card only showed the active state's recorded value (via
+  `performance`), plus a separate list of *which other* states it'd also
+  been recorded under (`otherStatesPerformed: ClinicalState[]`, no
+  values). Both are replaced by one prop,
+  `performedStates: {clinicalState, performance}[]` — every Clinical
+  State with an actual recorded performance for this maneuver, in the
+  case's chronological order (`app/page.tsx` builds this with a
+  `flatMap` over `caseRecord.clinicalStates`, same iteration order
+  `collectRefractoryPeriodFindings` already relies on). The card derives
+  `activePerformance` by finding the entry matching
+  `activeClinicalStateId` — still needed to seed the "Enter/Edit result"
+  editor, which stays scoped to the active state exactly as before; only
+  the *display* of past findings changed, not what a save writes to.
+- **Front face**, `app/maneuvers/ManeuverCard.tsx`:
+  - `.maneuverCardTop`: maneuver name (unchanged) + `.maneuverPerformedHistory`
+    — compact tags, one per performed state, no values (a fast-scan
+    index of *when*, e.g. "Pre · Iso off", "Post · Iso on").
+  - `.maneuverCardFindings`: the new main body. One row per performed
+    state, each showing its tag next to the same summarized-result text
+    `summarizePerformance` already produced (unchanged helper, just
+    called once per state now instead of once total). The row matching
+    `activeClinicalStateId` is highlighted (green tag/border) so it's
+    still obvious at a glance whether the *current* context has been
+    done, without a separate badge. `flex: 1` + internal
+    `overflow-y: auto` so a maneuver with many findings scrolls in place
+    rather than growing the card past its grid-row neighbors —
+    `.maneuverCard`'s `min-height` went from 230px to 270px to give this
+    room before it needs to scroll.
+  - `.maneuverCardBottomActions`: two buttons, each `flex: 1 1 0` so
+    they split the width evenly — "Enter/Edit result" (unchanged
+    behavior) and the new "Maneuver details" (quieter secondary style,
+    `.maneuverCardActionSecondary`, since it's reference lookup, not the
+    card's primary purpose).
+  - The old `.maneuverTechnique` paragraph (shown directly on the front)
+    is gone from the front face entirely — technique now lives behind
+    "Maneuver details" instead.
+- **Back face — three-state flip, not three-sided.** A literal
+  geometrically-distinct third face isn't practical with a CSS `rotateY`
+  flip (backface-visibility only really gives you two orientations).
+  Instead `flipState: "front" | "results" | "details"` — both
+  non-"front" values flip to the *same* physical back plane
+  (`isFlipped` triggers on `flipState !== "front"`), which conditionally
+  renders either the existing result-entry form (`flipState ===
+  "results"`, entirely unchanged logic) or the new details content
+  (`flipState === "details"`). Functionally indistinguishable from a
+  true third face to whoever's using it — you never see more than one
+  back content at a time — without the fragile continuous-rotation
+  carousel timing a real 3-face flip would need.
+- **Details face**, deliberately scoped down to a placeholder per
+  Murph's answer: a "Technique" section showing
+  `entry.definition.technique` (or a fallback string if blank), and a
+  `.maneuverDetailsDiagram` section — a dashed-border placeholder box
+  reading "Diagram — coming soon", reserving the spot rather than
+  building anything yet. Relevant Diagnoses / Required States (both
+  already on `ManeuverDefinition`) were deliberately left out of this
+  pass — narrower than what was floated as an option, matching what was
+  actually asked for.
+- Dead CSS removed alongside the rewrite (confirmed zero remaining
+  references first): `.maneuverCardTopRight`, `.maneuverTechnique`,
+  `.maneuverPerformedStatus`, `.maneuverPerformedBadge` (+
+  `.isPerformed`), `.maneuverResultSummary`, `.maneuverOtherStatesChips`,
+  `.maneuverOtherStateChip`.

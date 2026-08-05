@@ -340,3 +340,34 @@ export function clinicalStateSummary(context: ClinicalStateContext): string {
     sedationAbbreviation(context.sedation),
   ].join(" · ");
 }
+
+/**
+ * Phase collapsed to just two buckets — deliberately coarser than the
+ * Phase field itself (Pre-ablation / Post-ablation / Post-ablation 2),
+ * and a distinct, narrowly-scoped abbreviation from clinicalStateSummary
+ * above (which spells Phase out in full on purpose — see
+ * CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04). Folding Post-ablation 2
+ * into "Post" is the intended behavior here, not a compromise.
+ */
+function clinicalStateTagPhaseBucket(phase: Phase): "Pre" | "Post" {
+  return phase === "Pre-ablation" ? "Pre" : "Post";
+}
+
+/**
+ * The compact per-finding state tag — e.g. "Pre · Iso off" — used
+ * anywhere a result needs to say which Clinical State produced it
+ * without repeating the full context: originally built for the
+ * Refractory Periods panel (REFRACTORY-PERIODS-TWO-ROW-2026-08-05,
+ * where it lived as formatRefractoryPeriodStateTag before moving here)
+ * and reused as-is for Maneuver Card findings
+ * (MANEUVER-CARD-REDESIGN-2026-08-05). Limited to exactly two axes by
+ * design: ablation phase (Pre/Post) and isoproterenol (on/off) — the two
+ * things that actually change how a recorded result should be read.
+ * Rhythm, sedation, and the other drug fields are left out on purpose,
+ * same scoping decision clinicalStateSummary() makes above.
+ */
+export function formatClinicalStateTag(context: ClinicalStateContext): string {
+  const phase = clinicalStateTagPhaseBucket(context.phase);
+  const iso = context.isoproterenol.trim() ? "Iso on" : "Iso off";
+  return `${phase} · ${iso}`;
+}

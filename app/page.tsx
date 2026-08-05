@@ -24,7 +24,6 @@ import {
   upsertPerformance,
   workspaceConfigurations,
   type AblationModality,
-  type ClinicalState,
   type ClinicalStateContext,
 } from "./clinical/model";
 import {
@@ -1251,8 +1250,10 @@ export default function Home() {
           <p className="maneuverGridSubhead">
             Ordered by relevance to the current differential — no separate
             &ldquo;already performed&rdquo; section, since a maneuver can
-            become relevant again under a different Clinical State. Showing
-            results for <strong>{activeClinicalStateSummary}</strong>.
+            become relevant again under a different Clinical State. Every
+            card shows findings from every clinical state it&rsquo;s been
+            recorded under, with <strong>{activeClinicalStateSummary}</strong>{" "}
+            highlighted.
           </p>
 
           {maneuverCatalogStatus === "loading" && (
@@ -1278,28 +1279,28 @@ export default function Home() {
             sortedManeuverCatalog.length > 0 && (
               <div className="maneuverGrid">
                 {sortedManeuverCatalog.map((entry) => {
-                  // The actual other states this maneuver's been recorded
-                  // under, not just a count — the card needs to show what
-                  // each one was (Phase/Iso/Sedation), not merely how many.
-                  const otherStatesPerformed: ClinicalState[] =
-                    caseRecord.clinicalStates.filter(
-                      (clinicalState) =>
-                        clinicalState.id !== activeClinicalState.id &&
-                        findPerformance(
-                          clinicalState,
-                          entry.definition.maneuverId,
-                        ) !== null,
-                    );
+                  // Every Clinical State this maneuver actually has a
+                  // recorded result under (active or not), each paired with
+                  // its performance — the Findings list on the card needs
+                  // every value, not just whether other states exist. Order
+                  // matches caseRecord.clinicalStates, which is already
+                  // chronological (states are only ever appended).
+                  const performedStates = caseRecord.clinicalStates.flatMap(
+                    (clinicalState) => {
+                      const performance = findPerformance(
+                        clinicalState,
+                        entry.definition.maneuverId,
+                      );
+                      return performance ? [{ clinicalState, performance }] : [];
+                    },
+                  );
 
                   return (
                     <ManeuverCard
                       key={entry.definition.maneuverId}
                       entry={entry}
-                      performance={findPerformance(
-                        activeClinicalState,
-                        entry.definition.maneuverId,
-                      )}
-                      otherStatesPerformed={otherStatesPerformed}
+                      performedStates={performedStates}
+                      activeClinicalStateId={activeClinicalState.id}
                       activeClinicalStateSummary={activeClinicalStateSummary}
                       onSave={(values) =>
                         saveManeuverPerformance(

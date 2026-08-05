@@ -2,21 +2,33 @@
 
 import { useState } from "react";
 import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
-import { clinicalStateSummary, type ClinicalState, type ManeuverPerformance } from "../clinical/model";
+import {
+  formatClinicalStateTag,
+  type ClinicalState,
+  type ManeuverPerformance,
+} from "../clinical/model";
 import {
   composeRefractoryPeriodLabel,
   refractoryPeriodComponentCount,
   refractoryPeriodComponentKey,
 } from "../refractoryPeriods/knowledge";
 
+/** One Clinical State this maneuver has actually been performed under,
+ * paired with the recorded values — not just "it happened," the full
+ * result, so the Findings list can show every prior value, not only the
+ * active state's. */
+export type ManeuverPerformedState = {
+  clinicalState: ClinicalState;
+  performance: ManeuverPerformance;
+};
+
 type ManeuverCardProps = {
   entry: ManeuverCatalogEntry;
-  performance: ManeuverPerformance | null;
-  /** The other Clinical States (besides the active one) this maneuver has
-   * already been recorded under — rendered as a compact chip per state
-   * rather than just a count, so a clinician can see *what* those states
-   * were (Phase/Iso/Sedation) without leaving the card. */
-  otherStatesPerformed: ClinicalState[];
+  /** Every Clinical State this maneuver has a recorded performance under,
+   * in the case's chronological order (oldest first) — including the
+   * active state, if it's among them. */
+  performedStates: ManeuverPerformedState[];
+  activeClinicalStateId: string;
   activeClinicalStateSummary: string;
   onSave: (values: Record<string, string>) => void;
 };
@@ -196,162 +208,237 @@ function RefractoryPeriodTripletControl({
 
 export default function ManeuverCard({
   entry,
-  performance,
-  otherStatesPerformed,
+  performedStates,
+  activeClinicalStateId,
   activeClinicalStateSummary,
   onSave,
 }: ManeuverCardProps) {
-  const [flipped, setFlipped] = useState(false);
+  // "front" is the card's resting face. "results" and "details" both flip
+  // to the same physical back plane (a true third geometric face isn't
+  // practical with a CSS rotateY flip) but render entirely different
+  // content — functionally a third state, just not a third orientation.
+  // See MANEUVER-CARD-REDESIGN-2026-08-05 for the reasoning, and the
+  // maneuverDetailsDiagram placeholder below for what's intentionally not
+  // built yet.
+  const [flipState, setFlipState] = useState<"front" | "results" | "details">(
+    "front",
+  );
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
 
+  const activePerformance =
+    performedStates.find(
+      (performedState) => performedState.clinicalState.id === activeClinicalStateId,
+    )?.performance ?? null;
+
   function openEditor() {
-    setDraftValues(performance?.values ?? {});
-    setFlipped(true);
+    setDraftValues(activePerformance?.values ?? {});
+    setFlipState("results");
   }
 
   function handleSave() {
     onSave(draftValues);
-    setFlipped(false);
+    setFlipState("front");
   }
 
   return (
-    <div className={`maneuverCard${flipped ? " isFlipped" : ""}`}>
+    <div className={`maneuverCard${flipState !== "front" ? " isFlipped" : ""}`}>
       <div className="maneuverCardFlipper">
         <article className="maneuverCardFace maneuverCardFront">
           <div className="maneuverCardTop">
             <h3>{entry.definition.maneuverName || "Untitled maneuver"}</h3>
 
-            <div className="maneuverCardTopRight">
-              {otherStatesPerformed.length > 0 && (
-                <div
-                  className="maneuverOtherStatesChips"
-                  aria-label="Also recorded under other clinical states"
-                >
-                  {otherStatesPerformed.map((clinicalState) => {
-                    const summary = clinicalStateSummary(clinicalState.context);
-                    return (
-                      <span
-                        className="maneuverOtherStateChip"
-                        key={clinicalState.id}
-                        title={`Also recorded under: ${summary}`}
-                      >
-                        {summary}
-                      </span>
-                    );
-                  })}
-                </div>
+            <div
+              className="maneuverPerformedHistory"
+              aria-label="Performed history"
+            >
+              {performedStates.length === 0 ? (
+                <span className="maneuverPerformedHistoryEmpty">
+                  Not yet performed
+                </span>
+              ) : (
+                performedStates.map(({ clinicalState }) => {
+                  const isActiveState = clinicalState.id === activeClinicalStateId;
+                  const tag = formatClinicalStateTag(clinicalState.context);
+                  return (
+                    <span
+                      className={
+                        isActiveState
+                          ? "maneuverHistoryTag isActiveState"
+                          : "maneuverHistoryTag"
+                      }
+                      key={clinicalState.id}
+                      title={`Recorded — ${tag}`}
+                    >
+                      {tag}
+                    </span>
+                  );
+                })
               )}
             </div>
           </div>
 
-          {entry.definition.technique && (
-            <p className="maneuverTechnique">{entry.definition.technique}</p>
-          )}
-
-          <div className="maneuverPerformedStatus">
-            {performance ? (
-              <>
-                <span
-                  className="maneuverPerformedBadge isPerformed"
-                  title={`Performed — ${activeClinicalStateSummary}`}
-                >
-                  Performed — {activeClinicalStateSummary}
-                </span>
-                <p className="maneuverResultSummary">
-                  {summarizePerformance(entry, performance)}
-                </p>
-              </>
+          <div className="maneuverCardFindings">
+            {performedStates.length === 0 ? (
+              <p className="maneuverFindingsEmpty">
+                No findings recorded yet — use Enter result below.
+              </p>
             ) : (
-              <span className="maneuverPerformedBadge">Not yet performed</span>
+              performedStates.map(({ clinicalState, performance }) => {
+                const isActiveState = clinicalState.id === activeClinicalStateId;
+                return (
+                  <div
+                    className={
+                      isActiveState
+                        ? "maneuverFindingRow isActiveState"
+                        : "maneuverFindingRow"
+                    }
+                    key={clinicalState.id}
+                  >
+                    <span className="maneuverFindingTag">
+                      {formatClinicalStateTag(clinicalState.context)}
+                    </span>
+                    <span className="maneuverFindingText">
+                      {summarizePerformance(entry, performance)}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
 
-          <button
-            className="maneuverCardAction"
-            type="button"
-            onClick={openEditor}
-          >
-            {performance ? "Edit result" : "Enter result"}
-          </button>
+          <div className="maneuverCardBottomActions">
+            <button
+              className="maneuverCardAction"
+              type="button"
+              onClick={openEditor}
+            >
+              {activePerformance ? "Edit result" : "Enter result"}
+            </button>
+            <button
+              className="maneuverCardAction maneuverCardActionSecondary"
+              type="button"
+              onClick={() => setFlipState("details")}
+            >
+              Maneuver details
+            </button>
+          </div>
         </article>
 
         <article className="maneuverCardFace maneuverCardBack">
-          <header className="maneuverCardBackHeader">
-            <h3>{entry.definition.maneuverName}</h3>
-            <span title={activeClinicalStateSummary}>
-              {activeClinicalStateSummary}
-            </span>
-          </header>
+          {flipState === "details" ? (
+            <>
+              <header className="maneuverCardBackHeader">
+                <h3>{entry.definition.maneuverName}</h3>
+                <span>Details</span>
+              </header>
 
-          {entry.fields.length === 0 ? (
-            <p className="maneuverFieldEmpty">
-              No response fields are defined for this maneuver yet — add them
-              in the admin knowledge base.
-            </p>
+              <div className="maneuverDetailsBody">
+                <div className="maneuverDetailsSection">
+                  <h4>Technique</h4>
+                  <p>
+                    {entry.definition.technique ||
+                      "No technique notes recorded yet — add them in the admin knowledge base."}
+                  </p>
+                </div>
+
+                {/* Placeholder — a per-maneuver diagram is planned but not
+                    built yet; this just reserves the spot. */}
+                <div className="maneuverDetailsSection maneuverDetailsDiagram">
+                  <h4>Diagram</h4>
+                  <p>Coming soon</p>
+                </div>
+              </div>
+
+              <div className="maneuverCardBackActions">
+                <button
+                  className="secondaryButton"
+                  type="button"
+                  onClick={() => setFlipState("front")}
+                >
+                  Back
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="maneuverFieldList">
-              {entry.fields.map((field) => {
-                if (field.refractoryPeriod?.type === "Effective") {
-                  return (
-                    <RefractoryPeriodTripletControl
-                      key={field.fieldId}
-                      field={field}
-                      values={draftValues}
-                      onChange={(key, next) =>
-                        setDraftValues((current) => ({
-                          ...current,
-                          [key]: next,
-                        }))
-                      }
-                    />
-                  );
-                }
+            <>
+              <header className="maneuverCardBackHeader">
+                <h3>{entry.definition.maneuverName}</h3>
+                <span title={activeClinicalStateSummary}>
+                  {activeClinicalStateSummary}
+                </span>
+              </header>
 
-                return (
-                  <div className="maneuverField" key={field.fieldId}>
-                    {field.inputType.toLowerCase() !== "checkbox" && (
-                      <label>
-                        {field.prompt}
-                        {field.required && (
-                          <span aria-hidden="true"> *</span>
+              {entry.fields.length === 0 ? (
+                <p className="maneuverFieldEmpty">
+                  No response fields are defined for this maneuver yet — add them
+                  in the admin knowledge base.
+                </p>
+              ) : (
+                <div className="maneuverFieldList">
+                  {entry.fields.map((field) => {
+                    if (field.refractoryPeriod?.type === "Effective") {
+                      return (
+                        <RefractoryPeriodTripletControl
+                          key={field.fieldId}
+                          field={field}
+                          values={draftValues}
+                          onChange={(key, next) =>
+                            setDraftValues((current) => ({
+                              ...current,
+                              [key]: next,
+                            }))
+                          }
+                        />
+                      );
+                    }
+
+                    return (
+                      <div className="maneuverField" key={field.fieldId}>
+                        {field.inputType.toLowerCase() !== "checkbox" && (
+                          <label>
+                            {field.prompt}
+                            {field.required && (
+                              <span aria-hidden="true"> *</span>
+                            )}
+                          </label>
                         )}
-                      </label>
-                    )}
-                    <FieldControl
-                      field={field}
-                      value={draftValues[field.fieldId] ?? ""}
-                      onChange={(next) =>
-                        setDraftValues((current) => ({
-                          ...current,
-                          [field.fieldId]: next,
-                        }))
-                      }
-                    />
-                    {field.helpText && (
-                      <p className="maneuverFieldHelp">{field.helpText}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                        <FieldControl
+                          field={field}
+                          value={draftValues[field.fieldId] ?? ""}
+                          onChange={(next) =>
+                            setDraftValues((current) => ({
+                              ...current,
+                              [field.fieldId]: next,
+                            }))
+                          }
+                        />
+                        {field.helpText && (
+                          <p className="maneuverFieldHelp">{field.helpText}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-          <div className="maneuverCardBackActions">
-            <button
-              className="secondaryButton"
-              type="button"
-              onClick={() => setFlipped(false)}
-            >
-              Cancel
-            </button>
-            <button
-              className="primaryButton"
-              type="button"
-              onClick={handleSave}
-            >
-              Save result
-            </button>
-          </div>
+              <div className="maneuverCardBackActions">
+                <button
+                  className="secondaryButton"
+                  type="button"
+                  onClick={() => setFlipState("front")}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primaryButton"
+                  type="button"
+                  onClick={handleSave}
+                >
+                  Save result
+                </button>
+              </div>
+            </>
+          )}
         </article>
       </div>
     </div>

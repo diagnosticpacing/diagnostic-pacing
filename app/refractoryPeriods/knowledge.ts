@@ -1,5 +1,5 @@
-import type { ClinicalState, ClinicalStateContext, Phase } from "@/app/clinical/model";
-import { findPerformance } from "@/app/clinical/model";
+import type { ClinicalState } from "@/app/clinical/model";
+import { findPerformance, formatClinicalStateTag } from "@/app/clinical/model";
 import type {
   ManeuverCatalogEntry,
   ManeuverCatalogField,
@@ -160,36 +160,16 @@ export function formatRefractoryPeriodValue(
 }
 
 /**
- * Phase collapsed to just two buckets, for the Refractory Periods panel's
- * per-finding state tag only — deliberately coarser than the Phase field
- * itself (Pre-ablation / Post-ablation / Post-ablation 2). This is a
- * distinct, narrowly-scoped abbreviation for this one tag, not a revival
- * of the general-purpose phase abbreviation that was tried and removed
- * from clinical/model.ts (see CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04)
- * — that one lost real information in a context where the full phase name
- * mattered. Here the tag is deliberately limited to pre/post by design, so
- * folding Post-ablation 2 into "Post" is the intended behavior, not a
- * compromise.
- */
-function refractoryPeriodPhaseBucket(phase: Phase): "Pre" | "Post" {
-  return phase === "Pre-ablation" ? "Pre" : "Post";
-}
-
-/**
  * The compact state tag shown next to each Refractory Periods finding —
  * e.g. "Pre · Iso off" — so a panel that shows every recorded value
  * across every Clinical State (not just the active one) still tells you
- * which state produced which number. Limited to exactly two axes by
- * design: ablation phase (Pre/Post) and isoproterenol (on/off) — the two
- * things that actually change how a refractory period should be read.
- * Rhythm, sedation, and the other drug fields are left out on purpose,
- * same scoping decision as clinicalStateSummary() made for maneuver cards.
+ * which state produced which number. Moved to clinical/model.ts as
+ * formatClinicalStateTag (MANEUVER-CARD-REDESIGN-2026-08-05) once
+ * Maneuver Card findings needed the exact same tag — this is just the
+ * original name kept as an alias so nothing else in this file needs to
+ * change.
  */
-export function formatRefractoryPeriodStateTag(context: ClinicalStateContext): string {
-  const phase = refractoryPeriodPhaseBucket(context.phase);
-  const iso = context.isoproterenol.trim() ? "Iso on" : "Iso off";
-  return `${phase} · ${iso}`;
-}
+export const formatRefractoryPeriodStateTag = formatClinicalStateTag;
 
 /** One recorded value for a Refractory Period definition, under one
  * specific Clinical State. */
