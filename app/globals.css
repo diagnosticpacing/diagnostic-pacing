@@ -1389,13 +1389,16 @@ button {
  * shadow) — the Refractory Periods panel is a separate <section> for
  * layout reasons (it's derived from maneuver data, not a row within the
  * Active Clinical State's own toolbar), but should read as the same
- * design language, not a visually distinct "card." Its two rows
- * (below) reuse .clinicalMeasurementRow/.intervalsHeading verbatim, same
- * reason — only the row content changed from a fixed-column value grid
- * to a wrapped list of findings, since the panel is no longer scoped to
- * a single Clinical State's single value per definition.
+ * design language, not a visually distinct "card." It's now a two-column
+ * grid, same shape as .stateToolbarRow: a fixed 165px section-header
+ * column (.intervalsHeading, shared verbatim with the Intervals rows and
+ * the Active Clinical State heading, so all three headers sit in the
+ * same visual column at the same width) on the left, and the
+ * Antegrade/Retrograde rows stacked to its right.
  */
 .effectiveRefractoryPeriodCard {
+  display: grid;
+  grid-template-columns: 165px minmax(0, 1fr);
   margin: 14px 24px 0 264px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1405,26 +1408,21 @@ button {
 }
 
 /*
- * A persistent title for the card itself — previously the single
- * Intervals-style row heading said "Refractory Periods," but now that
- * role belongs to each row's own "Antegrade"/"Retrograde" label, the
- * card needs its own title so it's still clear what the whole thing is
- * at a glance. The note underneath is the one-line explanation for why
- * this panel doesn't change when you switch Clinical States, unlike
- * everything above it.
+ * .intervalsHeading's base rule lays out its content as a single
+ * centered row (one label) — this section's header also carries the
+ * "doesn't change with Clinical State" note beneath the title, so it
+ * needs its own two-line column layout instead.
  */
-.refractoryPeriodsCardHeading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 17px 12px;
+.refractoryPeriodsHeading {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
 }
 
-.refractoryPeriodsCardHeading > span:first-child {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 700;
+.refractoryPeriodsHeading .refractoryPeriodsCardNote {
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .refractoryPeriodsCardNote {
@@ -1436,13 +1434,43 @@ button {
   white-space: nowrap;
 }
 
+/* Antegrade row above Retrograde row, both to the right of the header. */
+.refractoryPeriodsRows {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.refractoryPeriodDirectionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-height: 82px;
+  padding: 13px 17px;
+}
+
+.refractoryPeriodDirectionRow:not(:first-child) {
+  border-top: 1px solid var(--border);
+}
+
+.refractoryPeriodDirectionLabel {
+  flex: 0 0 auto;
+  min-width: 74px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
 .refractoryPeriodFindings {
   display: flex;
   min-width: 0;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 8px;
-  padding: 13px 17px;
 }
 
 .refractoryPeriodEmpty {
@@ -2587,11 +2615,15 @@ button {
   display: grid;
 
   /*
-   * Column 1 is the Active Clinical State heading.
+   * Column 1 is the Active Clinical State heading — fixed at the same
+   * 165px the Intervals/Refractory Periods row headers use
+   * (.intervalsHeading / .clinicalMeasurementRow), so all three section
+   * headers line up in one visual column instead of the heading
+   * growing with the row's available width.
    * Columns 2–4 hold three fields per row.
    */
   grid-template-columns:
-    minmax(170px, 0.82fr)
+    165px
     repeat(3, minmax(150px, 1fr));
 
   grid-template-rows: auto auto;
@@ -2695,7 +2727,7 @@ button {
 @media (max-width: 1240px) {
   .stateToolbarRow {
     grid-template-columns:
-      minmax(160px, 0.75fr)
+      165px
       repeat(2, minmax(150px, 1fr));
 
     grid-template-rows: repeat(3, auto);

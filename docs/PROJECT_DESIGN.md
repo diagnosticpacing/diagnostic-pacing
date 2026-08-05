@@ -1689,3 +1689,52 @@ first.
     as Open case, since both share the same "discards unsaved work"
     risk (`createInitialCase()`, reset active state to
     `clinical-state-1`, clear the state-change log).
+
+<!-- SECTION-HEADER-ALIGNMENT-2026-08-05 -->
+## Section Header Width/Position Alignment (implemented 2026-08-05)
+
+Two related GUI polish fixes so the Active Clinical State, Intervals,
+and Refractory Periods sections read as one consistent design language
+rather than three different header treatments.
+
+- **Active Clinical State heading width**: `app/globals.css` had
+  accumulated several superseded `.stateToolbarRow` rules from earlier
+  responsive-layout passes (dead code — later rules win the cascade at
+  equal specificity, so only the last one in the file, under the
+  "Active Clinical State complete-field layout v1" section, was
+  actually rendering). That live rule's first grid column — the
+  `.toolbarHeading`/`.activeClinicalStateHeading` cell — was
+  `minmax(170px, 0.82fr)`, a flexible column that grows with whatever
+  width is left over, so it visibly out-grew the Intervals row's fixed
+  165px header column. Changed it (and its 1240px-breakpoint
+  duplicate) to a plain `165px`, matching
+  `.clinicalMeasurementRow`/`.intervalsHeading` exactly, so all three
+  section headers now sit in the same fixed-width visual column. Left
+  the earlier dead `.stateToolbarRow` rules and the narrower
+  (≤760px, single-column stacked) breakpoint alone — neither affects
+  what's actually rendering at normal widths, and stacked mobile layout
+  isn't a case where "same width as Intervals" is meaningful.
+- **Refractory Periods header repositioned**: previously "Refractory
+  Periods" was a full-width heading bar across the top of the card,
+  with "Antegrade"/"Retrograde" as separate `.intervalsHeading`-style
+  row labels underneath. Restructured to match the Intervals/Active
+  Clinical State pattern instead: `.effectiveRefractoryPeriodCard` is
+  now a two-column grid (`165px minmax(0, 1fr)`, same as
+  `.clinicalMeasurementRow`/`.stateToolbarRow`) with "Refractory
+  Periods" as the left-column header — literally the same
+  `.intervalsHeading` class (fixed width, cyan accent bar, gradient
+  background), plus a `.refractoryPeriodsHeading` modifier so its
+  "doesn't change with Clinical State" note can sit on its own line
+  underneath rather than beside the title (there's no room for that
+  side-by-side layout at 165px). Antegrade and Retrograde are no longer
+  separate `.clinicalMeasurementRow`s with their own left-column
+  labels — they're two stacked `.refractoryPeriodDirectionRow`s inside
+  a single `.refractoryPeriodsRows` column to the header's right, each
+  with an inline `.refractoryPeriodDirectionLabel` (small uppercase
+  label, not a full header cell) ahead of its findings. The header
+  cell's height is driven by CSS Grid's default `stretch` alignment —
+  it isn't spanning rows explicitly, it's just the only other item in
+  the grid's single implicit row, so it naturally matches the combined
+  height of both direction rows, the same effect
+  `.stateToolbarRow > :first-child { grid-row: 1 / 3 }` achieves
+  explicitly for the Active Clinical State heading.

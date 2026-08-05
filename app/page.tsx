@@ -937,80 +937,78 @@ export default function Home() {
         className="effectiveRefractoryPeriodCard"
         aria-label="Refractory Periods"
       >
-        <div className="refractoryPeriodsCardHeading">
+        <div className="intervalsHeading refractoryPeriodsHeading">
           <span>Refractory Periods</span>
-          <span className="refractoryPeriodsCardNote">
+          <small className="refractoryPeriodsCardNote">
             Every recorded finding, across every clinical state
-          </span>
+          </small>
         </div>
 
-        <div className="clinicalMeasurementRow">
-          <div className="intervalsHeading">
-            <span>Antegrade</span>
+        <div className="refractoryPeriodsRows">
+          <div className="refractoryPeriodDirectionRow">
+            <span className="refractoryPeriodDirectionLabel">Antegrade</span>
+
+            <div className="refractoryPeriodFindings">
+              {maneuverCatalogStatus === "ready" &&
+                antegradeRefractoryPeriods.length === 0 && (
+                  <p className="refractoryPeriodEmpty">
+                    None recorded yet — record one on the back of whichever
+                    maneuver card produces it.
+                  </p>
+                )}
+
+              {antegradeRefractoryPeriods.map(({ definition, finding }) => (
+                <div
+                  className="refractoryPeriodFinding"
+                  key={`${definition.id}-${finding.clinicalStateId}`}
+                  title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
+                >
+                  <span className="refractoryPeriodFindingLabel">
+                    {definition.label}
+                  </span>
+                  <span className="refractoryPeriodFindingValue">
+                    {finding.value}
+                    <span className="refractoryPeriodFindingUnit">ms</span>
+                  </span>
+                  <span className="refractoryPeriodFindingTag">
+                    {finding.stateTag}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="refractoryPeriodFindings">
-            {maneuverCatalogStatus === "ready" &&
-              antegradeRefractoryPeriods.length === 0 && (
-                <p className="refractoryPeriodEmpty">
-                  None recorded yet — record one on the back of whichever
-                  maneuver card produces it.
-                </p>
-              )}
+          <div className="refractoryPeriodDirectionRow">
+            <span className="refractoryPeriodDirectionLabel">Retrograde</span>
 
-            {antegradeRefractoryPeriods.map(({ definition, finding }) => (
-              <div
-                className="refractoryPeriodFinding"
-                key={`${definition.id}-${finding.clinicalStateId}`}
-                title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
-              >
-                <span className="refractoryPeriodFindingLabel">
-                  {definition.label}
-                </span>
-                <span className="refractoryPeriodFindingValue">
-                  {finding.value}
-                  <span className="refractoryPeriodFindingUnit">ms</span>
-                </span>
-                <span className="refractoryPeriodFindingTag">
-                  {finding.stateTag}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+            <div className="refractoryPeriodFindings">
+              {maneuverCatalogStatus === "ready" &&
+                retrogradeRefractoryPeriods.length === 0 && (
+                  <p className="refractoryPeriodEmpty">
+                    None recorded yet — record one on the back of whichever
+                    maneuver card produces it.
+                  </p>
+                )}
 
-        <div className="clinicalMeasurementRow">
-          <div className="intervalsHeading">
-            <span>Retrograde</span>
-          </div>
-
-          <div className="refractoryPeriodFindings">
-            {maneuverCatalogStatus === "ready" &&
-              retrogradeRefractoryPeriods.length === 0 && (
-                <p className="refractoryPeriodEmpty">
-                  None recorded yet — record one on the back of whichever
-                  maneuver card produces it.
-                </p>
-              )}
-
-            {retrogradeRefractoryPeriods.map(({ definition, finding }) => (
-              <div
-                className="refractoryPeriodFinding"
-                key={`${definition.id}-${finding.clinicalStateId}`}
-                title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
-              >
-                <span className="refractoryPeriodFindingLabel">
-                  {definition.label}
-                </span>
-                <span className="refractoryPeriodFindingValue">
-                  {finding.value}
-                  <span className="refractoryPeriodFindingUnit">ms</span>
-                </span>
-                <span className="refractoryPeriodFindingTag">
-                  {finding.stateTag}
-                </span>
-              </div>
-            ))}
+              {retrogradeRefractoryPeriods.map(({ definition, finding }) => (
+                <div
+                  className="refractoryPeriodFinding"
+                  key={`${definition.id}-${finding.clinicalStateId}`}
+                  title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
+                >
+                  <span className="refractoryPeriodFindingLabel">
+                    {definition.label}
+                  </span>
+                  <span className="refractoryPeriodFindingValue">
+                    {finding.value}
+                    <span className="refractoryPeriodFindingUnit">ms</span>
+                  </span>
+                  <span className="refractoryPeriodFindingTag">
+                    {finding.stateTag}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
