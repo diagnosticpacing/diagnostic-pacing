@@ -2,14 +2,14 @@
 
 This document records committed architecture, workflow, and interface decisions.
 
-<!-- STATUS-SUMMARY-2026-08-03 -->
-## Status Summary (checkpoint as of 2026-08-03)
+<!-- STATUS-SUMMARY-2026-08-04 -->
+## Status Summary (checkpoint as of 2026-08-04)
 
 A fast-read reconciliation point, since this doc is the only durable memory
 across sessions. Full reasoning for everything below lives in its own dated
 section further down — this is an index, not a replacement.
 
-**Live and implemented:**
+**Live and implemented — core architecture:**
 
 - Clinical State measurement architecture for plain intervals (AA, VV,
   PR, and similar) — still direct-entry, unchanged. The original ERP
@@ -19,19 +19,19 @@ section further down — this is an index, not a replacement.
   entry: recorded on the back of whichever maneuver produces them
   (tagged via Type/Direction/Structure on Maneuver Response Fields — one
   field IS the whole result, Functional a single value and Effective up
-  to three), shown in a derived "Refractory Periods" panel under Intervals.
+  to three), shown in a derived "Refractory Periods" panel under
+  Intervals, restyled 2026-08-04 to match the Active State/Intervals
+  visual language — see `REFRACTORY-PERIODS-V2-2026-08-03` and
+  `REFRACTORY-PERIODS-STYLE-GUIDE-2026-08-04`.
 - Knowledge base schema v2, including Clinical States, Rule Group ID /
   Required Clinical State on Clinical Reasoning, and the three-value
   Differential Action (Supports/Excludes/Confirms). The Clinical States
   fixed vocabulary is NSR, Brady, Tachy, CRM Paced, Iso On, Iso Off,
   Adenosine — **Iso Washout was removed** from the original v2 list early
-  in this stretch of work.
-- Admin spreadsheet editor: cross-sheet reference links, live cascading
-  lookup dropdowns (see the dedicated reference section below — this is
-  the "how are the tailored column menus auto-populated" answer),
-  auto-populated hidden ID columns, column sorting, resizable columns,
-  required-field highlighting, and **per-row locking** with save-locks-
-  everything semantics.
+  in this stretch of work. The sheet's Abbreviated Name column became a
+  plain open text field (was a fixed dropdown Murph didn't choose the
+  values for) on 2026-08-04 — see
+  `CLINICAL-STATE-CARD-WRAP-AND-ABBREVIATION-2026-08-04`.
 - Clinical Reasoning can evaluate either a Maneuver's response field or
   an Interval directly (Maneuver Considered vs. Interval Considered),
   mutually exclusive and enforced live in the UI, not just by validation.
@@ -44,6 +44,9 @@ section further down — this is an index, not a replacement.
   demo array and fake percentage-confidence bar. Both the card grid's
   relevance ordering and the differential rail now read from the same
   live knowledge base via the public `GET /api/knowledge/public` route.
+  Maneuver card ordering is now also controlled by a manual Base Rank
+  column (tiebreaker under relevance scoring) — see
+  `MANEUVER-BASE-RANK-2026-08-04`.
 - The knowledge base save pipeline now self-heals from schema changes:
   `pruneUnknownColumns()` (`app/admin/model.ts`) strips any row key that
   isn't in the current schema before validating/storing, so removing a
@@ -52,9 +55,60 @@ section further down — this is an index, not a replacement.
   `REFRACTORY-PERIODS-V2-2026-08-03` below.
 - Public read-only knowledge base viewer at `/knowledge` — no login,
   same live data and schema as the admin editor via a new `readOnly`
-  mode on `SpreadsheetTable`/`Toolbar`, plus Excel download. Linked from
-  a single working card in the About modal, which now also opens
-  automatically on page load — see `PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04`.
+  mode on `SpreadsheetTable`/`Toolbar`, plus Excel download — see
+  `PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04`.
+
+**Live and implemented — GUI polish, mostly 2026-08-04:**
+
+- The About modal now doubles as the site's landing page: opens
+  automatically on every load (still reachable afterward via the About
+  button), is dismissed with a large "OK" button centered at the bottom
+  rather than a small corner ×, and its one working card — "Browse the
+  clinical knowledge base" — opens `/knowledge` in a new browser tab so
+  the clinical workspace itself is never navigated away from. See
+  `PUBLIC-KNOWLEDGE-BASE-VIEWER-2026-08-04` and its same-day
+  `ABOUT-MODAL-LANDING-PAGE-2026-08-04` follow-up.
+- The topbar's non-functional "Workspace"/"Reference" tab toggle (a
+  draft holdover that never did anything) is gone — see
+  `REMOVE-WORKSPACE-REFERENCE-TABS-2026-08-04`.
+- Differential diagnosis card statuses display as "Included" /
+  "Confirmed" / "Excluded" (internal `DifferentialStatus` values
+  unchanged) — see `DIFFERENTIAL-STATUS-LABEL-2026-08-04`.
+- Clinical State rail cards (left pane): show the actual recorded Phase,
+  Rhythm, and Iso status — not an ordinal "Clinical State N" — in a
+  three-column grid where all three get equal visual weight (no field
+  is a bold headline over the others), values wrap instead of
+  truncating, and any value automatically abbreviates itself via the
+  Clinical States knowledge-base sheet whenever a matching Full
+  Name/Abbreviated Name row exists (falls back to the full value
+  otherwise). See `CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04`,
+  `CLINICAL-STATE-CARD-EQUAL-WEIGHT-2026-08-04`, and
+  `CLINICAL-STATE-CARD-WRAP-AND-ABBREVIATION-2026-08-04`.
+- Maneuver cards: the "recorded under other clinical states" history is
+  a compact chip row in the card's top-right corner (real Phase ·
+  medication · sedation details, not a bare count); the redundant
+  "Suggested next" tag that used to occupy that same corner is gone
+  (the grid is already relevance-sorted); the front badge and
+  card-back header's clinical-state text wrap instead of truncating.
+  See `CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04` and its two same-day
+  addenda within that section.
+- Admin spreadsheet editor: cross-sheet reference links, live cascading
+  lookup dropdowns (see the dedicated reference section below — this is
+  the "how are the tailored column menus auto-populated" answer),
+  auto-populated hidden ID columns, column sorting, resizable columns,
+  required-field highlighting, and **per-row locking** with save-locks-
+  everything semantics — the lock button now sits at the left of every
+  row (moved from the right) and row numbers were removed entirely, see
+  `ADMIN-ROW-LOCKING-V1-2026-08-03` and
+  `ADMIN-HIDE-ROW-NUMBERS-2026-08-04`. The Response Fields sheet gained
+  an "Associated Maneuver" name picker that auto-populates the existing
+  ID column, matching the app's other cascading-lookup columns — see
+  `RESPONSE-FIELDS-MANEUVER-NAME-2026-08-04`.
+- Small polish items: browser tab titles reflect the active case
+  (`BROWSER-TAB-TITLES-2026-08-03`); Interval IDs are prefixed `IID-`
+  (`INTERVAL-ID-PREFIX-2026-08-03`); native `<select>` dropdown popups
+  are styled for the dark theme instead of showing the OS default light
+  popup (`NATIVE-SELECT-DARK-THEME-2026-08-03`).
 
 **Still open / intentionally deferred:**
 
