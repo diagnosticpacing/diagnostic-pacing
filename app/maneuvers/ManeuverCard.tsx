@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
 import {
   formatClinicalStateTag,
@@ -223,6 +223,11 @@ export default function ManeuverCard({
   const [flipState, setFlipState] = useState<"front" | "results" | "details">(
     "front",
   );
+  // Which side "Maneuver details" was opened from, so clicking the
+  // details face returns you there instead of always landing on front.
+  const [detailsReturnState, setDetailsReturnState] = useState<
+    "front" | "results"
+  >("front");
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
 
   const activePerformance =
@@ -235,15 +240,47 @@ export default function ManeuverCard({
     setFlipState("results");
   }
 
+  function openDetails(from: "front" | "results") {
+    setDetailsReturnState(from);
+    setFlipState("details");
+  }
+
+  function closeDetails() {
+    setFlipState(detailsReturnState);
+  }
+
   function handleSave() {
     onSave(draftValues);
     setFlipState("front");
   }
 
+  /**
+   * Lets clicking anywhere on a card face act as a shortcut for its
+   * default flip action — front flips to results, results flips back to
+   * front, details returns to whichever face it was opened from — without
+   * swallowing clicks on the real buttons/inputs/selects/labels those
+   * faces already contain. Purely a convenience layered on top of those
+   * controls, which stay the only way to do this from a keyboard or
+   * screen reader (no role="button"/tabIndex added here on purpose —
+   * that would misrepresent a region that itself contains real
+   * interactive children).
+   */
+  function handleFaceClick(
+    event: ReactMouseEvent<HTMLElement>,
+    action: () => void,
+  ) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, input, select, textarea, a, label")) return;
+    action();
+  }
+
   return (
     <div className={`maneuverCard${flipState !== "front" ? " isFlipped" : ""}`}>
       <div className="maneuverCardFlipper">
-        <article className="maneuverCardFace maneuverCardFront">
+        <article
+          className="maneuverCardFace maneuverCardFront"
+          onClick={(event) => handleFaceClick(event, openEditor)}
+        >
           <div className="maneuverCardTop">
             <h3>{entry.definition.maneuverName || "Untitled maneuver"}</h3>
 
@@ -317,14 +354,22 @@ export default function ManeuverCard({
             <button
               className="maneuverCardAction maneuverCardActionSecondary"
               type="button"
-              onClick={() => setFlipState("details")}
+              onClick={() => openDetails("front")}
             >
               Maneuver details
             </button>
           </div>
         </article>
 
-        <article className="maneuverCardFace maneuverCardBack">
+        <article
+          className="maneuverCardFace maneuverCardBack"
+          onClick={(event) =>
+            handleFaceClick(
+              event,
+              flipState === "details" ? closeDetails : () => setFlipState("front"),
+            )
+          }
+        >
           {flipState === "details" ? (
             <>
               <header className="maneuverCardBackHeader">
@@ -351,9 +396,9 @@ export default function ManeuverCard({
 
               <div className="maneuverCardBackActions">
                 <button
-                  className="secondaryButton"
+                  className="secondaryButton maneuverDetailsBackButton"
                   type="button"
-                  onClick={() => setFlipState("front")}
+                  onClick={closeDetails}
                 >
                   Back
                 </button>
@@ -425,17 +470,26 @@ export default function ManeuverCard({
                 <button
                   className="secondaryButton"
                   type="button"
-                  onClick={() => setFlipState("front")}
+                  onClick={() => openDetails("results")}
                 >
-                  Cancel
+                  Maneuver details
                 </button>
-                <button
-                  className="primaryButton"
-                  type="button"
-                  onClick={handleSave}
-                >
-                  Save result
-                </button>
+                <div className="maneuverCardBackActionsPrimary">
+                  <button
+                    className="secondaryButton"
+                    type="button"
+                    onClick={() => setFlipState("front")}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="primaryButton"
+                    type="button"
+                    onClick={handleSave}
+                  >
+                    Save result
+                  </button>
+                </div>
               </div>
             </>
           )}

@@ -1992,3 +1992,51 @@ the card gets its own Pre/Post-ablation + Iso on/off state tag.
   `.maneuverPerformedStatus`, `.maneuverPerformedBadge` (+
   `.isPerformed`), `.maneuverResultSummary`, `.maneuverOtherStatesChips`,
   `.maneuverOtherStateChip`.
+
+<!-- MANEUVER-CARD-CLICK-TO-FLIP-2026-08-05 -->
+## Maneuver Card: Click-Anywhere-to-Flip + Details on Results Side (implemented 2026-08-05)
+
+Two follow-up requests on the redesign above: "Maneuver details" needed
+to also be reachable from the results-entry side (previously only on
+front), and clicking anywhere on a card face that isn't a button/field
+should flip it — front → results, results → front, details → back to
+whichever face opened it — on top of, not instead of, the existing
+buttons.
+
+- `detailsReturnState: "front" | "results"` (new state) records which
+  face "Maneuver details" was opened from; `openDetails(from)` sets it,
+  `closeDetails()` flips back to it. The front's details button and the
+  new results-side details button both call `openDetails` with their
+  own side, so "Back" on the details face always lands you where you
+  actually came from, not always on front.
+- `handleFaceClick(event, action)`: attached to both `<article>` faces'
+  `onClick`. Walks up from `event.target` via `.closest("button, input,
+  select, textarea, a, label")` — if the click originated inside any of
+  those, it's a real control's own click and this does nothing (avoids
+  double-handling a button click that also bubbles to the face). Any
+  other click on the face runs the face's default action: front →
+  `openEditor` (same as clicking Enter/Edit result), results-back →
+  `setFlipState("front")` (same as Cancel, no save), details-back →
+  `closeDetails`. No `role="button"`/`tabIndex` added to the faces on
+  purpose — they already contain real interactive children, and the
+  explicit buttons remain the only way to trigger any of this from a
+  keyboard or screen reader; the whole-face click is a mouse
+  convenience layered on top, not a replacement.
+- One accepted tradeoff, flagged rather than silently worked around:
+  since the results face is a dense field form, a click on the
+  whitespace *between* fields (not on a label/input specifically) now
+  also flips back to front without saving — matches "clicking anywhere
+  that isn't a data entry field or another button" exactly as asked,
+  but worth knowing if it ever feels like an accidental-exit trap while
+  filling out a long form.
+- `app/globals.css`: `.maneuverCardBackActions` changed from
+  `justify-content: flex-end` to plain `flex-start` +
+  `.maneuverCardBackActionsPrimary { margin-left: auto }` wrapping
+  Cancel/Save, so "Maneuver details" sits alone on the left of the
+  results row while Cancel/Save stay right-aligned as a pair. The
+  details face's lone "Back" button gets the same right-alignment via
+  its own `.maneuverDetailsBackButton { margin-left: auto }` — margin
+  auto rather than `space-between` on the parent, since `space-between`
+  would've left a single button sitting at the left instead of the
+  right once the results row's two-button layout changed the shared
+  parent rule.

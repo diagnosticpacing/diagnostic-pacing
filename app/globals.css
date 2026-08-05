@@ -4422,12 +4422,28 @@ button.adminTableHeader.isSorted {
   font-style: italic;
 }
 
+/*
+ * "Maneuver details" (now on both back faces, not just front) sits on
+ * its own at the left; Cancel/Save — or the lone Back button on the
+ * details face — get pushed to the right via margin-left: auto instead
+ * of justify-content: space-between, so a single-button row (details
+ * face) still right-aligns the same way a two-button row does.
+ */
 .maneuverCardBackActions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+
+.maneuverCardBackActionsPrimary {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.maneuverDetailsBackButton {
+  margin-left: auto;
 }
 
 /* Row locking v1 */
