@@ -2207,7 +2207,11 @@ button {
  */
 
 :root {
-  --side-monitor-width: 190px;
+  /* Matches RAIL_WIDTH_DEFAULT in app/page.tsx — this is only the
+     pre-hydration/no-JS fallback; the rendered width comes from that JS
+     constant via an inline custom property on .appShell once the page
+     hydrates, and from localStorage after a rail's been dragged. */
+  --side-monitor-width: 225px;
   --side-monitor-gap: 14px;
   --side-monitor-top: 84px;
   --side-monitor-bottom: 0px;

@@ -57,7 +57,10 @@ const DIFFERENTIAL_STATUS_LABEL: Record<DifferentialStatus, string> = {
 
 type RailId = "clinicalStates" | "differentialDiagnosis";
 
-const RAIL_WIDTH_DEFAULT = 190;
+// Nudged up from 190 per Murph's request — a little more prominent on
+// first load, still fully adjustable (and still remembered per-rail via
+// localStorage) once dragged.
+const RAIL_WIDTH_DEFAULT = 225;
 const RAIL_WIDTH_MIN = 160;
 const RAIL_WIDTH_MAX = 480;
 

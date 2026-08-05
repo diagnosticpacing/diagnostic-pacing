@@ -1768,3 +1768,30 @@ single row at normal widths, sized per field rather than uniformly:
   breakpoints already handle it by adding rows rather than clipping or
   hiding a field, which is still the right fallback there. Single-row
   is specifically a normal/wide-viewport change.
+
+<!-- RAIL-DEFAULT-WIDTH-2026-08-05 -->
+## Side Rail Default Width Nudge (implemented 2026-08-05)
+
+Both side rails (Clinical States, Differential Diagnosis) are
+independently drag-resizable and remember their width per-rail via
+localStorage - Murph likes that, but wanted the first-load width (i.e.
+before either rail has ever been dragged) to be a little more
+prominent.
+
+- app/page.tsx: RAIL_WIDTH_DEFAULT 190 -> 225 (still well inside
+  RAIL_WIDTH_MIN 160 / RAIL_WIDTH_MAX 480, and comfortably under
+  clampRailWidth's viewport-relative cap at any reasonable desktop
+  width). This is the single source of truth for first-load width -
+  loadStoredRailWidth() falls back to it whenever localStorage has
+  nothing stored yet for that rail.
+- app/globals.css: matched the :root --side-monitor-width fallback
+  (190px -> 225px) for consistency. This value is only a pre-hydration/
+  no-JS fallback - .appShell sets --clinical-state-rail-width and
+  --diagnosis-monitor-width inline from the same JS state, and that
+  inline declaration is what actually renders once the page hydrates -
+  but keeping the two in sync avoids a mismatched flash and avoids
+  leaving a stale number for whoever reads this file next.
+- Dragging either rail still works exactly as before, and a
+  previously-dragged width (already in localStorage) is unaffected by
+  this change - it only shifts the starting point for a case where
+  nothing's been saved yet.
