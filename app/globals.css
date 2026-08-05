@@ -4023,6 +4023,15 @@ button.adminTableHeader.isSorted {
   transform: rotateY(180deg);
 }
 
+/*
+ * overflow: hidden here (not on the scrollable regions below) is what
+ * actually keeps a card's rounded corners clean — it's also a
+ * deliberate backstop against a real CSS quirk: an element with
+ * overflow-y: auto but no overflow-x set has its overflow-x silently
+ * computed as auto too, which is how a purely-vertical scroll region
+ * was producing surprise horizontal scrollbars. Every scrollable region
+ * below now sets overflow-x: hidden explicitly for the same reason.
+ */
 .maneuverCardFace {
   position: absolute;
   inset: 0;
@@ -4030,6 +4039,7 @@ button.adminTableHeader.isSorted {
   flex-direction: column;
   gap: 10px;
   padding: 16px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.02);
@@ -4042,11 +4052,17 @@ button.adminTableHeader.isSorted {
 
 .maneuverCardBack {
   transform: rotateY(180deg);
-  overflow-y: auto;
 }
 
+/*
+ * Title + Performed History — fixed. flex-shrink: 0 so flex's default
+ * shrink-everything-proportionally behavior can never squeeze this row
+ * when content below is tall; only .maneuverCardFindings (flex: 1,
+ * min-height: 0) is allowed to give ground by scrolling internally.
+ */
 .maneuverCardTop {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
@@ -4116,6 +4132,8 @@ button.adminTableHeader.isSorted {
   flex-direction: column;
   gap: 6px;
   min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -4131,6 +4149,7 @@ button.adminTableHeader.isSorted {
   flex: 0 0 auto;
   align-items: baseline;
   gap: 7px;
+  min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -4157,9 +4176,11 @@ button.adminTableHeader.isSorted {
 }
 
 .maneuverFindingText {
+  min-width: 0;
   color: var(--muted);
   font-size: 10.5px;
   line-height: 1.5;
+  word-break: break-word;
 }
 
 .maneuverCardBottomActions {
@@ -4170,6 +4191,7 @@ button.adminTableHeader.isSorted {
 
 .maneuverCardAction {
   flex: 1 1 0;
+  min-width: 0;
   padding: 8px 12px;
   border: 1px solid rgba(91, 214, 220, 0.35);
   border-radius: 8px;
@@ -4178,6 +4200,7 @@ button.adminTableHeader.isSorted {
   font: inherit;
   font-size: 11px;
   font-weight: 750;
+  white-space: nowrap;
   cursor: pointer;
   text-align: center;
 }
@@ -4205,6 +4228,8 @@ button.adminTableHeader.isSorted {
   flex: 1;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -4251,6 +4276,7 @@ button.adminTableHeader.isSorted {
 
 .maneuverCardBackHeader {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
@@ -4276,6 +4302,106 @@ button.adminTableHeader.isSorted {
   flex: 1;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/*
+ * The results-entry "landing page" — every possible field/finding for
+ * this maneuver as a single-line pick row, rather than every field's
+ * entry control rendered at once. A maneuver like Ventricular
+ * Extrastimulus can have up to 8 distinct Refractory Period findings;
+ * showing 8 sets of number boxes simultaneously is the "sea of fields"
+ * this replaces. Rows already carrying a draft value are marked
+ * (.hasValue) and preview it, so progress is visible without opening
+ * each one.
+ */
+.maneuverFieldPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.maneuverFieldPickerItem {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.maneuverFieldPickerItem:hover {
+  border-color: rgba(152, 181, 199, 0.4);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.maneuverFieldPickerItem.hasValue {
+  border-color: rgba(105, 211, 158, 0.3);
+  background: rgba(105, 211, 158, 0.06);
+}
+
+.maneuverFieldPickerLabel {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maneuverFieldPickerItem.hasValue .maneuverFieldPickerLabel {
+  color: var(--green);
+}
+
+.maneuverFieldPickerPreview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maneuverFieldPickerChevron {
+  flex: 0 0 auto;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+/* The single-field entry view a picker row expands into. */
+.maneuverFieldEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.maneuverFieldEditorBack {
+  align-self: flex-start;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--cyan);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.maneuverFieldEditorBack:hover {
+  text-decoration: underline;
 }
 
 .maneuverField label {
@@ -4373,6 +4499,7 @@ button.adminTableHeader.isSorted {
  */
 .maneuverFieldRefractoryGroupRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -4431,6 +4558,7 @@ button.adminTableHeader.isSorted {
  */
 .maneuverCardBackActions {
   display: flex;
+  flex: 0 0 auto;
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--border);

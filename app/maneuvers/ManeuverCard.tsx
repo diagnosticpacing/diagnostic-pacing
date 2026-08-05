@@ -33,6 +33,41 @@ type ManeuverCardProps = {
   onSave: (values: Record<string, string>) => void;
 };
 
+/** The compact label a field picker row shows — the composed Refractory
+ * Period label (e.g. "Antegrade AVN ERP") for RP-tagged fields, the
+ * field's own prompt otherwise. Mirrors the label logic already used
+ * elsewhere for these two field shapes. */
+function fieldPickerLabel(field: ManeuverCatalogField): string {
+  const tag = field.refractoryPeriod;
+  if (tag?.type === "Effective") {
+    return composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
+  }
+  return field.prompt;
+}
+
+/** A one-line preview of whatever's currently in draftValues for one
+ * field, so a picker row can show progress without being opened — the
+ * live-draft equivalent of summarizePerformance's per-field piece
+ * above, which reads from a saved performance instead. */
+function draftFieldPreview(
+  field: ManeuverCatalogField,
+  values: Record<string, string>,
+): string {
+  const tag = field.refractoryPeriod;
+  if (tag?.type === "Effective") {
+    const count = refractoryPeriodComponentCount(tag.type);
+    const parts: string[] = [];
+    for (let component = 1; component <= count; component += 1) {
+      parts.push(
+        values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
+      );
+    }
+    while (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
+    return parts.join("/");
+  }
+  return (values[field.fieldId] ?? "").trim();
+}
+
 function summarizePerformance(
   entry: ManeuverCatalogEntry,
   performance: ManeuverPerformance,
@@ -229,14 +264,24 @@ export default function ManeuverCard({
     "front" | "results"
   >("front");
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  // null = the results side is showing the field picker (the "landing
+  // page" list of every possible finding). Any field ID = that one
+  // field's entry control is expanded. A maneuver with only one
+  // possible field skips the picker entirely — there's nothing to
+  // choose between.
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
 
   const activePerformance =
     performedStates.find(
       (performedState) => performedState.clinicalState.id === activeClinicalStateId,
     )?.performance ?? null;
 
+  const selectedField =
+    entry.fields.find((field) => field.fieldId === selectedFieldId) ?? null;
+
   function openEditor() {
     setDraftValues(activePerformance?.values ?? {});
+    setSelectedFieldId(entry.fields.length === 1 ? entry.fields[0].fieldId : null);
     setFlipState("results");
   }
 
@@ -272,6 +317,47 @@ export default function ManeuverCard({
     const target = event.target as HTMLElement;
     if (target.closest("button, input, select, textarea, a, label")) return;
     action();
+  }
+
+  /** Renders one field's entry control — the same RP-triplet-vs-plain
+   * branch summarizePerformance/the old all-at-once field list used,
+   * just for a single field at a time now that the picker only ever
+   * expands one. */
+  function renderFieldControl(field: ManeuverCatalogField) {
+    if (field.refractoryPeriod?.type === "Effective") {
+      return (
+        <RefractoryPeriodTripletControl
+          key={field.fieldId}
+          field={field}
+          values={draftValues}
+          onChange={(key, next) =>
+            setDraftValues((current) => ({ ...current, [key]: next }))
+          }
+        />
+      );
+    }
+
+    return (
+      <div className="maneuverField" key={field.fieldId}>
+        {field.inputType.toLowerCase() !== "checkbox" && (
+          <label>
+            {field.prompt}
+            {field.required && <span aria-hidden="true"> *</span>}
+          </label>
+        )}
+        <FieldControl
+          field={field}
+          value={draftValues[field.fieldId] ?? ""}
+          onChange={(next) =>
+            setDraftValues((current) => ({
+              ...current,
+              [field.fieldId]: next,
+            }))
+          }
+        />
+        {field.helpText && <p className="maneuverFieldHelp">{field.helpText}</p>}
+      </div>
+    );
   }
 
   return (
@@ -317,7 +403,7 @@ export default function ManeuverCard({
           <div className="maneuverCardFindings">
             {performedStates.length === 0 ? (
               <p className="maneuverFindingsEmpty">
-                No findings recorded yet — use Enter result below.
+                No findings recorded yet — use Enter below.
               </p>
             ) : (
               performedStates.map(({ clinicalState, performance }) => {
@@ -347,16 +433,18 @@ export default function ManeuverCard({
             <button
               className="maneuverCardAction"
               type="button"
+              aria-label={activePerformance ? "Edit result" : "Enter result"}
               onClick={openEditor}
             >
-              {activePerformance ? "Edit result" : "Enter result"}
+              {activePerformance ? "Edit" : "Enter"}
             </button>
             <button
               className="maneuverCardAction maneuverCardActionSecondary"
               type="button"
+              aria-label="Maneuver details"
               onClick={() => openDetails("front")}
             >
-              Maneuver details
+              Details
             </button>
           </div>
         </article>
@@ -420,49 +508,56 @@ export default function ManeuverCard({
                 </p>
               ) : (
                 <div className="maneuverFieldList">
-                  {entry.fields.map((field) => {
-                    if (field.refractoryPeriod?.type === "Effective") {
-                      return (
-                        <RefractoryPeriodTripletControl
-                          key={field.fieldId}
-                          field={field}
-                          values={draftValues}
-                          onChange={(key, next) =>
-                            setDraftValues((current) => ({
-                              ...current,
-                              [key]: next,
-                            }))
-                          }
-                        />
-                      );
-                    }
-
-                    return (
-                      <div className="maneuverField" key={field.fieldId}>
-                        {field.inputType.toLowerCase() !== "checkbox" && (
-                          <label>
-                            {field.prompt}
-                            {field.required && (
-                              <span aria-hidden="true"> *</span>
+                  {selectedField ? (
+                    <div className="maneuverFieldEditor">
+                      {entry.fields.length > 1 && (
+                        <button
+                          type="button"
+                          className="maneuverFieldEditorBack"
+                          onClick={() => setSelectedFieldId(null)}
+                        >
+                          ‹ All fields
+                        </button>
+                      )}
+                      {renderFieldControl(selectedField)}
+                    </div>
+                  ) : (
+                    <div className="maneuverFieldPicker">
+                      {entry.fields.map((field) => {
+                        const preview = draftFieldPreview(field, draftValues);
+                        return (
+                          <button
+                            key={field.fieldId}
+                            type="button"
+                            className={
+                              preview
+                                ? "maneuverFieldPickerItem hasValue"
+                                : "maneuverFieldPickerItem"
+                            }
+                            onClick={() => setSelectedFieldId(field.fieldId)}
+                          >
+                            <span className="maneuverFieldPickerLabel">
+                              {fieldPickerLabel(field)}
+                              {field.required && (
+                                <span aria-hidden="true"> *</span>
+                              )}
+                            </span>
+                            {preview && (
+                              <span className="maneuverFieldPickerPreview">
+                                {preview}
+                              </span>
                             )}
-                          </label>
-                        )}
-                        <FieldControl
-                          field={field}
-                          value={draftValues[field.fieldId] ?? ""}
-                          onChange={(next) =>
-                            setDraftValues((current) => ({
-                              ...current,
-                              [field.fieldId]: next,
-                            }))
-                          }
-                        />
-                        {field.helpText && (
-                          <p className="maneuverFieldHelp">{field.helpText}</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                            <span
+                              className="maneuverFieldPickerChevron"
+                              aria-hidden="true"
+                            >
+                              ›
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -470,9 +565,10 @@ export default function ManeuverCard({
                 <button
                   className="secondaryButton"
                   type="button"
+                  aria-label="Maneuver details"
                   onClick={() => openDetails("results")}
                 >
-                  Maneuver details
+                  Details
                 </button>
                 <div className="maneuverCardBackActionsPrimary">
                   <button
@@ -485,9 +581,10 @@ export default function ManeuverCard({
                   <button
                     className="primaryButton"
                     type="button"
+                    aria-label="Save result"
                     onClick={handleSave}
                   >
-                    Save result
+                    Save
                   </button>
                 </div>
               </div>

@@ -2040,3 +2040,101 @@ buttons.
   would've left a single button sitting at the left instead of the
   right once the results row's two-button layout changed the shared
   parent rule.
+
+<!-- MANEUVER-CARD-LAYOUT-LOCK-2026-08-05 -->
+## Maneuver Card: Fixed Regions, Scrollbar Fix, Field Picker (implemented 2026-08-05)
+
+Reported after click-anywhere-to-flip shipped: busy cards were showing
+both vertical *and* horizontal scrollbars, which should never happen.
+Alongside the fix, two new hard rules were set — title / Performed
+History / bottom buttons must never scroll, change, or be hidden, and
+action buttons must stay single-line — plus an open design question
+about whether the results-entry side should show every field's control
+at once (a maneuver like Ventricular Extrastimulus can have up to 8
+distinct Refractory Period findings, most never all filled at once).
+
+**Root cause of the scrollbar bug.** Two separate things, both fixed:
+1. `.maneuverCardFindings` and `.maneuverDetailsBody` set `overflow-y:
+   auto` but left `overflow-x` unset (default `visible`). Per the CSS
+   overflow spec, an element with one axis non-`visible` and the other
+   `visible` has the `visible` axis silently computed as `auto` too —
+   so a region meant to scroll vertically only was quietly gaining a
+   horizontal scrollbar whenever anything inside it (a long finding
+   string, a wide refractory-period triplet row) was even slightly
+   wider than the card. Fixed by setting `overflow-x: hidden` explicitly
+   everywhere `overflow-y: auto` is used.
+2. `.maneuverCardBack` had `overflow-y: auto` on the *whole back face*,
+   not scoped to a body region — meaning the results/details header
+   could scroll away with the rest of the content, and `.maneuverFieldList`
+   was missing `min-height: 0`, so a flex child's default
+   `min-height: auto` prevented it from ever shrinking enough for
+   scrolling to actually engage; the whole face just grew instead.
+
+**Fixed-region structure (both faces).** Standard flex-column
+"pinned header / scrollable body / pinned footer" pattern, applied
+consistently:
+- `.maneuverCardFace` (shared base) now has `overflow: hidden` — this
+  is what actually clips content at the card's rounded border; no
+  scrolling happens at this level.
+- Header row (`.maneuverCardTop` front / `.maneuverCardBackHeader`
+  back) and footer row (`.maneuverCardBottomActions` /
+  `.maneuverCardBackActions`) all get `flex: 0 0 auto` explicitly —
+  without this, flex's default `flex-shrink: 1` on every child means
+  *all* rows shrink proportionally under vertical pressure, not just
+  the intended scroll region; `flex: 0 0 auto` makes header/footer
+  categorically unshrinkable.
+- The one designated body region per view (`.maneuverCardFindings`
+  front, `.maneuverFieldList` results, `.maneuverDetailsBody` details)
+  keeps `flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden`
+  — it's the only thing allowed to scroll, and only vertically.
+- Defense in depth against text forcing horizontal growth:
+  `.maneuverFindingRow`/`.maneuverFindingText` get `min-width: 0` (lets
+  flex children shrink below content width so text wraps instead of
+  overflowing) and `.maneuverFieldRefractoryGroupRow` gets
+  `flex-wrap: wrap` (so a 3-box triplet row on the narrowest grid
+  column, 260px, wraps rather than overflows).
+
+**Button labels shortened.** `Enter result`/`Edit result` → `Enter`/
+`Edit`, `Maneuver details` → `Details` (both places it appears),
+`Save result` → `Save`. `Cancel` and the details face's `Back` were
+already short. Full wording is preserved for screen readers via
+`aria-label` on each shortened button. `.maneuverCardAction` also
+gained `white-space: nowrap` as a backstop — with these labels, no
+combination of card width and button count should ever wrap to two
+lines.
+
+**Field picker ("landing page") on the results-entry side.** Rather
+than rendering every response field's control at once, the results
+face now defaults to a compact list — one row per field, in knowledge-
+base order — showing just its label (the composed Refractory Period
+label for RP-tagged fields, the field's own prompt otherwise) and, if
+a value is already drafted, a right-aligned one-line preview plus a
+`.hasValue` highlight. Tapping a row expands to that field's own entry
+control (the existing `FieldControl`/`RefractoryPeriodTripletControl`,
+unchanged), with a small "‹ All fields" link above it to go back to the
+list. A maneuver with 0 or 1 possible fields skips the picker
+entirely — nothing to choose between.
+- `selectedFieldId: string | null` (new state) — `null` shows the
+  picker, any field ID shows that field's editor. Reset by
+  `openEditor()` each time results is entered: `null` if the maneuver
+  has more than one field, otherwise the single field's ID.
+- `draftFieldPreview(field, values)`: the live-draft equivalent of
+  `summarizePerformance`'s per-field piece — same RP-triplet-join-with-
+  trailing-blanks-trimmed logic, just reading `draftValues` instead of
+  a saved `ManeuverPerformance`, so the picker can show progress before
+  Save.
+- Draft data persists across field switches (it's all still one
+  `draftValues` object; only which field's control is *rendered*
+  changes), so filling field A, going back to the list, and filling
+  field B, then hitting Save, saves both — the picker is purely a
+  display/navigation layer over the same save flow as before.
+- The picker's own back-and-forth (list ↔ single field) is deliberately
+  *not* wired into the whole-face click-anywhere behavior from the
+  click-to-flip pass — clicking blank space on the results face still
+  means "leave results, go to front" exactly as before, regardless of
+  which sub-view is showing. Returning to the field list specifically
+  requires the explicit "‹ All fields" button. Kept it this way rather
+  than reinterpreting what "click the results face" means, since that
+  contract was already agreed on and building a second, different
+  meaning for the same gesture depending on sub-state seemed more
+  confusing than a second small button.
