@@ -1551,20 +1551,36 @@ button {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 2px;
+  padding: 5px 6px 5px 10px;
   border: 1px solid var(--strong-border);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.025);
   white-space: nowrap;
 }
 
-.ablationSessionBadge span {
+.ablationSessionBadge:hover {
+  border-color: rgba(91, 214, 220, 0.4);
+}
+
+/* Clicking the label reopens this session for viewing/editing — see
+   activeAblationSessionId in page.tsx. A plain sibling button rather
+   than making the whole badge clickable, so the remove "×" (also a
+   button) doesn't end up nested inside another interactive control. */
+.ablationSessionBadgeLabel {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
+  cursor: pointer;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.ablationSessionBadgeLabel:hover {
+  color: var(--cyan);
 }
 
 .ablationSessionRemove {

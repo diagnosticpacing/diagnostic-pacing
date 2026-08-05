@@ -212,6 +212,14 @@ export default function Home() {
   // react-hooks/purity rule the way an impure clock read would.
   const ablationSessionCounterRef = useRef(caseRecord.ablationSessions.length);
 
+  // Which ablation session is currently expanded for editing — null
+  // means "whichever is last" (see activeAblationSessionIndex below),
+  // which is also what it falls back to if this id no longer exists in
+  // the current case (removed, or a different case was opened/started).
+  const [activeAblationSessionId, setActiveAblationSessionId] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     function handleMouseMove(event: MouseEvent) {
       const resizing = railResizeRef.current;
@@ -338,11 +346,27 @@ export default function Home() {
   const retrogradeRefractoryPeriods = buildRefractoryPeriodRow("Retrograde");
 
   // Ablation — strictly for the case report (see PROJECT_DESIGN.md,
-  // ABLATION-SECTION-2026-08-05). Always exactly one "active" session: the
-  // last item in the array, live-edited in place. Clicking "+" appends a
-  // fresh blank session, which makes the previous last one no longer last
-  // — collapsing it to a badge is a pure rendering consequence of no
-  // longer being at that position, not a separate committed/draft flag.
+  // ABLATION-SECTION-2026-08-05). Exactly one session is ever expanded
+  // for editing at a time; every other one collapses to a small "ABL
+  // Session N" badge that's clickable to bring it back for viewing or
+  // editing. Falls back to whichever session is last (newest) whenever
+  // activeAblationSessionId doesn't match anything currently in the
+  // case — the initial "nothing picked yet" state, and also what
+  // naturally happens after that session gets removed or a different
+  // case is opened/started.
+  const lastAblationSession =
+    caseRecord.ablationSessions[caseRecord.ablationSessions.length - 1];
+  const activeAblationSessionIndex = (() => {
+    const matchedIndex = activeAblationSessionId
+      ? caseRecord.ablationSessions.findIndex(
+          (session) => session.id === activeAblationSessionId,
+        )
+      : -1;
+    return matchedIndex === -1
+      ? caseRecord.ablationSessions.length - 1
+      : matchedIndex;
+  })();
+
   function updateAblationSession(
     index: number,
     updater: (session: (typeof caseRecord.ablationSessions)[number]) => (typeof caseRecord.ablationSessions)[number],
@@ -378,6 +402,7 @@ export default function Home() {
       ...current,
       ablationSessions: [...current.ablationSessions, createAblationSession(id)],
     }));
+    setActiveAblationSessionId(id);
     logStateChange("Ablation", "Started new session");
   }
 
@@ -421,6 +446,7 @@ export default function Home() {
     }
     setCaseRecord(createInitialCase());
     setActiveClinicalStateId("clinical-state-1");
+    setActiveAblationSessionId(null);
     setStateChanges([]);
   }
 
@@ -445,6 +471,7 @@ export default function Home() {
       const imported = await importCaseRecordFromFile(file);
       setCaseRecord(imported);
       setActiveClinicalStateId(imported.clinicalStates[0].id);
+      setActiveAblationSessionId(null);
       setStateChanges([]);
     } catch (error) {
       const message =
@@ -1086,7 +1113,7 @@ export default function Home() {
 
         <div className="ablationRow">
           {caseRecord.ablationSessions.map((session, index) => {
-            const isActive = index === caseRecord.ablationSessions.length - 1;
+            const isActive = index === activeAblationSessionIndex;
 
             if (!isActive) {
               return (
@@ -1095,7 +1122,13 @@ export default function Home() {
                   key={session.id}
                   title={summarizeAblationSession(session)}
                 >
-                  <span>ABL Session {index + 1}</span>
+                  <button
+                    className="ablationSessionBadgeLabel"
+                    onClick={() => setActiveAblationSessionId(session.id)}
+                    type="button"
+                  >
+                    ABL Session {index + 1}
+                  </button>
                   <button
                     aria-label={`Remove ABL Session ${index + 1}`}
                     className="ablationSessionRemove"
@@ -1190,24 +1223,24 @@ export default function Home() {
                     <span>s</span>
                   </div>
                 </div>
-
-                <button
-                  aria-label="Start new ablation session"
-                  className="ablationAddButton"
-                  disabled={!hasAblationSessionData(session)}
-                  onClick={addAblationSession}
-                  title={
-                    hasAblationSessionData(session)
-                      ? "Start a new ablation session"
-                      : "Fill in at least one field before starting a new session"
-                  }
-                  type="button"
-                >
-                  +
-                </button>
               </div>
             );
           })}
+
+          <button
+            aria-label="Start new ablation session"
+            className="ablationAddButton"
+            disabled={!hasAblationSessionData(lastAblationSession)}
+            onClick={addAblationSession}
+            title={
+              hasAblationSessionData(lastAblationSession)
+                ? "Start a new ablation session"
+                : "Fill in at least one field before starting a new session"
+            }
+            type="button"
+          >
+            +
+          </button>
         </div>
       </section>
 

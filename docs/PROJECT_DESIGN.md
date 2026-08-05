@@ -1868,3 +1868,44 @@ Not done yet, and flagged to Murph rather than assumed: the case report
 generator (app/report/generate.ts) doesn't include Ablation data at all
 yet. This section was scoped to GUI capture only per the request - report
 wiring is a clear next step whenever it's wanted.
+
+<!-- ABLATION-SESSION-RECALL-2026-08-05 -->
+## Ablation: Recall Prior Sessions (implemented 2026-08-05)
+
+The first pass only ever showed the last session as editable - once a
+second session was started, earlier ones were read-only badges (a
+hover tooltip was the only way back to their data). Fixed: any
+collapsed badge is now clickable to bring that session back for
+viewing or editing.
+
+- app/page.tsx: added `activeAblationSessionId` state - which session
+  is currently expanded is now tracked explicitly, decoupled from "is
+  it the last item in the array" the way it was before.
+  `activeAblationSessionIndex` resolves that id against the current
+  case's sessions and falls back to the last session whenever it
+  doesn't match anything - the initial "nothing clicked yet" state,
+  and also what happens automatically if the active session gets
+  removed, or a different case is opened or started (both
+  `startNewCase` and `handleCaseFileSelected` explicitly reset it to
+  null too, so a stale id from the previous case can never coincidentally
+  match a same-named session id in the new one).
+  `addAblationSession` now also sets the newly created session active,
+  so clicking "+" both starts and immediately shows the new entry
+  fields, from wherever you were.
+- The "+" button moved out of the per-session map to a single instance
+  at the end of `.ablationRow`, since it always means "add a session
+  after the true last one" regardless of which session happens to be
+  expanded at the moment - its enabled/disabled state still checks the
+  actual last session's data (`lastAblationSession`), not whatever's
+  currently on screen.
+- Each collapsed badge is now a small `<div>` holding two sibling
+  `<button>`s - a label button (click to reopen) and the existing
+  remove `<button>` - rather than one clickable region, so the remove
+  control never ends up nested inside another interactive element.
+  `app/globals.css`: `.ablationSessionBadgeLabel` replaces the old
+  plain `<span>` styling, plus a hover state (cyan text) so it reads as
+  clickable.
+- The invariant that made this safe to build without extra empty-array
+  handling: the active session's own remove button was never rendered
+  (only collapsed badges get one), so `ablationSessions` can shrink but
+  never go below one item - `lastAblationSession` is always defined.
