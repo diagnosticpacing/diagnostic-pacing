@@ -1,4 +1,4 @@
-import type { ClinicalState } from "@/app/clinical/model";
+import type { ClinicalState, ClinicalStateContext, Phase } from "@/app/clinical/model";
 import { findPerformance } from "@/app/clinical/model";
 import type {
   ManeuverCatalogEntry,
@@ -157,4 +157,72 @@ export function formatRefractoryPeriodValue(
   }
 
   return values.join("/");
+}
+
+/**
+ * Phase collapsed to just two buckets, for the Refractory Periods panel's
+ * per-finding state tag only — deliberately coarser than the Phase field
+ * itself (Pre-ablation / Post-ablation / Post-ablation 2). This is a
+ * distinct, narrowly-scoped abbreviation for this one tag, not a revival
+ * of the general-purpose phase abbreviation that was tried and removed
+ * from clinical/model.ts (see CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04)
+ * — that one lost real information in a context where the full phase name
+ * mattered. Here the tag is deliberately limited to pre/post by design, so
+ * folding Post-ablation 2 into "Post" is the intended behavior, not a
+ * compromise.
+ */
+function refractoryPeriodPhaseBucket(phase: Phase): "Pre" | "Post" {
+  return phase === "Pre-ablation" ? "Pre" : "Post";
+}
+
+/**
+ * The compact state tag shown next to each Refractory Periods finding —
+ * e.g. "Pre · Iso off" — so a panel that shows every recorded value
+ * across every Clinical State (not just the active one) still tells you
+ * which state produced which number. Limited to exactly two axes by
+ * design: ablation phase (Pre/Post) and isoproterenol (on/off) — the two
+ * things that actually change how a refractory period should be read.
+ * Rhythm, sedation, and the other drug fields are left out on purpose,
+ * same scoping decision as clinicalStateSummary() made for maneuver cards.
+ */
+export function formatRefractoryPeriodStateTag(context: ClinicalStateContext): string {
+  const phase = refractoryPeriodPhaseBucket(context.phase);
+  const iso = context.isoproterenol.trim() ? "Iso on" : "Iso off";
+  return `${phase} · ${iso}`;
+}
+
+/** One recorded value for a Refractory Period definition, under one
+ * specific Clinical State. */
+export type RefractoryPeriodFinding = {
+  clinicalStateId: string;
+  value: string;
+  stateTag: string;
+};
+
+/**
+ * Every recorded value for one Refractory Period definition, across every
+ * Clinical State in the case — not just whichever one happens to be
+ * active. The panel this feeds is permanently affixed rather than
+ * state-dependent, so a maneuver performed more than once (e.g. once off
+ * isoproterenol, once on) surfaces every result side by side, each
+ * labeled via formatRefractoryPeriodStateTag so they stay distinguishable.
+ */
+export function collectRefractoryPeriodFindings(
+  definition: RefractoryPeriodDefinition,
+  clinicalStates: ClinicalState[],
+): RefractoryPeriodFinding[] {
+  const findings: RefractoryPeriodFinding[] = [];
+
+  for (const clinicalState of clinicalStates) {
+    const value = formatRefractoryPeriodValue(definition, clinicalState);
+    if (!value) continue;
+
+    findings.push({
+      clinicalStateId: clinicalState.id,
+      value,
+      stateTag: formatRefractoryPeriodStateTag(clinicalState.context),
+    });
+  }
+
+  return findings;
 }

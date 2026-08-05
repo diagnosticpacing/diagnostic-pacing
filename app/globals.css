@@ -1297,10 +1297,11 @@ button {
  * shadow) — the Refractory Periods panel is a separate <section> for
  * layout reasons (it's derived from maneuver data, not a row within the
  * Active Clinical State's own toolbar), but should read as the same
- * design language, not a visually distinct "card." Its internal
- * structure (below) reuses .clinicalMeasurementRow/.intervalsHeading/
- * .clinicalMeasurementFields/.toolbarField/.unitInput verbatim rather
- * than bespoke classes, for the same reason.
+ * design language, not a visually distinct "card." Its two rows
+ * (below) reuse .clinicalMeasurementRow/.intervalsHeading verbatim, same
+ * reason — only the row content changed from a fixed-column value grid
+ * to a wrapped list of findings, since the panel is no longer scoped to
+ * a single Clinical State's single value per definition.
  */
 .effectiveRefractoryPeriodCard {
   margin: 14px 24px 0 264px;
@@ -1311,11 +1312,92 @@ button {
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.16);
 }
 
-.refractoryPeriodSource {
-  margin: 4px 0 0;
+/*
+ * A persistent title for the card itself — previously the single
+ * Intervals-style row heading said "Refractory Periods," but now that
+ * role belongs to each row's own "Antegrade"/"Retrograde" label, the
+ * card needs its own title so it's still clear what the whole thing is
+ * at a glance. The note underneath is the one-line explanation for why
+ * this panel doesn't change when you switch Clinical States, unlike
+ * everything above it.
+ */
+.refractoryPeriodsCardHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 17px 12px;
+}
+
+.refractoryPeriodsCardHeading > span:first-child {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.refractoryPeriodsCardNote {
   color: var(--quiet);
   font-size: 9px;
-  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.refractoryPeriodFindings {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  padding: 13px 17px;
+}
+
+.refractoryPeriodEmpty {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.refractoryPeriodFinding {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 112px;
+  padding: 7px 10px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.refractoryPeriodFindingLabel {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.refractoryPeriodFindingValue {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.refractoryPeriodFindingUnit {
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.refractoryPeriodFindingTag {
+  color: var(--cyan);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .clinicalWorkspacePlaceholder {

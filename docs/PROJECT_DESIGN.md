@@ -1503,3 +1503,68 @@ site's landing page:
   attributes, and this becomes a working card with no other changes
   needed — the placeholder was built to convert cleanly rather than
   needing to be rebuilt.
+
+<!-- REFRACTORY-PERIODS-TWO-ROW-2026-08-05 -->
+## Refractory Periods Panel: Two Fixed Rows, Every State (implemented 2026-08-05)
+
+Reworked from a single-row, Active-Clinical-State-scoped panel into a
+permanently affixed one showing every recorded finding across the
+whole case at once. Decided in conversation, including two open
+questions Murph resolved directly:
+
+- **Two fixed rows, not one.** The panel now always renders exactly
+  two rows — Antegrade and Retrograde — each with its own
+  `.intervalsHeading` label, regardless of whether either has any
+  findings yet (an empty row shows "None recorded yet…" rather than
+  disappearing, since "permanently affixed" means the card's structure
+  doesn't move around based on data). The schema's third direction
+  value, `"n/a"` (used for Atrial/Ventricular structures, which aren't
+  meaningfully antegrade or retrograde), is intentionally given no
+  row — Murph's call: "all refractory periods can be classified as
+  either antegrade or retrograde," so `"n/a"`-tagged definitions
+  (`app/page.tsx`'s `buildRefractoryPeriodRow`) simply aren't matched
+  by either row's filter. `"n/a"` remains schema-legal (unchanged in
+  `app/admin/model.ts`/`app/maneuvers/knowledge.ts`) — this is a
+  display-layer decision, not a validation change, so nothing breaks
+  if it's ever used; it just wouldn't be visible on this panel.
+- **Not state-dependent anymore.** Previously each definition showed
+  at most one value — whatever was recorded under the currently active
+  Clinical State — and switching states could change what the panel
+  showed. Now every Clinical State in the case is checked
+  (`collectRefractoryPeriodFindings`, `app/refractoryPeriods/
+  knowledge.ts`), so a maneuver performed under two different states
+  (e.g. once off isoproterenol, once on) surfaces both results at
+  once, side by side, rather than one replacing the other as the
+  active state changes.
+- **New per-finding state tag**, since the panel no longer implies
+  "this is the active state" via its position in the UI. Limited to
+  exactly two axes, per the original request: ablation phase and
+  isoproterenol status — `formatRefractoryPeriodStateTag()` reads
+  `context.phase`/`context.isoproterenol` and renders e.g. "Pre · Iso
+  off". Phase collapses to just two buckets (Pre/Post) — Murph's call
+  on the second open question: Post-ablation 2 folds into "Post" rather
+  than staying distinguishable, matching "limited to pre/post"
+  literally. This is a deliberately different, narrower abbreviation
+  than the general-purpose one tried and removed from
+  `clinicalStateSummary()`'s design (`CLINICAL-STATE-COMPACT-
+  SUMMARY-2026-08-04`) — that one needed the full phase name; this one
+  is scoped tightly enough that losing the Post/Post-2 distinction is
+  the intended behavior, not a regression.
+- **Rendering.** Each row is a flat, wrapped list of finding "chips"
+  (`.refractoryPeriodFinding`) — one chip per (definition, Clinical
+  State) pair with a recorded value — each showing the definition's
+  label (e.g. "AVN ERP"), the value with its "ms" unit, and the state
+  tag. The "via {maneuver}" provenance that used to always be visible
+  moved into a `title` tooltip (now also naming the state) rather than
+  a fourth always-visible line, since a row can now hold many chips at
+  once and space is precious. `app/globals.css` replaces the old
+  fixed-column `.clinicalMeasurementFields` usage in this panel with
+  `.refractoryPeriodFindings` (`flex-wrap`, since the number of
+  findings is unbounded and no longer matches a known column count)
+  and adds a persistent `.refractoryPeriodsCardHeading` title ("Refractory
+  Periods" + a one-line note) above both rows — previously the single
+  row's own "Refractory Periods" label served as the card's title, but
+  that role now belongs to each row's own "Antegrade"/"Retrograde"
+  label, so the card needed its own separate, permanent title. The
+  now-dead `.refractoryPeriodSource` rule (the old always-visible "via"
+  line) was removed.

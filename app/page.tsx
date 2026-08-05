@@ -25,7 +25,7 @@ import {
 import ManeuverCard from "./maneuvers/ManeuverCard";
 import {
   buildRefractoryPeriodCatalog,
-  formatRefractoryPeriodValue,
+  collectRefractoryPeriodFindings,
 } from "./refractoryPeriods/knowledge";
 import {
   evaluateDifferential,
@@ -283,18 +283,26 @@ export default function Home() {
   // maneuver produces them (tagged via Refractory Period Type/Direction/
   // Structure on Maneuver Response Fields — one field is the whole
   // result), not direct entry — see app/refractoryPeriods/knowledge.ts.
-  // Only entries with an actual
-  // recorded value for the active Clinical State are shown, so a not-yet-
-  // measured Accessory Pathway 2, for instance, simply doesn't appear
-  // rather than needing a manual "Add" toggle the way the old direct-
-  // entry ERP card did.
+  // The panel this feeds is permanently affixed rather than scoped to the
+  // active Clinical State, so every recorded finding across every state is
+  // shown (not just whichever is currently active), grouped into exactly
+  // two rows by Direction. "n/a" direction is schema-legal (Atrial/
+  // Ventricular structures) but not used in practice — every refractory
+  // period is clinically antegrade or retrograde — so it's intentionally
+  // not given a row here.
   const refractoryPeriodCatalog = buildRefractoryPeriodCatalog(maneuverCatalog);
-  const visibleRefractoryPeriods = refractoryPeriodCatalog
-    .map((definition) => ({
-      definition,
-      value: formatRefractoryPeriodValue(definition, activeClinicalState),
-    }))
-    .filter((entry) => entry.value !== "");
+
+  const buildRefractoryPeriodRow = (direction: "Antegrade" | "Retrograde") =>
+    refractoryPeriodCatalog
+      .filter((definition) => definition.direction === direction)
+      .flatMap((definition) =>
+        collectRefractoryPeriodFindings(definition, caseRecord.clinicalStates).map(
+          (finding) => ({ definition, finding }),
+        ),
+      );
+
+  const antegradeRefractoryPeriods = buildRefractoryPeriodRow("Antegrade");
+  const retrogradeRefractoryPeriods = buildRefractoryPeriodRow("Retrograde");
 
   function saveManeuverPerformance(
     maneuverId: string,
@@ -827,55 +835,83 @@ export default function Home() {
 
       <section
         className="effectiveRefractoryPeriodCard"
-        aria-labelledby="refractory-periods-heading"
+        aria-label="Refractory Periods"
       >
+        <div className="refractoryPeriodsCardHeading">
+          <span>Refractory Periods</span>
+          <span className="refractoryPeriodsCardNote">
+            Every recorded finding, across every clinical state
+          </span>
+        </div>
+
         <div className="clinicalMeasurementRow">
           <div className="intervalsHeading">
-            <span id="refractory-periods-heading">Refractory Periods</span>
+            <span>Antegrade</span>
           </div>
 
-          {maneuverCatalogStatus === "ready" &&
-            visibleRefractoryPeriods.length === 0 && (
-              <p className="maneuverCatalogStatus">
-                No refractory periods recorded yet for{" "}
-                {activeClinicalStateSummary} — record one on the back of
-                whichever maneuver card produces it.
-              </p>
-            )}
+          <div className="refractoryPeriodFindings">
+            {maneuverCatalogStatus === "ready" &&
+              antegradeRefractoryPeriods.length === 0 && (
+                <p className="refractoryPeriodEmpty">
+                  None recorded yet — record one on the back of whichever
+                  maneuver card produces it.
+                </p>
+              )}
 
-          {visibleRefractoryPeriods.length > 0 && (
-            <div
-              className="clinicalMeasurementFields"
-              style={{
-                gridTemplateColumns: `repeat(${visibleRefractoryPeriods.length}, minmax(150px, 1fr))`,
-              }}
-            >
-              {visibleRefractoryPeriods.map(({ definition, value }) => (
-                <div
-                  className="toolbarField intervalField"
-                  key={definition.id}
-                >
-                  <label htmlFor={`refractory-period-${definition.id}`}>
-                    {definition.label}
-                  </label>
+            {antegradeRefractoryPeriods.map(({ definition, finding }) => (
+              <div
+                className="refractoryPeriodFinding"
+                key={`${definition.id}-${finding.clinicalStateId}`}
+                title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
+              >
+                <span className="refractoryPeriodFindingLabel">
+                  {definition.label}
+                </span>
+                <span className="refractoryPeriodFindingValue">
+                  {finding.value}
+                  <span className="refractoryPeriodFindingUnit">ms</span>
+                </span>
+                <span className="refractoryPeriodFindingTag">
+                  {finding.stateTag}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-                  <div className="unitInput">
-                    <input
-                      id={`refractory-period-${definition.id}`}
-                      value={value}
-                      readOnly
-                      aria-label={`${definition.label} in milliseconds, via ${definition.maneuverName}`}
-                    />
-                    <span>ms</span>
-                  </div>
+        <div className="clinicalMeasurementRow">
+          <div className="intervalsHeading">
+            <span>Retrograde</span>
+          </div>
 
-                  <p className="refractoryPeriodSource">
-                    via {definition.maneuverName}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="refractoryPeriodFindings">
+            {maneuverCatalogStatus === "ready" &&
+              retrogradeRefractoryPeriods.length === 0 && (
+                <p className="refractoryPeriodEmpty">
+                  None recorded yet — record one on the back of whichever
+                  maneuver card produces it.
+                </p>
+              )}
+
+            {retrogradeRefractoryPeriods.map(({ definition, finding }) => (
+              <div
+                className="refractoryPeriodFinding"
+                key={`${definition.id}-${finding.clinicalStateId}`}
+                title={`${definition.label} via ${definition.maneuverName} — ${finding.stateTag}`}
+              >
+                <span className="refractoryPeriodFindingLabel">
+                  {definition.label}
+                </span>
+                <span className="refractoryPeriodFindingValue">
+                  {finding.value}
+                  <span className="refractoryPeriodFindingUnit">ms</span>
+                </span>
+                <span className="refractoryPeriodFindingTag">
+                  {finding.stateTag}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
