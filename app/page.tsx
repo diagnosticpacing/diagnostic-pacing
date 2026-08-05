@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
+import type {
+  ChangeEvent,
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import Link from "next/link";
 
 import {
@@ -34,6 +38,7 @@ import {
   type DifferentialStatus,
 } from "./differential/engine";
 import { generateCaseReport } from "./report/generate";
+import { exportCaseRecord, importCaseRecordFromFile } from "./case/persistence";
 import type { SheetId, SpreadsheetRow } from "./admin/model";
 
 // Display-only relabeling of the differential engine's internal status
@@ -190,6 +195,8 @@ export default function Home() {
     startWidth: number;
   } | null>(null);
 
+  const caseFileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     function handleMouseMove(event: MouseEvent) {
       const resizing = railResizeRef.current;
@@ -331,6 +338,55 @@ export default function Home() {
     }
   }
 
+  // Save/Open work entirely client-side (JSON file download/upload) — see
+  // app/case/persistence.ts. Nothing is transmitted, consistent with the
+  // footer's "No patient data is being transmitted" / "Autosave: off".
+  function saveCaseToFile() {
+    exportCaseRecord(caseRecord);
+  }
+
+  function startNewCase() {
+    if (
+      !window.confirm(
+        "Start a new case? Anything unsaved in the current case will be lost unless you've saved it first.",
+      )
+    ) {
+      return;
+    }
+    setCaseRecord(createInitialCase());
+    setActiveClinicalStateId("clinical-state-1");
+    setStateChanges([]);
+  }
+
+  function openCaseFromFile() {
+    if (
+      !window.confirm(
+        "Open a case file? Anything unsaved in the current case will be lost unless you've saved it first.",
+      )
+    ) {
+      return;
+    }
+    caseFileInputRef.current?.click();
+  }
+
+  async function handleCaseFileSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Reset so selecting the same filename again still fires onChange.
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const imported = await importCaseRecordFromFile(file);
+      setCaseRecord(imported);
+      setActiveClinicalStateId(imported.clinicalStates[0].id);
+      setStateChanges([]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Couldn't open that case file.";
+      window.alert(message);
+    }
+  }
+
   function saveManeuverPerformance(
     maneuverId: string,
     values: Record<string, string>,
@@ -468,10 +524,20 @@ export default function Home() {
               <strong>{caseRecord.title}</strong>
             </div>
           </div>
-          <button className="secondaryButton" type="button">
+          <button className="secondaryButton" onClick={startNewCase} type="button">
             New case
           </button>
-          <button className="primaryButton" type="button">
+          <button className="secondaryButton" onClick={openCaseFromFile} type="button">
+            Open case
+          </button>
+          <input
+            accept=".json,application/json"
+            hidden
+            onChange={(event) => void handleCaseFileSelected(event)}
+            ref={caseFileInputRef}
+            type="file"
+          />
+          <button className="primaryButton" onClick={saveCaseToFile} type="button">
             Save case
           </button>
           <button

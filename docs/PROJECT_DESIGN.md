@@ -1633,3 +1633,59 @@ formatting beyond an indented text outline, no PDF/rich export.
   clipping and the modal's own sizing entirely. This means printing
   works straight from the in-page preview with no popup window and no
   separate print-only document to keep in sync.
+
+<!-- CASE-SAVE-OPEN-2026-08-05 -->
+## Save / Open Case (implemented 2026-08-05)
+
+Wired the topbar's previously-dead "Save case" button and added a new
+"Open case" button, both operating entirely client-side — a downloaded
+JSON file and a local file picker, no request ever leaves the browser.
+This was a deliberate architecture call, not something the user
+specified directly: grounded in the app's own footer copy ("No patient
+data is being transmitted", "Autosave: off") and the existing
+"Download Workbook" Excel-export precedent in
+`app/admin/workbookExport.ts`, both of which point at local-file
+persistence rather than a server-backed save. Server-backed persistence
+would be a reasonable alternative if that posture ever changes, but
+would need auth and a data-transmission conversation with the user
+first.
+
+- **`app/case/persistence.ts`** (new): the same `schemaVersion`
+  versioning convention `knowledge/types.ts` established for the
+  knowledge base workbook, applied to a case file:
+  ```ts
+  export const CASE_FILE_FORMAT = "diagnostic-pacing-case" as const;
+  export const CASE_FILE_SCHEMA_VERSION = 1 as const;
+  type CaseFile = { fileFormat, schemaVersion, exportedAt, case: CaseRecord };
+  ```
+  - `exportCaseRecord(caseRecord)` — Blob + `URL.createObjectURL` +
+    a programmatically-clicked anchor, same technique as
+    `workbookExport.ts`'s Excel download. Filename is
+    `{slugified-title}-{YYYY-MM-DD}.json`.
+  - `importCaseRecordFromFile(file)` — parses and validates before
+    handing back a `CaseRecord`: rejects invalid JSON, anything missing
+    the `fileFormat` marker, a `schemaVersion` newer than this build
+    understands, and structurally incomplete cases (missing
+    id/title/clinicalStates, or any Clinical State missing its
+    id/context/measurements/performances shape). Every rejection throws
+    a message written to be shown to the user directly, not a raw
+    parse/type error.
+- **`app/page.tsx`**:
+  - **Save case** — calls `exportCaseRecord(caseRecord)` directly, no
+    confirmation needed since downloading a file is non-destructive.
+  - **Open case** (new button, between New case and Save case) — a
+    `window.confirm` guard first (opening discards the current case,
+    and there's no autosave to fall back on), then triggers a hidden
+    `<input type="file" accept=".json,application/json">` via a ref.
+    On selection, `importCaseRecordFromFile` either replaces
+    `caseRecord` wholesale and resets the active Clinical State to the
+    imported case's first state and clears the state-change log (since
+    it's a log of the old case's edits), or on failure shows the
+    thrown message via `window.alert` and leaves the current case
+    untouched. The input's value is reset after every selection so
+    re-opening the same filename still fires the change handler.
+  - **New case** — was already a button in the topbar but fully
+    unwired; wired now with the same confirm-guard-then-reset pattern
+    as Open case, since both share the same "discards unsaved work"
+    risk (`createInitialCase()`, reset active state to
+    `clinical-state-1`, clear the state-change log).
