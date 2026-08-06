@@ -2293,6 +2293,16 @@ and recolored to the app's palette.
 - The mark's own bordered/tinted box treatment (the rounded cyan-tinted
   square the old "DP" text sat in) was dropped — a multi-glyph wordmark
   doesn't read well boxed the way a 2-letter monogram did. Sized by a
-  fixed height (34px) with width following the source image's aspect
-  ratio (~1.49:1, so ~51px wide) rather than forcing it into the old
-  38×38 square.
+  fixed height with width following the source image's aspect ratio
+  rather than forcing it into the old 38×38 square.
+
+**Follow-up, same day:** the full "Dp.org" wordmark was swapped for a
+simpler "Dp" monogram (same overlapping-glyph style, no ".org"/dot/
+"rg" tail) — same processing pipeline (luminance→alpha cutout, tight
+crop, downsample to a 240px-tall PNG at `public/logo-dpm.png`, same
+filename so no code reference changed), same CSS mask/recolor
+mechanism. Only `.brandMark`'s fixed dimensions changed, since the new
+source's aspect ratio is portrait rather than landscape (~0.57:1 vs.
+~1.49:1) — now `width: 24px; height: 42px`. Matches the general
+preference this session for "simpler is better" once a fancier option
+was on the table.

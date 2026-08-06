@@ -86,20 +86,22 @@ button {
 }
 
 /*
- * The "Dp.org" wordmark, recolored to the app's cyan via a CSS mask
- * rather than baked in as a colored image — public/logo-dpm.png is
- * just a black-on-transparent alpha cutout (background already
- * removed), so background-color is what actually paints it. Swapping
- * --cyan for any other palette color (or a future light-theme
- * variable) restyles the mark automatically, no new asset needed.
+ * The "Dp" monogram, recolored to the app's cyan via a CSS mask rather
+ * than baked in as a colored image — public/logo-dpm.png is just a
+ * black-on-transparent alpha cutout (background already removed), so
+ * background-color is what actually paints it. Swapping --cyan for
+ * any other palette color (or a future light-theme variable) restyles
+ * the mark automatically, no new asset needed. Portrait aspect ratio
+ * (taller than wide, ~0.57:1) since the mark is a tighter two-letter
+ * lockup than the earlier full "Dp.org" wordmark it replaced.
  * flex-shrink: 0 keeps it from being squeezed if the topbar ever gets
  * tight next to the About button.
  */
 .brandMark {
   display: inline-block;
   flex: 0 0 auto;
-  width: 51px;
-  height: 34px;
+  width: 24px;
+  height: 42px;
   background-color: var(--cyan);
   -webkit-mask-image: url("/logo-dpm.png");
   mask-image: url("/logo-dpm.png");
