@@ -2,8 +2,8 @@
 
 This document records committed architecture, workflow, and interface decisions.
 
-<!-- STATUS-SUMMARY-2026-08-04 -->
-## Status Summary (checkpoint as of 2026-08-04)
+<!-- STATUS-SUMMARY-2026-08-05 -->
+## Status Summary (checkpoint as of 2026-08-05)
 
 A fast-read reconciliation point, since this doc is the only durable memory
 across sessions. Full reasoning for everything below lives in its own dated
@@ -109,6 +109,58 @@ section further down — this is an index, not a replacement.
   (`INTERVAL-ID-PREFIX-2026-08-03`); native `<select>` dropdown popups
   are styled for the dark theme instead of showing the OS default light
   popup (`NATIVE-SELECT-DARK-THEME-2026-08-03`).
+
+**Live and implemented — 2026-08-05:**
+
+- Case Save / Open / New: client-side JSON export/import
+  (`app/case/persistence.ts`, schema-versioned, tolerant of older files
+  missing newer fields) wired to three new top-bar buttons — see
+  `CASE-SAVE-OPEN-2026-08-05`.
+- GUI header alignment: Active Clinical State's section header is the
+  same width as Intervals'; Refractory Periods' header moved to the
+  same left-column position/style as Intervals and Active Clinical
+  State, with the Antegrade/Retrograde rows to its right — see
+  `SECTION-HEADER-ALIGNMENT-2026-08-05`.
+- Active Clinical State's fields collapsed from two rows to one — see
+  `ACTIVE-STATE-SINGLE-ROW-2026-08-05`.
+- Default first-load width for both side rails bumped
+  190px → 225px — see `RAIL-DEFAULT-WIDTH-2026-08-05`.
+- New Ablation section under Refractory Periods: Modality (multiselect
+  RF/Pulsed Field/Cryo), Location, Number of Ablations, Duration, kept
+  to one line always via a collapsing-session pattern — only the active
+  session shows full fields, prior sessions collapse to a reopenable
+  `ABL Session N` badge. Reporting-only, not wired to any clinical
+  reasoning. See `ABLATION-SECTION-2026-08-05` and
+  `ABLATION-SESSION-RECALL-2026-08-05` (recall/reopen follow-up). **Not
+  yet wired into the case report generator** — ablation data doesn't
+  appear in generated reports yet.
+- Maneuver cards rebuilt end to end, in four passes:
+  1. Redesigned per Murph's sketch — Name + Performed History on top, a
+     Findings box in the middle (every recorded finding across every
+     Clinical State, not just the active one, each tagged Pre/Post ·
+     Iso on/off), Enter/Edit Result + Maneuver Details on the bottom. A
+     third card-flip state (`"front" | "results" | "details"`) holds a
+     Details face — Technique text now, a diagram placeholder for
+     later. See `MANEUVER-CARD-REDESIGN-2026-08-05`.
+  2. "Maneuver details" made reachable from the results-entry side too,
+     plus click-anywhere-on-a-card-face-to-flip layered on top of (not
+     replacing) the explicit buttons. See
+     `MANEUVER-CARD-CLICK-TO-FLIP-2026-08-05`.
+  3. Fixed a real scrollbar bug (a CSS overflow-x quirk plus an
+     unscoped overflow region on the back face) and turned "title /
+     Performed History / bottom buttons never scroll" into an explicit,
+     structurally-enforced rule (pinned header/footer via
+     `flex-shrink: 0`, exactly one scrollable body region per face).
+     Action button labels shortened to guarantee single-line (`Enter`/
+     `Edit`, `Details`, `Save`, `Cancel`), full wording kept via
+     `aria-label`. See `MANEUVER-CARD-LAYOUT-LOCK-2026-08-05`.
+  4. The results-entry face replaced its all-fields-at-once list with a
+     field picker "landing page" — a compact list of every possible
+     finding (with a live value preview once drafted) that expands to
+     one field's entry control on tap, so a maneuver with many possible
+     findings (e.g. up to 8 for Ventricular Extrastimulus) doesn't
+     dump a wall of number boxes into a small card. Also documented
+     under `MANEUVER-CARD-LAYOUT-LOCK-2026-08-05`.
 
 **Still open / intentionally deferred:**
 
