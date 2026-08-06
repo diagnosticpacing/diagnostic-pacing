@@ -2249,3 +2249,50 @@ building.
   discoverable as editable. Fixed `width: 150px` (`max-width: 220px`)
   keeps it from disrupting the topbar's layout regardless of title
   length.
+
+<!-- BRAND-MARK-WORDMARK-2026-08-06 -->
+## Header Brand Mark: "Dp.org" Wordmark Replaces "DP" Text (implemented 2026-08-06)
+
+Explored replacing the topbar's plain "DP" text mark with a custom
+line-art icon combining a pacing spike, calipers, and an electrogram
+waveform, abstracted to spell D/P/M — sketched two directions (a wide
+literal 3-letter strip vs. a compact square clinical pictogram) and
+previewed both against a mockup of the real header bar to work out the
+"legible letters want width, but the icon slot is a square" tension
+before writing any code. That exploration was superseded — Murph
+supplied an actual finished wordmark logo (a bold geometric "Dp.org"
+lockup with overlapping D/p glyphs and a bullet-dot before "org") and
+asked to use it directly instead, with its white background removed
+and recolored to the app's palette.
+
+- The source was a flat black-on-white raster image, not a vector —
+  reproducing it by hand as SVG paths would have been both slow and
+  inevitably slightly wrong. Used image processing instead: composited
+  onto white (in case of stray transparency), took each pixel's
+  luminance, and set alpha = 255 − luminance, so black art becomes
+  fully opaque, white background becomes fully transparent, and every
+  anti-aliased edge in between gets a smoothly interpolated alpha —
+  free clean edges, no manual masking. Cropped tightly to content
+  (small margin) and downsampled to a modest 357×240 PNG (retina-safe
+  for the mark's ~34px on-screen display height, no need to ship the
+  full-resolution original) at `public/logo-dpm.png`.
+- Recoloring is done live in CSS, not baked into the PNG: `.brandMark`
+  (`app/globals.css`) sets `background-color: var(--cyan)` and applies
+  the PNG as a `mask-image` (`mask-mode: alpha`, `-webkit-mask-image`
+  fallback for Safari) — since the asset is a pure alpha cutout with
+  no meaningful RGB data, the mask clips the cyan fill to the
+  wordmark's shape. Changing `--cyan` (or swapping in a different
+  palette variable later, e.g. for a hypothetical light theme) restyles
+  the mark automatically with no new asset needed.
+- `app/page.tsx`: the old `<div className="brandMark">DP</div>` became
+  an empty `<span className="brandMark" role="img" aria-label=
+  "DiagnosticPacing.org" />` — the mark is now purely a CSS background,
+  so there's no text content for the element to hold; `role="img"` +
+  `aria-label` keeps it announced sensibly to screen readers instead of
+  as blank space.
+- The mark's own bordered/tinted box treatment (the rounded cyan-tinted
+  square the old "DP" text sat in) was dropped — a multi-glyph wordmark
+  doesn't read well boxed the way a 2-letter monogram did. Sized by a
+  fixed height (34px) with width following the source image's aspect
+  ratio (~1.49:1, so ~51px wide) rather than forcing it into the old
+  38×38 square.

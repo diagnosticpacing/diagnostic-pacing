@@ -85,17 +85,31 @@ button {
   gap: 12px;
 }
 
+/*
+ * The "Dp.org" wordmark, recolored to the app's cyan via a CSS mask
+ * rather than baked in as a colored image — public/logo-dpm.png is
+ * just a black-on-transparent alpha cutout (background already
+ * removed), so background-color is what actually paints it. Swapping
+ * --cyan for any other palette color (or a future light-theme
+ * variable) restyles the mark automatically, no new asset needed.
+ * flex-shrink: 0 keeps it from being squeezed if the topbar ever gets
+ * tight next to the About button.
+ */
 .brandMark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid rgba(91, 214, 220, 0.4);
-  border-radius: 11px;
-  background: rgba(91, 214, 220, 0.1);
-  color: var(--cyan);
-  font-size: 12px;
-  font-weight: 800;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 51px;
+  height: 34px;
+  background-color: var(--cyan);
+  -webkit-mask-image: url("/logo-dpm.png");
+  mask-image: url("/logo-dpm.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  mask-mode: alpha;
 }
 
 .panelHeader p,

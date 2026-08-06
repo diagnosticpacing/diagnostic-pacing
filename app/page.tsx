@@ -595,7 +595,7 @@ export default function Home() {
       <header className="topbar">
         <div className="brandArea">
           <div className="brand">
-            <div className="brandMark">DP</div>
+            <span className="brandMark" role="img" aria-label="DiagnosticPacing.org" />
             <h1>Diagnostic Pacing Maneuvers</h1>
           </div>
 
