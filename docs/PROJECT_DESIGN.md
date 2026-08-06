@@ -2190,3 +2190,29 @@ entirely — nothing to choose between.
   contract was already agreed on and building a second, different
   meaning for the same gesture depending on sub-state seemed more
   confusing than a second small button.
+
+<!-- ABOUT-MODAL-FREE-PRIVACY-NOTICE-2026-08-06 -->
+## About Modal: Free-Forever + No-Server-Storage Notice (implemented 2026-08-06)
+
+Requested addition to the About modal (the site's auto-opening landing
+page): explain plainly that the site is free and will always be free,
+and that case data isn't recorded or logged anywhere server-side.
+
+- New `.modalPrivacyNotice` block in `app/page.tsx`'s `.modalBody`,
+  placed right after the two intro paragraphs and before the
+  "Knowledge base" section — the first thing a reader sees after
+  learning what the workspace is. Two sentences: the free-forever claim
+  (no account/subscription/paywall, now or planned), and the
+  data-locality claim (case data lives in the browser for that session;
+  saving a case downloads a local file to the user's own computer;
+  there's no server-side database, and the site doesn't record, store,
+  or log case information) — which is accurate to what's actually
+  built: `app/case/persistence.ts` does a client-side Blob download for
+  Save, nothing is POSTed to a server for case data.
+- `app/globals.css`: new `.modalPrivacyNotice` style, deliberately
+  separate from the existing `.modalNotice` class (used for the
+  "demonstration content only" disclaimer) rather than reusing it —
+  `.modalNotice` is amber (a caution/warning color), and this is
+  reassurance, not a caveat, so it gets the same callout-box treatment
+  (bordered, tinted background, rounded) in green instead, with
+  `<strong>` text picking up `var(--green)` for the two key claims.

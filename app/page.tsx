@@ -1465,6 +1465,21 @@ export default function Home() {
                 tested, and used independently of this interface.
               </p>
 
+              <div className="modalPrivacyNotice">
+                <p>
+                  <strong>DiagnosticPacing.org is free to use, and always
+                  will be</strong> — no account, subscription, or paywall,
+                  now or planned.
+                </p>
+                <p>
+                  <strong>Case data never leaves your device.</strong>{" "}
+                  Everything you enter lives in your browser for that
+                  session, and saving a case downloads a local file to your
+                  own computer. There is no server-side database — this
+                  site does not record, store, or log any case information.
+                </p>
+              </div>
+
               <div className="downloadSection">
                 <h3>Knowledge base</h3>
 

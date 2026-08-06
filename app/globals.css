@@ -987,6 +987,34 @@ button {
 }
 
 /*
+ * Same callout treatment as .modalNotice, but green rather than amber —
+ * this one is reassurance (free, private, nothing logged), not a
+ * caution, so it shouldn't carry a warning color.
+ */
+.modalPrivacyNotice {
+  margin-bottom: 14px;
+  padding: 11px 12px;
+  border: 1px solid rgba(105, 211, 158, 0.22);
+  border-radius: 9px;
+  background: rgba(105, 211, 158, 0.07);
+}
+
+.modalPrivacyNotice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.modalPrivacyNotice p + p {
+  margin-top: 8px;
+}
+
+.modalPrivacyNotice strong {
+  color: var(--green);
+}
+
+/*
  * The About modal doubles as the site's landing page (it opens
  * automatically on load), so dismissing it needs to be one deliberate,
  * unmissable action rather than a small corner × — replaced by a large
