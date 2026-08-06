@@ -168,6 +168,39 @@ button {
   font-size: 12px;
 }
 
+/*
+ * Doubles as the case's Save filename and report title (both just read
+ * caseRecord.title), so it's editable right here instead of tucked into
+ * a settings panel — this is the one place in the GUI that field lives.
+ * Styled to sit flush as plain text until the user actually interacts
+ * with it (no border/background at rest), so it doesn't read as "a form
+ * field" in a toolbar that's otherwise all buttons and labels.
+ */
+.activeCaseTitleInput {
+  width: 150px;
+  max-width: 220px;
+  margin-top: 3px;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.activeCaseTitleInput:hover {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.activeCaseTitleInput:focus {
+  outline: none;
+  border-color: rgba(91, 214, 220, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .primaryButton,
 .secondaryButton {
   min-height: 35px;

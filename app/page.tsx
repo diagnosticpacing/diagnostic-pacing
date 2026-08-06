@@ -613,7 +613,25 @@ export default function Home() {
             <span />
             <div>
               <small>Active case</small>
-              <strong>{caseRecord.title}</strong>
+              <input
+                aria-label="Case title"
+                className="activeCaseTitleInput"
+                onBlur={(event) => {
+                  if (!event.target.value.trim()) {
+                    setCaseRecord((current) => ({
+                      ...current,
+                      title: "Untitled study",
+                    }));
+                  }
+                }}
+                onChange={(event) => {
+                  const nextTitle = event.target.value;
+                  setCaseRecord((current) => ({ ...current, title: nextTitle }));
+                }}
+                onFocus={(event) => event.target.select()}
+                type="text"
+                value={caseRecord.title}
+              />
             </div>
           </div>
           <button className="secondaryButton" onClick={startNewCase} type="button">

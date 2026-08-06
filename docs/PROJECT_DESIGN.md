@@ -2216,3 +2216,36 @@ and that case data isn't recorded or logged anywhere server-side.
   reassurance, not a caveat, so it gets the same callout-box treatment
   (bordered, tinted background, rounded) in green instead, with
   `<strong>` text picking up `var(--green)` for the two key claims.
+
+<!-- ACTIVE-CASE-TITLE-EDITABLE-2026-08-06 -->
+## Active Case Title: Editable, Drives Save Filename + Report Title (implemented 2026-08-06)
+
+The topbar's "Active case" label (`Untitled study` by default, from
+`createInitialCase()` in `app/clinical/model.ts`) was static text. Made
+it an editable field, since `caseRecord.title` already was — and
+already is — the single source both `exportCaseRecord()`
+(`app/case/persistence.ts`, used for the Save filename) and the report
+generator (`app/report/generate.ts`, the report's first line) read
+from. No new plumbing needed on the read side; only the write side
+(there was previously no UI path to change `title` at all) needed
+building.
+
+- `app/page.tsx`: the `<strong>{caseRecord.title}</strong>` in
+  `.activeCase` became a controlled `<input>` (`value={caseRecord.title}`,
+  `onChange` writes straight into `caseRecord` via `setCaseRecord`).
+  `onFocus` selects all text, so clicking in and typing replaces
+  "Untitled study" wholesale rather than requiring a manual
+  select-all — the common "click a document title, just start typing"
+  pattern. `onBlur` resets to "Untitled study" if left blank, so an
+  accidentally-cleared title can't produce an empty Save filename or a
+  blank report header (though `slugify()` already had a
+  `"diagnostic-pacing-case"` fallback for the filename specifically —
+  this closes the same gap for the report title and the on-screen
+  label itself).
+- `app/globals.css`: new `.activeCaseTitleInput` — transparent
+  background and border at rest so it still reads as a label, not an
+  obvious form field, in a toolbar that's otherwise all buttons; a
+  subtle border/background appears on hover and focus so it's
+  discoverable as editable. Fixed `width: 150px` (`max-width: 220px`)
+  keeps it from disrupting the topbar's layout regardless of title
+  length.
