@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
 import {
   formatClinicalStateTag,
@@ -270,6 +275,15 @@ export default function ManeuverCard({
   // possible field skips the picker entirely — there's nothing to
   // choose between.
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  // Tracks (as a JSON snapshot) whatever was last actually committed
+  // via onSave, so leaveResults/the autosave effect below can skip
+  // calling onSave — and skip logging a case-timeline entry for it —
+  // when nothing has actually changed since. Without this, every exit
+  // from the results side (including just opening a card to look, not
+  // edit, then flipping away) would write a no-op "Maneuver result"
+  // entry, and the debounced autosave firing right before a Done click
+  // would produce a second, identical one.
+  const lastCommittedValuesRef = useRef<string>("{}");
 
   const activePerformance =
     performedStates.find(
@@ -280,7 +294,9 @@ export default function ManeuverCard({
     entry.fields.find((field) => field.fieldId === selectedFieldId) ?? null;
 
   function openEditor() {
-    setDraftValues(activePerformance?.values ?? {});
+    const initialValues = activePerformance?.values ?? {};
+    setDraftValues(initialValues);
+    lastCommittedValuesRef.current = JSON.stringify(initialValues);
     setSelectedFieldId(entry.fields.length === 1 ? entry.fields[0].fieldId : null);
     setFlipState("results");
   }
@@ -294,10 +310,44 @@ export default function ManeuverCard({
     setFlipState(detailsReturnState);
   }
 
-  function handleSave() {
-    onSave(draftValues);
+  /** Commits whatever's currently in draftValues and returns to the
+   * front face — the one path every way of leaving the results side
+   * now goes through (the Done button, clicking anywhere on the
+   * results background, flipping via keyboard), so there's no longer
+   * a distinct "Cancel without saving" affordance. See the debounced
+   * autosave effect below for the "left the card open" case this
+   * doesn't cover on its own. */
+  function leaveResults() {
+    const serialized = JSON.stringify(draftValues);
+    if (serialized !== lastCommittedValuesRef.current) {
+      lastCommittedValuesRef.current = serialized;
+      onSave(draftValues);
+    }
     setFlipState("front");
   }
+
+  /**
+   * Entries no longer require an explicit Save click to reach the
+   * differential engine: if the results side is left open with values
+   * typed in but nothing flipped, this commits the current draft
+   * automatically a few seconds after the last edit — long enough to
+   * not fire mid-keystroke on a partially-typed number, short enough
+   * that a card left open doesn't sit on unseen data for long. Resets
+   * on every draftValues change (a debounce, not a fixed-interval
+   * tick), does nothing once the results side isn't showing, and — via
+   * the same lastCommittedValuesRef check as leaveResults — does
+   * nothing if the draft already matches what's committed.
+   */
+  useEffect(() => {
+    if (flipState !== "results") return;
+    const timeout = setTimeout(() => {
+      const serialized = JSON.stringify(draftValues);
+      if (serialized === lastCommittedValuesRef.current) return;
+      lastCommittedValuesRef.current = serialized;
+      onSave(draftValues);
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [flipState, draftValues, onSave]);
 
   /**
    * Lets clicking anywhere on a card face act as a shortcut for its
@@ -454,7 +504,7 @@ export default function ManeuverCard({
           onClick={(event) =>
             handleFaceClick(
               event,
-              flipState === "details" ? closeDetails : () => setFlipState("front"),
+              flipState === "details" ? closeDetails : leaveResults,
             )
           }
         >
@@ -572,19 +622,12 @@ export default function ManeuverCard({
                 </button>
                 <div className="maneuverCardBackActionsPrimary">
                   <button
-                    className="secondaryButton"
-                    type="button"
-                    onClick={() => setFlipState("front")}
-                  >
-                    Cancel
-                  </button>
-                  <button
                     className="primaryButton"
                     type="button"
-                    aria-label="Save result"
-                    onClick={handleSave}
+                    aria-label="Done — save and close"
+                    onClick={leaveResults}
                   >
-                    Save
+                    Done
                   </button>
                 </div>
               </div>

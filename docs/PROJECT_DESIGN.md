@@ -2394,3 +2394,46 @@ the GUI's cyan/muted palette.
   Differential monitor rails v1" section) and edited only the
   cascade-winning (last-defined, ~line 2627+) copies; the earlier dead
   duplicates were left alone, out of scope for this pass.
+
+<!-- ENTER-KEY-ABOUT-OK-AND-MANEUVER-AUTOSAVE-2026-08-06 -->
+## Enter Key Confirms About Modal; Maneuver Card Results Autosave (implemented 2026-08-06)
+
+Two GUI friction points: pressing Enter while the About/landing modal
+was open did nothing (only clicking OK worked), and every edit to a
+maneuver card's results had to end with an explicit Save click or the
+data was lost — including a "Cancel" affordance that quietly discarded
+whatever had been typed.
+
+- `app/page.tsx`: while `aboutOpen` is true, a `keydown` listener on
+  `window` closes the modal on Enter (`event.preventDefault()` +
+  `setAboutOpen(false)`), added/removed via a `useEffect` keyed on
+  `aboutOpen`. No guard needed against text inputs swallowing Enter —
+  the modal has none.
+- `app/maneuvers/ManeuverCard.tsx`: "Cancel" and "Save result" merged
+  into one "Done" button. There's no longer a distinct discard path —
+  `leaveResults()` (renamed from `handleSave`) commits `draftValues`
+  and flips to front, and it's now what every way of leaving the
+  results side calls: the Done button, and the results face's
+  whole-card click-to-flip (previously `setFlipState("front")` with no
+  save, matching the old Cancel behavior — that's exactly the
+  no-longer-wanted "flip away without saving" case).
+- Also added a debounced autosave so data reaches the differential
+  engine even if the card is simply left open: a `useEffect` (deps
+  `[flipState, draftValues, onSave]`) starts a 3-second `setTimeout`
+  on every `draftValues` change while `flipState === "results"`,
+  committing via `onSave` if the timer completes uninterrupted. A
+  debounce rather than a fixed-interval tick on purpose — it resets on
+  each keystroke, so it fires once a few seconds after the user
+  actually stops (not mid-keystroke on a half-typed number), and does
+  nothing while they're still actively typing.
+- `lastCommittedValuesRef` (a ref holding a JSON snapshot of whatever
+  was last actually passed to `onSave`) guards both `leaveResults` and
+  the autosave timeout against committing — and logging a case-timeline
+  entry for — a no-op. Without it, every mechanism above would fire
+  unconditionally: opening a card just to look (no edits) and clicking
+  away would log a spurious unchanged "Maneuver result" entry, and the
+  debounce firing moments before a Done click would log the same
+  values twice. `openEditor()` seeds the ref from the active
+  performance's values each time the results side is (re)opened, so
+  the comparison is always against what's genuinely already committed
+  for the active Clinical State.

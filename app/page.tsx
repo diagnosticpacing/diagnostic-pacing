@@ -145,6 +145,24 @@ export default function Home() {
   // pointing there. Still closeable/reopenable via the About button as
   // before.
   const [aboutOpen, setAboutOpen] = useState(true);
+
+  // The About modal has no text inputs to worry about hijacking, so
+  // Enter is free to act as a global shortcut for its one deliberate
+  // dismiss action (the OK button) while it's open — useful since it
+  // auto-opens on every load and blocks the rest of the page.
+  useEffect(() => {
+    if (!aboutOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      setAboutOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [aboutOpen]);
+
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCopyState, setReportCopyState] = useState<
     "idle" | "copied" | "error"
