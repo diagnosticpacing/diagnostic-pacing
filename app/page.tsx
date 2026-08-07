@@ -121,13 +121,15 @@ function Panel({
   eyebrow,
   title,
   children,
+  className,
 }: {
   eyebrow: string;
   title: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="panel">
+    <section className={className ? `panel ${className}` : "panel"}>
       <header className="panelHeader">
         <p>{eyebrow}</p>
         <h2>{title}</h2>
@@ -666,8 +668,7 @@ export default function Home() {
       <aside className="clinicalStatesRail" aria-label="Clinical states">
         <div className="clinicalStatesRailHeader">
           <div>
-            <p>Case structure</p>
-            <h2>Clinical States</h2>
+            <h2>Case structure</h2>
           </div>
 
           <span>{caseRecord.clinicalStates.length}</span>
@@ -1264,7 +1265,7 @@ export default function Home() {
       <section className="workspace">
 
 
-        <Panel eyebrow="Pacing maneuvers" title="">
+        <Panel className="maneuverPanel" eyebrow="Pacing maneuvers" title="">
           <p className="maneuverGridSubhead">
             Ordered by relevance to the current differential — no separate
             &ldquo;already performed&rdquo; section, since a maneuver can

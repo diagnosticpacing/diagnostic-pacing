@@ -2346,3 +2346,51 @@ dismiss it.
   (which grows over time as sections get added, like this one) doesn't
   fit. Same fixed-header/scrollable-body/fixed-footer recipe already
   used for the maneuver cards' scrollbar fix earlier this session.
+
+<!-- VIOLET-SECTION-ACCENTS-2026-08-06 -->
+## Case Structure Simplified + Violet Accent Committed to Style Guide (implemented 2026-08-06)
+
+Two small requests handled together since they touched the same three
+headers: the left rail's two-line "Case structure" / "Clinical
+States" header was collapsed to just "Case structure" (redundant with
+the rail's actual contents), and that header plus "Differential
+diagnosis" (right rail) and "Pacing maneuvers" (main workspace panel)
+were made larger and recolored — Murph liked the purple used for the
+admin knowledge base's row-lock indicator and wanted it promoted from
+a one-off admin color to a real style-guide entry, used here to make
+these three section titles more visually distinct from the rest of
+the GUI's cyan/muted palette.
+
+- `app/globals.css` `:root`: added `--violet: #a78bfa;` — the same hex
+  the admin lock indicator already used. `--locked` now reads
+  `var(--violet)` instead of repeating the hex, so both names point at
+  one color; `--locked` keeps its own name since "violet" doesn't
+  describe what it means in the admin context, but they're
+  intentionally the same value going forward.
+- `app/page.tsx`: the rail header's `<p>Case structure</p>` +
+  `<h2>Clinical States</h2>` pair became a single `<h2>Case
+  structure</h2>` — one heading, not two.
+- `Panel` (the shared component behind every workspace section) gained
+  an optional `className` prop, applied to its outer `<section>`. Used
+  only on the maneuver grid's `<Panel eyebrow="Pacing maneuvers" ...>`
+  (now `className="maneuverPanel"`) so its eyebrow could be restyled
+  without also restyling every other Panel's eyebrow (Current
+  interpretation, Current finding, Recorded steps, ...), which all
+  keep the original small-caps label look. The Differential diagnosis
+  panel didn't need this — it's the only Panel inside
+  `.differentialDiagnosisRail`, so `.differentialDiagnosisRail
+  .panelHeader p` already scoped to just it.
+- Sizing: `.clinicalStatesRailHeader h2`, `.differentialDiagnosisRail
+  .panelHeader p`, and the new `.maneuverPanel .panelHeader p` all get
+  the same treatment — `font-size: 17px`, `font-weight: 750`, `color:
+  var(--violet)`, and (for the two that were previously small-caps
+  eyebrows) `text-transform: none` / `letter-spacing: normal` instead
+  of uppercase tracking, since a heading at this size reads better in
+  sentence case than shouty small caps.
+- As with earlier passes this session, found this file's
+  `.clinicalStatesRailHeader`/`.differentialDiagnosisRail .panelHeader`
+  rules defined three times each (an accumulation of superseded
+  full-rewrite passes — see the "Matched Clinical States and
+  Differential monitor rails v1" section) and edited only the
+  cascade-winning (last-defined, ~line 2627+) copies; the earlier dead
+  duplicates were left alone, out of scope for this pass.

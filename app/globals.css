@@ -14,7 +14,14 @@
   --green: #69d39e;
   --amber: #f0b96a;
   --red: #ed7f86;
-  --locked: #a78bfa;
+  /* Committed to the style guide from the admin knowledge base's row-
+     lock indicator — it read well enough there that it's now the
+     app's accent color for major section titles too (Case structure,
+     Differential diagnosis, Pacing maneuvers). --locked keeps its own
+     name since "violet" doesn't describe what it means in that
+     context, but they're intentionally the same color. */
+  --violet: #a78bfa;
+  --locked: var(--violet);
   /*
    * The app is dark-only (no light theme toggle), but nothing told the
    * browser that — so native form controls it renders itself, most
@@ -2641,22 +2648,27 @@ button {
   min-width: 0;
 }
 
-.clinicalStatesRailHeader p,
+/*
+ * The rail's Panel eyebrow is its only visible heading text (title is
+ * always "" here), so it gets the same prominent treatment as
+ * .clinicalStatesRailHeader h2 opposite it — sized and colored up from
+ * the small-caps label style every other Panel's eyebrow still uses.
+ */
 .differentialDiagnosisRail .panelHeader p {
   margin: 0;
-  color: var(--muted);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  line-height: 1.35;
-  text-transform: uppercase;
+  color: var(--violet);
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: normal;
+  line-height: 1.25;
+  text-transform: none;
 }
 
 .clinicalStatesRailHeader h2 {
-  margin: 5px 0 0;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
+  margin: 0;
+  color: var(--violet);
+  font-size: 17px;
+  font-weight: 750;
   line-height: 1.25;
 }
 
@@ -4062,6 +4074,22 @@ button.adminTableHeader.isSorted {
 .adminLoginError { margin: 0; color: #ffb9b9; }
 
 /* Maneuver Card Grid v1 */
+
+/*
+ * Same prominent-violet treatment as the two side rails' headers
+ * (.clinicalStatesRailHeader h2 / .differentialDiagnosisRail
+ * .panelHeader p) — scoped to just this one Panel instance via the
+ * className Panel now accepts, so every other Panel's eyebrow (Current
+ * interpretation, Current finding, Recorded steps, ...) keeps the
+ * plain small-caps label style.
+ */
+.maneuverPanel .panelHeader p {
+  color: var(--violet);
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: normal;
+  text-transform: none;
+}
 
 .maneuverGridSubhead {
   margin: 0 0 14px;
