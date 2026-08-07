@@ -340,9 +340,9 @@ export default function Home() {
   });
 
   // Refractory periods are results recorded on the back of whichever
-  // maneuver produces them (tagged via Refractory Period Type/Direction/
-  // Structure on Maneuver Response Fields — one field is the whole
-  // result), not direct entry — see app/refractoryPeriods/knowledge.ts.
+  // maneuver produces them (tagged via Refractory Period Direction on
+  // Maneuver Response Fields — one field is the whole result), not
+  // direct entry — see app/refractoryPeriods/knowledge.ts.
   // The panel this feeds is permanently affixed rather than scoped to the
   // active Clinical State, so every recorded finding across every state is
   // shown (not just whichever is currently active), grouped into exactly

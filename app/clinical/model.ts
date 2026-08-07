@@ -163,11 +163,11 @@ const comprehensivePacingIntervals: MeasurementField[] = [
 // fields here (see ADMIN-ROW-LOCKING-era history in PROJECT_DESIGN.md's
 // git log for the old shape). They're now results recorded on the back
 // of whichever maneuver actually produces them, tagged via the
-// Refractory Period Type/Direction/Structure/Component# columns on
-// Maneuver Response Fields — see app/refractoryPeriods/knowledge.ts and
-// the derived "Refractory Periods" panel in app/page.tsx. Plain intervals
-// (AA, VV, PR, etc.) are unaffected and stay directly-entered here, since
-// they're genuinely observed, not the output of a specific maneuver.
+// Refractory Period Direction column on Maneuver Response Fields — see
+// app/refractoryPeriods/knowledge.ts and the derived "Refractory
+// Periods" panel in app/page.tsx. Plain intervals (AA, VV, PR, etc.)
+// are unaffected and stay directly-entered here, since they're
+// genuinely observed, not the output of a specific maneuver.
 const comprehensivePacingSections: MeasurementSection[] = [
   {
     id: "intervals",

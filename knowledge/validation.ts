@@ -33,29 +33,13 @@ const splitList = (value?: string) =>
     .map((v) => v.trim())
     .filter(Boolean);
 
-/**
- * A Response Field's refractory-period identity — the combination that
- * must be unique across the whole workbook, since the main GUI's derived
- * Refractory Periods display looks up "the" field for a given
- * (Type, Direction, Structure) and has no rule for picking a winner if two
- * different fields both claim it. One field is the whole refractory period
- * result now (Functional = one value, Effective = up to three), so there's
- * no separate Component dimension to key on. Returns null for a field
- * that isn't tagged as a refractory period at all (Type or Structure left
- * at "n/a" — Direction alone being "n/a" is a valid, meaningful answer for
- * structures without a directional distinction).
- */
-function refractoryPeriodTagKey(row: SpreadsheetRow): string | null {
-  const type = n(row.refractoryPeriodType);
-  const direction = n(row.refractoryPeriodDirection);
-  const structure = n(row.refractoryPeriodStructure);
-
-  if (!type || type === "n/a" || !structure || structure === "n/a") {
-    return null;
-  }
-
-  return `${type.toUpperCase()}|${(direction || "n/a").toUpperCase()}|${structure.toUpperCase()}`;
-}
+// A Response Field's Refractory Period Direction no longer needs a
+// cross-workbook uniqueness check — see REFRACTORY-PERIODS-SIMPLIFY-2026-08-06
+// in PROJECT_DESIGN.md. The old (Type, Direction, Structure) uniqueness
+// check existed because the derived Refractory Periods display composed a
+// label from those three columns and had no tiebreaker if two fields
+// collided. Labels are now free-text (each field's own Response Prompt),
+// so two fields sharing a Direction is fine — it's not a collision.
 
 function issue(
   issues: ValidationIssue[],
@@ -158,25 +142,9 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
   }
 
-  const seenRefractoryPeriodTags = new Set<string>();
   for (const row of safe("maneuverResponseFields")) {
     if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
       issue(issues, "maneuverResponseFields", row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
-    }
-
-    const tagKey = refractoryPeriodTagKey(row);
-    if (tagKey) {
-      if (seenRefractoryPeriodTags.has(tagKey)) {
-        issue(
-          issues,
-          "maneuverResponseFields",
-          row,
-          "refractoryPeriodStructure",
-          `Another Response Field already claims this same Refractory Period Type/Direction/Structure combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure}). Each combination may only be tagged on one field.`,
-        );
-      } else {
-        seenRefractoryPeriodTags.add(tagKey);
-      }
     }
   }
 
@@ -338,22 +306,6 @@ export function validateRow(
   if (sheetId === "maneuverResponseFields") {
     if (n(row.associatedManeuverId) && !maneuverIds.has(n(row.associatedManeuverId).toUpperCase())) {
       issue(issues, sheetId, row, "associatedManeuverId", `Unknown maneuver ID "${row.associatedManeuverId}".`);
-    }
-
-    const tagKey = refractoryPeriodTagKey(row);
-    if (tagKey) {
-      const collidesWith = safe(sheetId).some(
-        (other) => other.__rowId !== row.__rowId && refractoryPeriodTagKey(other) === tagKey,
-      );
-      if (collidesWith) {
-        issue(
-          issues,
-          sheetId,
-          row,
-          "refractoryPeriodStructure",
-          `Another Response Field already claims this same Refractory Period Type/Direction/Structure combination (${row.refractoryPeriodType} / ${row.refractoryPeriodDirection} / ${row.refractoryPeriodStructure}). Each combination may only be tagged on one field.`,
-        );
-      }
     }
   }
 

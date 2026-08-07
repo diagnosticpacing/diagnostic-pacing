@@ -2437,3 +2437,95 @@ whatever had been typed.
   performance's values each time the results side is (re)opened, so
   the comparison is always against what's genuinely already committed
   for the active Clinical State.
+
+<!-- REFRACTORY-PERIODS-SIMPLIFY-2026-08-06 -->
+## Refractory Period Tagging Simplified: Direction Only (implemented 2026-08-06)
+
+The Refractory Period tagging schema on the Maneuver Response Fields
+sheet started as three columns — Type (Functional/Effective), Direction
+(Antegrade/Retrograde/n/a), Structure (7 anatomical options) — that
+jointly flagged a field as an RP result, picked 1-vs-3 entry boxes
+(Type), grouped the derived Refractory Periods panel into two rows
+(Direction), and composed a clinician-facing label from all three
+(`composeRefractoryPeriodLabel`). The user asked to remove the
+Structure column as redundant and pull the maneuver-card prompt text
+from the field's own Maneuver Response Prompt instead — then, mid-way
+through, asked to remove the Type column too.
+
+Investigation found Structure was purely cosmetic (folded into the
+composed label, nothing else read it), but Type was load-bearing: it
+was the sole signal for the Functional-vs-Effective 1-vs-3 box-count
+distinction and, along with Structure, for whether a field was an RP
+result at all. Removing it outright would silently collapse that
+distinction. Rather than guess, I used AskUserQuestion to lay out the
+tradeoff. The user chose: **remove both Type and Structure; every RP
+field always renders exactly 3 optional boxes** (a second and third
+extrastimulus, left blank if not performed) — accepting the loss of
+the Functional/Effective box-count distinction as a deliberate
+consequence.
+
+- `app/admin/model.ts`: removed the `refractoryPeriodType` and
+  `refractoryPeriodStructure` column definitions from the
+  `maneuverResponseFields` sheet entirely. `refractoryPeriodDirection`
+  (options `["n/a", "Antegrade", "Retrograde"]`) is now the sole RP
+  signal — it both flags a field as an RP result (`n/a` means "not
+  one") and picks which row of the derived panel it appears in. Its
+  `modelUse` text was rewritten to explain that the field's own
+  Maneuver Response Prompt is now the full clinician-facing label
+  (e.g. "AVN ERP") and that it always renders as up to three boxes.
+- `app/maneuvers/knowledge.ts`: `RefractoryPeriodTag` narrowed to
+  `{ direction: RefractoryPeriodDirection }` (dropped `type`,
+  `structure`); `RefractoryPeriodDirection` narrowed to
+  `"Antegrade" | "Retrograde"` (no more `"n/a"` at the parsed-tag
+  level — `"n/a"`/blank now just means `parseRefractoryPeriodTag`
+  returns `null`, i.e. not an RP field).
+- `app/refractoryPeriods/knowledge.ts`: `RefractoryPeriodDefinition`
+  simplified to `{ id, direction, label, fieldId, prompt, maneuverId,
+  maneuverName, componentCount: 3 }` — `label` is now just
+  `field.prompt`, not a composed string. Removed
+  `composeRefractoryPeriodLabel`, `refractoryPeriodComponentCount`,
+  and the `STRUCTURE_ABBREVIATIONS`/`TYPE_ABBREVIATIONS` tables.
+  Added `REFRACTORY_PERIOD_COMPONENT_COUNT = 3` as a named constant so
+  every call site still reads "how many boxes" rather than a bare
+  magic number.
+- `app/maneuvers/ManeuverCard.tsx`: the field-picker button, draft
+  preview, and performance summary all now show `field.prompt`
+  directly instead of a composed label. `RefractoryPeriodTripletControl`
+  and `renderFieldControl`'s dispatch both branch on
+  `field.refractoryPeriod` being non-null (was `.type === "Effective"`)
+  and always render `REFRACTORY_PERIOD_COMPONENT_COUNT` (3) boxes.
+- `app/report/generate.ts`: `refractoryPeriodLines` was still calling
+  the now-removed `composeRefractoryPeriodLabel(definition.type, "n/a",
+  definition.structure)` — this file wasn't touched by the initial
+  pass and would have failed to compile. Fixed to use
+  `definition.label` (the field's own prompt) directly.
+- `knowledge/validation.ts`: removed `refractoryPeriodTagKey` and both
+  of its call sites (the cross-workbook uniqueness check in
+  `validateWorkbook` and the pairwise collision check in `validateRow`,
+  each previously attaching an error to the `refractoryPeriodStructure`
+  column). The check existed only because the old composed label had
+  no tiebreaker if two fields collided on the same (Type, Direction,
+  Structure); with free-text labels there's no collision to detect —
+  two fields sharing a Direction is normal and expected.
+- Stale "Type/Direction/Structure" explanatory comments updated in
+  `app/page.tsx` and `app/clinical/model.ts` to describe the
+  Direction-only scheme.
+- `pruneUnknownColumns()` in `app/admin/model.ts` (a generic,
+  schema-driven mechanism from an earlier session) requires no changes
+  to strip the now-removed `refractoryPeriodType`/
+  `refractoryPeriodStructure` keys from any production Blob rows that
+  still carry them — it already removes any column key not present in
+  the current schema.
+- Known dormant edge case, not addressed: a field that was genuinely
+  RP-tagged under the old schema with Direction left at `"n/a"` (valid
+  for Structure options without a directional distinction, e.g. some
+  atrial/ventricular measurements) will now silently stop being
+  recognized as an RP field, since Direction is the sole remaining
+  signal and `"n/a"` means "not one." Per the schema's own prior
+  documentation this combination was "not used in practice," so no
+  production data is expected to hit it, but it's worth knowing if an
+  RP result ever mysteriously stops appearing on the derived panel.
+- Verification: `npx tsc --noEmit` clean; `npx eslint` on all touched
+  files shows only the one known pre-existing `react-hooks/purity`
+  finding in `app/page.tsx`'s `addClinicalState` (`Date.now()` during
+  render), unrelated to this change and already present before it.

@@ -13,8 +13,7 @@ import {
   type ManeuverPerformance,
 } from "../clinical/model";
 import {
-  composeRefractoryPeriodLabel,
-  refractoryPeriodComponentCount,
+  REFRACTORY_PERIOD_COMPONENT_COUNT,
   refractoryPeriodComponentKey,
 } from "../refractoryPeriods/knowledge";
 
@@ -38,18 +37,6 @@ type ManeuverCardProps = {
   onSave: (values: Record<string, string>) => void;
 };
 
-/** The compact label a field picker row shows — the composed Refractory
- * Period label (e.g. "Antegrade AVN ERP") for RP-tagged fields, the
- * field's own prompt otherwise. Mirrors the label logic already used
- * elsewhere for these two field shapes. */
-function fieldPickerLabel(field: ManeuverCatalogField): string {
-  const tag = field.refractoryPeriod;
-  if (tag?.type === "Effective") {
-    return composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
-  }
-  return field.prompt;
-}
-
 /** A one-line preview of whatever's currently in draftValues for one
  * field, so a picker row can show progress without being opened — the
  * live-draft equivalent of summarizePerformance's per-field piece
@@ -58,11 +45,9 @@ function draftFieldPreview(
   field: ManeuverCatalogField,
   values: Record<string, string>,
 ): string {
-  const tag = field.refractoryPeriod;
-  if (tag?.type === "Effective") {
-    const count = refractoryPeriodComponentCount(tag.type);
+  if (field.refractoryPeriod) {
     const parts: string[] = [];
-    for (let component = 1; component <= count; component += 1) {
+    for (let component = 1; component <= REFRACTORY_PERIOD_COMPONENT_COUNT; component += 1) {
       parts.push(
         values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
       );
@@ -79,18 +64,19 @@ function summarizePerformance(
 ): string {
   const parts = entry.fields
     .map((field) => {
-      const tag = field.refractoryPeriod;
-      if (tag?.type === "Effective") {
-        const label = composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
-        const count = refractoryPeriodComponentCount(tag.type);
+      if (field.refractoryPeriod) {
         const values: string[] = [];
-        for (let component = 1; component <= count; component += 1) {
+        for (
+          let component = 1;
+          component <= REFRACTORY_PERIOD_COMPONENT_COUNT;
+          component += 1
+        ) {
           values.push(
             performance.values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
           );
         }
         while (values.length > 0 && values[values.length - 1] === "") values.pop();
-        return values.length > 0 ? `${label}: ${values.join("/")}` : null;
+        return values.length > 0 ? `${field.prompt}: ${values.join("/")}` : null;
       }
 
       const value = (performance.values[field.fieldId] ?? "").trim();
@@ -197,12 +183,15 @@ function FieldControl({
 }
 
 /**
- * Renders one Effective Refractory Period field as a compact row of up to
- * three boxes (matching how the original ERP card presented a
- * 600/400/300 result) instead of a single input — the field is still one
- * Field ID / one row in the knowledge base; only the GUI presentation and
- * the underlying storage keys are split. The third box is always optional
- * (a third extrastimulus isn't always performed), left blank if unused.
+ * Renders one Refractory Period field as a compact row of up to three
+ * boxes (matching how the original ERP card presented a 600/400/300
+ * result) instead of a single input — the field is still one Field ID
+ * / one row in the knowledge base; only the GUI presentation and the
+ * underlying storage keys are split. The label is the field's own
+ * Maneuver Response Prompt, not a composed string (see
+ * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06). The second and third boxes
+ * are always optional (a second/third extrastimulus isn't always
+ * performed), left blank if unused.
  */
 function RefractoryPeriodTripletControl({
   field,
@@ -213,18 +202,16 @@ function RefractoryPeriodTripletControl({
   values: Record<string, string>;
   onChange: (key: string, next: string) => void;
 }) {
-  const tag = field.refractoryPeriod;
-  if (!tag) return null;
+  if (!field.refractoryPeriod) return null;
 
-  const label = composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure);
-  const count = refractoryPeriodComponentCount(tag.type);
-  const keys = Array.from({ length: count }, (_, index) =>
-    refractoryPeriodComponentKey(field.fieldId, index + 1),
+  const keys = Array.from(
+    { length: REFRACTORY_PERIOD_COMPONENT_COUNT },
+    (_, index) => refractoryPeriodComponentKey(field.fieldId, index + 1),
   );
 
   return (
     <div className="maneuverField maneuverFieldRefractoryGroup">
-      <label>{label}</label>
+      <label>{field.prompt}</label>
       <div className="maneuverFieldRefractoryGroupRow">
         {keys.map((key, index) => (
           <div key={key} className="maneuverFieldRefractoryGroupItem">
@@ -374,7 +361,7 @@ export default function ManeuverCard({
    * just for a single field at a time now that the picker only ever
    * expands one. */
   function renderFieldControl(field: ManeuverCatalogField) {
-    if (field.refractoryPeriod?.type === "Effective") {
+    if (field.refractoryPeriod) {
       return (
         <RefractoryPeriodTripletControl
           key={field.fieldId}
@@ -587,7 +574,7 @@ export default function ManeuverCard({
                             onClick={() => setSelectedFieldId(field.fieldId)}
                           >
                             <span className="maneuverFieldPickerLabel">
-                              {fieldPickerLabel(field)}
+                              {field.prompt}
                               {field.required && (
                                 <span aria-hidden="true"> *</span>
                               )}

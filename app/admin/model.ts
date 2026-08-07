@@ -457,40 +457,13 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         options: ["n/a", "ms", "mV", "mA"],
       },
       {
-        key: "refractoryPeriodType",
-        label: "Refractory Period Type",
-        modelUse:
-          "Tags this field as a Functional or Effective Refractory Period result recorded on this maneuver's back side, rather than an ordinary field. Leave n/a for fields that aren't a refractory period. Functional and Effective are clinically distinct measurements of the same structure, not interchangeable labels. This one field IS the whole result — Functional always renders as a single value; Effective always renders as up to three boxes (a third extrastimulus is optional, left blank if not performed).",
-        width: "190px",
-        required: true,
-        options: ["n/a", "Functional", "Effective"],
-      },
-      {
         key: "refractoryPeriodDirection",
         label: "Refractory Period Direction",
         modelUse:
-          "Which conduction direction this refractory period describes — determined by which maneuver produced it (e.g. atrial pacing measures antegrade, ventricular pacing measures retrograde), not a free choice per field. Leave n/a for structures where direction isn't a meaningful distinction (e.g. Atrial, Ventricular) or for non-refractory-period fields.",
-        width: "200px",
-        required: true,
-        options: ["n/a", "Antegrade", "Retrograde"],
-      },
-      {
-        key: "refractoryPeriodStructure",
-        label: "Refractory Period Structure",
-        modelUse:
-          "Which anatomical structure this refractory period measures. Combined with Type and Direction, this is what the derived Refractory Periods display groups and labels by — e.g. Effective + Retrograde + Accessory Pathway 1 renders as \"Retrograde AP1 ERP\". Leave n/a for non-refractory-period fields.",
+          "Tags this field as a Refractory Period result recorded on this maneuver's back side, rather than an ordinary field — leave n/a for fields that aren't one. Antegrade/Retrograde also determines which row of the derived Refractory Periods display this field's result appears in (determined by which maneuver produced it — e.g. atrial pacing measures antegrade, ventricular pacing measures retrograde — not a free choice per field). This one field IS the whole result: it always renders as up to three boxes (a second and third extrastimulus are optional, left blank if not performed). The display label is this field's own Maneuver Response Prompt — write the full clinician-facing name there directly (e.g. \"AVN ERP\"), since the panel already separates Antegrade from Retrograde into its own row.",
         width: "220px",
         required: true,
-        options: [
-          "n/a",
-          "Atrial",
-          "AV Node",
-          "Fast Pathway",
-          "Slow Pathway",
-          "Accessory Pathway 1",
-          "Accessory Pathway 2",
-          "Ventricular",
-        ],
+        options: ["n/a", "Antegrade", "Retrograde"],
       },
       {
         key: "required",

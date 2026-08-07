@@ -4,85 +4,49 @@ import type {
   ManeuverCatalogEntry,
   ManeuverCatalogField,
   RefractoryPeriodDirection,
-  RefractoryPeriodStructure,
-  RefractoryPeriodType,
 } from "@/app/maneuvers/knowledge";
 
 /**
  * One named refractory period result — a single tagged Response Field IS
  * the whole result now, not a group of separately-tagged sibling fields.
- * Functional always has exactly one value slot; Effective always has up
- * to three (a third extrastimulus is optional, left blank if not
- * performed). Uniqueness of (type, direction, structure) is enforced at
- * save/lock time (`knowledge/validation.ts`), so there's exactly one
- * field behind any given definition.
+ * Always has up to three value slots (a second and third extrastimulus
+ * are optional, left blank if not performed) — see
+ * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06 for why this is now a fixed
+ * constant rather than a per-field Type-driven choice. `label` is the
+ * field's own Response Prompt text, not a composed string — the admin
+ * is expected to write the full clinician-facing name directly (e.g.
+ * "AVN ERP"), since the Refractory Periods panel already groups by
+ * Direction into separate rows and doesn't need it repeated in the
+ * label.
  */
 export type RefractoryPeriodDefinition = {
   id: string;
-  type: RefractoryPeriodType;
   direction: RefractoryPeriodDirection;
-  structure: RefractoryPeriodStructure;
   label: string;
   fieldId: string;
   prompt: string;
   maneuverId: string;
   maneuverName: string;
-  /** How many value boxes this definition renders/stores: 1 for Functional, 3 for Effective. */
-  componentCount: 1 | 3;
+  /** Always 3 — see the module doc comment above. */
+  componentCount: 3;
 };
 
-const STRUCTURE_ABBREVIATIONS: Record<RefractoryPeriodStructure, string> = {
-  Atrial: "Atrial",
-  "AV Node": "AV Node",
-  "Fast Pathway": "Fast Pathway",
-  "Slow Pathway": "Slow Pathway",
-  "Accessory Pathway 1": "AP1",
-  "Accessory Pathway 2": "AP2",
-  Ventricular: "Ventricular",
-};
-
-const TYPE_ABBREVIATIONS: Record<RefractoryPeriodType, string> = {
-  Functional: "FRP",
-  Effective: "ERP",
-};
-
-/** Functional Refractory Periods are always a single value; Effective is always up to three. */
-export function refractoryPeriodComponentCount(type: RefractoryPeriodType): 1 | 3 {
-  return type === "Effective" ? 3 : 1;
-}
+/** Every refractory period field always renders/stores up to three
+ * value boxes now (the Functional-vs-Effective 1-vs-3 distinction was
+ * dropped along with the Type column). Kept as a named constant, not
+ * inlined, so every call site still reads "how many boxes" rather
+ * than a bare magic number. */
+export const REFRACTORY_PERIOD_COMPONENT_COUNT = 3 as const;
 
 /**
  * The storage key for one value slot of a refractory period field within a
  * ManeuverPerformance's `values` map. The first slot always uses the
- * field's own fieldId with no suffix — so a Functional field (always one
- * slot) behaves exactly like any other Number Field, and Effective's first
- * box is always what a naive lookup by fieldId alone would find. Only the
- * second and third slots of an Effective field get a suffix, e.g.
- * `FID-042.2`, `FID-042.3`.
+ * field's own fieldId with no suffix, so a naive lookup by fieldId alone
+ * always finds the first box; only the second and third slots get a
+ * suffix, e.g. `FID-042.2`, `FID-042.3`.
  */
 export function refractoryPeriodComponentKey(fieldId: string, component: number): string {
   return component <= 1 ? fieldId : `${fieldId}.${component}`;
-}
-
-/**
- * Composes the clinician-facing label from the three tag dimensions —
- * e.g. Effective + Retrograde + Accessory Pathway 1 -> "Retrograde AP1
- * ERP". Direction is omitted when it's "n/a" (Atrial/Ventricular
- * refractoriness isn't meaningfully antegrade or retrograde), rather
- * than printing a literal "n/a" in the label.
- */
-export function composeRefractoryPeriodLabel(
-  type: RefractoryPeriodType,
-  direction: RefractoryPeriodDirection,
-  structure: RefractoryPeriodStructure,
-): string {
-  return [
-    direction !== "n/a" ? direction : null,
-    STRUCTURE_ABBREVIATIONS[structure],
-    TYPE_ABBREVIATIONS[type],
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(" ");
 }
 
 function toDefinition(
@@ -93,16 +57,14 @@ function toDefinition(
   if (!tag) return null;
 
   return {
-    id: `${tag.type}|${tag.direction}|${tag.structure}`,
-    type: tag.type,
+    id: field.fieldId,
     direction: tag.direction,
-    structure: tag.structure,
-    label: composeRefractoryPeriodLabel(tag.type, tag.direction, tag.structure),
+    label: field.prompt,
     fieldId: field.fieldId,
     prompt: field.prompt,
     maneuverId: entry.definition.maneuverId,
     maneuverName: entry.definition.maneuverName,
-    componentCount: refractoryPeriodComponentCount(tag.type),
+    componentCount: REFRACTORY_PERIOD_COMPONENT_COUNT,
   };
 }
 
@@ -129,11 +91,10 @@ export function buildRefractoryPeriodCatalog(
 /**
  * Reads a refractory period's current recorded value for a given Clinical
  * State, formatted the same way the original ERP card always did:
- * slash-joined components with trailing blanks dropped (so a 2-component
- * Effective result never trails a stray "/"). A Functional definition
- * (componentCount 1) reads its field directly, with no suffix. Returns ""
- * if the maneuver hasn't been performed under this state at all, or if no
- * value has been entered yet.
+ * slash-joined components with trailing blanks dropped (so entering
+ * only one or two of the three boxes never trails a stray "/"). Returns
+ * "" if the maneuver hasn't been performed under this state at all, or
+ * if no value has been entered yet.
  */
 export function formatRefractoryPeriodValue(
   definition: RefractoryPeriodDefinition,
@@ -141,10 +102,6 @@ export function formatRefractoryPeriodValue(
 ): string {
   const performance = findPerformance(clinicalState, definition.maneuverId);
   if (!performance) return "";
-
-  if (definition.componentCount === 1) {
-    return performance.values[definition.fieldId]?.trim() ?? "";
-  }
 
   const values: string[] = [];
   for (let component = 1; component <= definition.componentCount; component += 1) {

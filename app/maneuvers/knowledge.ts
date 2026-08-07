@@ -9,32 +9,31 @@ export type ManeuverDefinition = {
   technique: string;
 };
 
-export type RefractoryPeriodType = "Functional" | "Effective";
-export type RefractoryPeriodDirection = "Antegrade" | "Retrograde" | "n/a";
-export type RefractoryPeriodStructure =
-  | "Atrial"
-  | "AV Node"
-  | "Fast Pathway"
-  | "Slow Pathway"
-  | "Accessory Pathway 1"
-  | "Accessory Pathway 2"
-  | "Ventricular";
+/**
+ * Only the meaningful values — a field with no direction tagged (raw
+ * sheet value "n/a" or blank) isn't a refractory period field at all
+ * and never produces a RefractoryPeriodTag in the first place. See
+ * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06 in PROJECT_DESIGN.md: Type
+ * and Structure were dropped from the schema (the display label now
+ * comes straight from the field's own Response Prompt, and every
+ * refractory-period field always renders as up to three optional
+ * value boxes — the Functional/Effective distinction that used to
+ * pick 1-vs-3 boxes is gone), leaving Direction as the sole remaining
+ * signal for both "which row of the Refractory Periods panel" and "is
+ * this field a refractory period result at all."
+ */
+export type RefractoryPeriodDirection = "Antegrade" | "Retrograde";
 
 /**
- * A Response Field tagged as a refractory period result in its entirety
- * (see the Refractory Period Type/Direction/Structure columns on Maneuver
- * Response Fields) — one field IS one named refractory period, not one
- * component of one. Functional always renders/stores as a single value;
- * Effective always renders/stores as up to three (a third extrastimulus is
- * optional). `direction` is allowed to be "n/a" — unlike type/structure,
- * direction genuinely isn't a meaningful distinction for some structures
- * (Atrial, Ventricular refractoriness isn't "antegrade" or "retrograde,"
- * it just is what it is).
+ * A Response Field tagged as a refractory period result in its
+ * entirety (see the Refractory Period Direction column on Maneuver
+ * Response Fields) — one field IS one named refractory period, not
+ * one component of one. Always renders/stores as up to three value
+ * boxes (a second and third extrastimulus are optional, left blank if
+ * not performed).
  */
 export type RefractoryPeriodTag = {
-  type: RefractoryPeriodType;
   direction: RefractoryPeriodDirection;
-  structure: RefractoryPeriodStructure;
 };
 
 export type ManeuverResponseField = {
@@ -103,47 +102,20 @@ function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null
   };
 }
 
-const REFRACTORY_PERIOD_TYPES: RefractoryPeriodType[] = ["Functional", "Effective"];
 const REFRACTORY_PERIOD_DIRECTIONS: RefractoryPeriodDirection[] = ["Antegrade", "Retrograde"];
-const REFRACTORY_PERIOD_STRUCTURES: RefractoryPeriodStructure[] = [
-  "Atrial",
-  "AV Node",
-  "Fast Pathway",
-  "Slow Pathway",
-  "Accessory Pathway 1",
-  "Accessory Pathway 2",
-  "Ventricular",
-];
 
 /**
- * Parses a Response Field's three Refractory Period columns into a single
- * tag, or null if the field isn't one. Type and Structure use "n/a" as
- * their "not applicable" value (never blank, since they're `required`
- * dropdowns); Direction also uses "n/a" but as a real, meaningful answer
- * for structures without a directional distinction — so an absent
- * *type/structure* means "not a refractory period field," but an absent
- * *direction* on an otherwise-tagged field is valid.
+ * Parses a Response Field's Refractory Period Direction column into a
+ * tag, or null if the field isn't one. "n/a" (or blank) means "not a
+ * refractory period field" — Direction is now the only signal for
+ * that, since Type and Structure no longer exist on this sheet.
  */
 function parseRefractoryPeriodTag(row: SpreadsheetRow): RefractoryPeriodTag | null {
-  const type = trimmed(row.refractoryPeriodType);
   const direction = trimmed(row.refractoryPeriodDirection);
-  const structure = trimmed(row.refractoryPeriodStructure);
+  if (!direction || direction === "n/a") return null;
+  if (!REFRACTORY_PERIOD_DIRECTIONS.includes(direction as RefractoryPeriodDirection)) return null;
 
-  if (!type || type === "n/a") return null;
-  if (!structure || structure === "n/a") return null;
-  if (!REFRACTORY_PERIOD_TYPES.includes(type as RefractoryPeriodType)) return null;
-  if (!REFRACTORY_PERIOD_STRUCTURES.includes(structure as RefractoryPeriodStructure)) return null;
-
-  const resolvedDirection: RefractoryPeriodDirection =
-    direction && REFRACTORY_PERIOD_DIRECTIONS.includes(direction as RefractoryPeriodDirection)
-      ? (direction as RefractoryPeriodDirection)
-      : "n/a";
-
-  return {
-    type: type as RefractoryPeriodType,
-    direction: resolvedDirection,
-    structure: structure as RefractoryPeriodStructure,
-  };
+  return { direction: direction as RefractoryPeriodDirection };
 }
 
 function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {

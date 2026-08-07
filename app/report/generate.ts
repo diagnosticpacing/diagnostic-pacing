@@ -4,7 +4,6 @@ import type { ManeuverCatalogEntry } from "@/app/maneuvers/knowledge";
 import {
   buildRefractoryPeriodCatalog,
   collectRefractoryPeriodFindings,
-  composeRefractoryPeriodLabel,
   type RefractoryPeriodDefinition,
 } from "@/app/refractoryPeriods/knowledge";
 
@@ -34,10 +33,11 @@ function intervalLines(state: ClinicalState): string[] {
 
 /**
  * Every recorded value, across the given states, for every definition in
- * `catalog` running the given direction — labeled without the direction
- * prefix `composeRefractoryPeriodLabel` normally includes, since the
- * report already says "Antegrade"/"Retrograde" as the enclosing section
- * heading and repeating it on every line would just be noise.
+ * `catalog` running the given direction — labeled with the field's own
+ * label (its Response Prompt, per REFRACTORY-PERIODS-SIMPLIFY-2026-08-06),
+ * since the report already says "Antegrade"/"Retrograde" as the enclosing
+ * section heading and there's no separate direction prefix to strip
+ * anymore.
  */
 function refractoryPeriodLines(
   catalog: RefractoryPeriodDefinition[],
@@ -48,10 +48,9 @@ function refractoryPeriodLines(
 
   for (const definition of catalog) {
     if (definition.direction !== direction) continue;
-    const label = composeRefractoryPeriodLabel(definition.type, "n/a", definition.structure);
 
     for (const finding of collectRefractoryPeriodFindings(definition, states)) {
-      lines.push(`${label}: ${finding.value} ms`);
+      lines.push(`${definition.label}: ${finding.value} ms`);
     }
   }
 
