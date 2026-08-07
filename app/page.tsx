@@ -1486,15 +1486,12 @@ export default function Home() {
               <div className="modalPrivacyNotice">
                 <p>
                   <strong>DiagnosticPacing.org is free to use, and always
-                  will be</strong> — no account, subscription, or paywall,
-                  now or planned.
+                  will be.</strong>
                 </p>
                 <p>
                   <strong>Case data never leaves your device.</strong>{" "}
-                  Everything you enter lives in your browser for that
-                  session, and saving a case downloads a local file to your
-                  own computer. There is no server-side database — this
-                  site does not record, store, or log any case information.
+                  It stays in your browser and in any file you choose to
+                  save.
                 </p>
               </div>
 
@@ -1545,8 +1542,10 @@ export default function Home() {
               </div>
 
               <p className="modalNotice">
-                This early GUI draft contains demonstration content only. The
-                clinical reasoning engine has not yet been connected.
+                Medicine can only be practiced by trained, licensed
+                physicians. This workspace does not provide medical advice —
+                consult primary sources before relying on any statement it
+                produces.
               </p>
             </div>
 

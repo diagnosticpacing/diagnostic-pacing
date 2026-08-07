@@ -2306,3 +2306,43 @@ source's aspect ratio is portrait rather than landscape (~0.57:1 vs.
 ~1.49:1) — now `width: 24px; height: 42px`. Matches the general
 preference this session for "simpler is better" once a fancier option
 was on the table.
+
+<!-- ABOUT-MODAL-COPY-AND-MOBILE-FIX-2026-08-06 -->
+## About Modal: Trimmed Copy, Legal Disclaimer, Mobile Lockout Fix (implemented 2026-08-06)
+
+Three touch-ups reported together: the free-forever and privacy
+callout had more explanation than needed, the "early GUI draft"
+disclaimer was stale (the differential engine has been real for a
+while now) and needed to say something legally meaningful instead, and
+the modal was unusable on mobile — the OK button was rendering below
+the visible viewport with no way to scroll to it, which matters a lot
+since this modal auto-opens on load and offers the only way to
+dismiss it.
+
+- `.modalPrivacyNotice`'s free-forever line dropped its "no account,
+  subscription, or paywall, now or planned" clause — just the bold
+  claim now. Its privacy line was cut from a three-clause explanation
+  down to one short sentence: "Case data never leaves your device. It
+  stays in your browser and in any file you choose to save."
+- `.modalNotice` (the amber callout at the bottom) no longer says
+  anything about GUI/draft status. It's now a plain-language medical
+  disclaimer: medicine can only be practiced by trained, licensed
+  physicians, this workspace doesn't provide medical advice, and
+  primary sources should be consulted before relying on anything it
+  produces. Kept the same amber "caution" styling — appropriate for a
+  disclaimer, unlike the green privacy notice above it.
+- **Mobile lockout root cause:** `.aboutModal` had no `max-height` and
+  no internal scroll region at all — just `width` and `overflow:
+  hidden`. On a short viewport, the card would simply render taller
+  than the screen, and `overflow: hidden` clips rather than scrolls,
+  so the bottom of the card (where the only dismiss button lives) was
+  literally unreachable. `.reportModal` already had the right pattern
+  (`display: flex; flex-direction: column; max-height: 85vh` with an
+  internally-scrolling body) — applied the same fix here:
+  `.aboutModal` now caps at `85vh` and is a flex column;
+  `.modalHeader`/`.modalFooter` get `flex: 0 0 auto` so they can never
+  be squeezed; `.modalBody` gets `flex: 1; min-height: 0; overflow-y:
+  auto` so it's the one thing that scrolls when the card's content
+  (which grows over time as sections get added, like this one) doesn't
+  fit. Same fixed-header/scrollable-body/fixed-footer recipe already
+  used for the maneuver cards' scrollbar fix earlier this session.
