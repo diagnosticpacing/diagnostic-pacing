@@ -2529,3 +2529,71 @@ consequence.
   files shows only the one known pre-existing `react-hooks/purity`
   finding in `app/page.tsx`'s `addClinicalState` (`Date.now()` during
   render), unrelated to this change and already present before it.
+
+<!-- STATE-TAG-STANDARDIZE-2026-08-08 -->
+## Standardized Clinical State Tag: Text + Style (implemented 2026-08-08)
+
+The compact Clinical State tag (`formatClinicalStateTag` /
+`formatRefractoryPeriodStateTag`) appears in three places — Refractory
+Period panel findings, maneuver card performed-history chips, and
+maneuver card per-finding rows — and had drifted into three different
+visual treatments over separate sessions: a plain cyan label with no
+pill, a bordered pill that recolored to green when it belonged to the
+active Clinical State, and a bold uppercase label that also recolored
+by active state. The user asked for one standardized appearance
+everywhere, with exact tag text.
+
+The tag is derived from two axes of `ClinicalStateContext`: ablation
+phase (`Pre-ABL` when `phase === "Pre-ablation"`; `Post-ABL` when
+`phase` is `"Post-ablation"` or `"Post-ablation 2"` — collapsed
+together, same bucketing as before) and isoproterenol status (`Iso-On`
+when `isoproterenol` has a non-blank dose entered; `Iso-Off` when
+blank), joined as `"Pre-ABL · Iso-On"`. This is unchanged logic — only
+the label text and hyphenation are new (was `"Pre"`/`"Post"`/`"Iso
+on"`/`"Iso off"`).
+
+Two design questions were asked via AskUserQuestion before
+implementing, since both had real layout/behavior implications across
+three files:
+- **Combined vs. split tags** — keep phase + iso as one joined pill
+  (`"Pre-ABL · Iso-On"`), or split into two independent pills. User
+  chose combined — closest to the existing layout.
+- **Active-state color** — keep the existing behavior where the tag
+  recolors (to green) when it belongs to the active Clinical State, or
+  give the tag a single fixed color always and signal "active" some
+  other way. User chose fixed color always.
+
+Changes:
+- `app/clinical/model.ts`: extracted `clinicalStateAblationTag(phase)`
+  and `clinicalStateIsoTag(isoproterenol)` as named, individually
+  exported functions (previously an inline private
+  `clinicalStateTagPhaseBucket` plus an inline ternary) returning the
+  new `ClinicalStateAblationTag`/`ClinicalStateIsoTag` literal types.
+  `formatClinicalStateTag` composes them unchanged in shape, just with
+  the new text.
+- `app/globals.css`: `.refractoryPeriodFindingTag`, `.maneuverHistoryTag`,
+  and `.maneuverFindingTag` now share an identical pill treatment —
+  `border-radius: 999px`, cyan border/background/text
+  (`rgba(91, 214, 220, ...)` / `var(--cyan)`), `font-size: 8.5px`,
+  `font-weight: 700`, `letter-spacing: 0.02em` — fixed regardless of
+  active state. `.maneuverFindingTag` also lost its `text-transform:
+  uppercase` (the other two were never uppercase) and its own
+  active/inactive color swap, since `.maneuverFindingRow.isActiveState`
+  already highlights the whole row via border/background — no
+  redundant per-tag signal needed there. `.maneuverHistoryTag`, which
+  has no equivalent row-level highlight of its own, keeps an
+  `.isActiveState` modifier but changed it to `box-shadow: 0 0 0 1px
+  var(--green)` — a ring around the pill — instead of recoloring the
+  pill's border/background/text, per the user's answer.
+  `.maneuverFindingRow`'s `align-items` changed from `baseline` to
+  `center` so the now-padded pill sits centered against the finding
+  text instead of hanging off its text baseline.
+- No JSX changes needed in `app/page.tsx` or
+  `app/maneuvers/ManeuverCard.tsx` — all three call sites already just
+  render whatever `formatClinicalStateTag`/`formatRefractoryPeriodStateTag`
+  returns inside their existing `className`, so the text and style
+  changes took effect purely from the `model.ts` and `globals.css`
+  edits.
+- Verification: `npx tsc --noEmit` clean; `npx eslint` on touched files
+  shows only the same pre-existing, unrelated `react-hooks/purity`
+  finding noted in the section above.

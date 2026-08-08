@@ -341,33 +341,53 @@ export function clinicalStateSummary(context: ClinicalStateContext): string {
   ].join(" · ");
 }
 
+/** The two fixed tag strings for ablation phase — see
+ * formatClinicalStateTag below for the standardized vocabulary these
+ * belong to. */
+export type ClinicalStateAblationTag = "Pre-ABL" | "Post-ABL";
+
+/** The two fixed tag strings for isoproterenol status — see
+ * formatClinicalStateTag below. */
+export type ClinicalStateIsoTag = "Iso-On" | "Iso-Off";
+
 /**
  * Phase collapsed to just two buckets — deliberately coarser than the
  * Phase field itself (Pre-ablation / Post-ablation / Post-ablation 2),
  * and a distinct, narrowly-scoped abbreviation from clinicalStateSummary
  * above (which spells Phase out in full on purpose — see
  * CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04). Folding Post-ablation 2
- * into "Post" is the intended behavior here, not a compromise.
+ * into "Post-ABL" is the intended behavior here, not a compromise.
  */
-function clinicalStateTagPhaseBucket(phase: Phase): "Pre" | "Post" {
-  return phase === "Pre-ablation" ? "Pre" : "Post";
+export function clinicalStateAblationTag(phase: Phase): ClinicalStateAblationTag {
+  return phase === "Pre-ablation" ? "Pre-ABL" : "Post-ABL";
+}
+
+/** Whether isoproterenol is running, tagged as "Iso-On"/"Iso-Off" — any
+ * non-blank dose counts as on, regardless of the actual value entered. */
+export function clinicalStateIsoTag(isoproterenol: string): ClinicalStateIsoTag {
+  return isoproterenol.trim() ? "Iso-On" : "Iso-Off";
 }
 
 /**
- * The compact per-finding state tag — e.g. "Pre · Iso off" — used
+ * The compact per-finding state tag — e.g. "Pre-ABL · Iso-On" — used
  * anywhere a result needs to say which Clinical State produced it
  * without repeating the full context: originally built for the
  * Refractory Periods panel (REFRACTORY-PERIODS-TWO-ROW-2026-08-05,
  * where it lived as formatRefractoryPeriodStateTag before moving here)
  * and reused as-is for Maneuver Card findings
  * (MANEUVER-CARD-REDESIGN-2026-08-05). Limited to exactly two axes by
- * design: ablation phase (Pre/Post) and isoproterenol (on/off) — the two
- * things that actually change how a recorded result should be read.
- * Rhythm, sedation, and the other drug fields are left out on purpose,
- * same scoping decision clinicalStateSummary() makes above.
+ * design: ablation phase (Pre-ABL/Post-ABL) and isoproterenol
+ * (Iso-On/Iso-Off) — the two things that actually change how a recorded
+ * result should be read. Rhythm, sedation, and the other drug fields
+ * are left out on purpose, same scoping decision clinicalStateSummary()
+ * makes above. This exact text and a single shared pill style
+ * (.refractoryPeriodFindingTag / .maneuverHistoryTag /
+ * .maneuverFindingTag in globals.css) is the standardized form of this
+ * tag everywhere it's rendered — see
+ * STATE-TAG-STANDARDIZE-2026-08-08 in PROJECT_DESIGN.md.
  */
 export function formatClinicalStateTag(context: ClinicalStateContext): string {
-  const phase = clinicalStateTagPhaseBucket(context.phase);
-  const iso = context.isoproterenol.trim() ? "Iso on" : "Iso off";
+  const phase = clinicalStateAblationTag(context.phase);
+  const iso = clinicalStateIsoTag(context.isoproterenol);
   return `${phase} · ${iso}`;
 }
