@@ -1118,6 +1118,71 @@ button {
 }
 
 /*
+ * Secondary/ghost button treatments — used alongside .modalOkButton in
+ * modals that offer more than one real choice (currently just
+ * .contextChangeModal below) instead of a single dismiss action.
+ * Descending emphasis: filled cyan (.modalOkButton, the default/
+ * recommended action) -> bordered neutral (.modalSecondaryButton, a
+ * real but non-default choice) -> borderless text (.modalGhostButton,
+ * "never mind").
+ */
+.modalSecondaryButton {
+  min-height: 46px;
+  padding: 0 22px;
+  border: 1px solid var(--strong-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.modalSecondaryButton:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.modalGhostButton {
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalGhostButton:hover {
+  color: var(--text);
+}
+
+/*
+ * The "you're about to change context on a state with findings already
+ * recorded" prompt — see CONTEXT-CHANGE-PROMPT-2026-08-08. Narrower
+ * than .aboutModal/.reportModal since it's just two short paragraphs
+ * and three buttons, not a scrolling document.
+ */
+.contextChangeModal {
+  display: flex;
+  width: min(460px, 100%);
+  max-height: 85vh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--strong-border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
+.contextChangeModalFooter {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/*
  * Report modal — a plain-text case summary (app/report/generate.ts) the
  * user can copy or print. Unlike the About modal, this one is a
  * transient, deliberately-triggered dialog rather than a landing page,

@@ -289,6 +289,30 @@ export function upsertPerformance(
   return { ...clinicalState, performances };
 }
 
+/**
+ * Whether a Clinical State already has anything worth protecting from a
+ * context change made against it by mistake — a recorded interval
+ * measurement, or a maneuver performance with at least one non-blank
+ * value entered. Used to decide whether changing Phase, Rhythm,
+ * Sedation, Isoproterenol, Adenosine, or Epinephrin on the active
+ * Clinical State should prompt for a new Clinical State instead of
+ * silently rewriting the context a recorded finding was read under —
+ * see CONTEXT-CHANGE-PROMPT-2026-08-08. Blank-valued performances
+ * (a maneuver card opened and left with nothing entered) don't count,
+ * matching how performances only get committed in the first place —
+ * see the lastCommittedValuesRef guard in ManeuverCard.tsx.
+ */
+export function clinicalStateHasFindings(clinicalState: ClinicalState): boolean {
+  const hasMeasurement = Object.values(clinicalState.measurements).some(
+    (value) => value.trim() !== "",
+  );
+  if (hasMeasurement) return true;
+
+  return clinicalState.performances.some((performance) =>
+    Object.values(performance.values).some((value) => value.trim() !== ""),
+  );
+}
+
 export function createInitialCase(): CaseRecord {
   return {
     id: "case-1",

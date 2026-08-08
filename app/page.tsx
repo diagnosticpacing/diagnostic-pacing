@@ -11,6 +11,7 @@ import Link from "next/link";
 import {
   abbreviateAblationModality,
   ablationModalityOptions,
+  clinicalStateHasFindings,
   clinicalStateSummary,
   createAblationSession,
   createClinicalState,
@@ -61,6 +62,34 @@ const DIFFERENTIAL_STATUS_LABEL: Record<DifferentialStatus, string> = {
 };
 
 type RailId = "clinicalStates" | "differentialDiagnosis";
+
+// The six ClinicalStateContext fields that describe what a state *is* —
+// changing any of them mid-case can retroactively mislabel whatever's
+// already been recorded under the old context, so they're the ones
+// gated by the "start a new state?" prompt (CONTEXT-CHANGE-PROMPT-2026-08-08).
+// Rhythm is included even though it also switches which measurement
+// fields are shown — a stale field's value would otherwise silently
+// survive into the new Rhythm's context under the same state.
+type GuardedContextField = keyof ClinicalStateContext;
+
+// A context change caught mid-flight by the prompt, holding what's
+// needed to either apply it to the current state or spin off a new one.
+// `alreadyApplied` distinguishes the two kinds of field this fires for:
+// the three <select> fields (Phase/Rhythm/Sedation) are intercepted
+// before the value is written anywhere, so `false`; the three free-text
+// dose fields (Isoproterenol/Adenosine/Epinephrin) write to context live
+// on every keystroke for a responsive typing feel, so by the time the
+// prompt can fire (on blur, comparing against the value captured on
+// focus) the edit is already sitting in the active state's context —
+// `true` — and resolving the prompt has to account for that instead of
+// applying it fresh.
+type PendingContextChange = {
+  key: GuardedContextField;
+  label: string;
+  previousValue: string;
+  nextValue: string;
+  alreadyApplied: boolean;
+};
 
 // Nudged up from 190 per Murph's request — a little more prominent on
 // first load, still fully adjustable (and still remembered per-rail via
@@ -115,6 +144,14 @@ function abbreviateClinicalStateLabel(
   );
   const abbreviation = match?.abbreviatedName?.trim();
   return abbreviation ? abbreviation : value;
+}
+
+/** Display form for a context value inside the change-state prompt —
+ * dose fields (Isoproterenol/Adenosine/Epinephrin) are often blank,
+ * which would otherwise render as an empty, confusing pair of quote
+ * marks in the prompt's sentence. */
+function formatContextChangeValue(value: string): string {
+  return value.trim() || "(blank)";
 }
 
 function Panel({
@@ -173,6 +210,22 @@ export default function Home() {
   );
   const [stateChanges, setStateChanges] = useState<string[]>([]);
 
+  // A context change (Phase/Rhythm/Sedation/Isoproterenol/Adenosine/
+  // Epinephrin) waiting on the "start a new state?" prompt — see
+  // requestContextChange/handleContextFieldBlur/resolvePendingContextChange
+  // below and CONTEXT-CHANGE-PROMPT-2026-08-08 in PROJECT_DESIGN.md.
+  const [pendingContextChange, setPendingContextChange] =
+    useState<PendingContextChange | null>(null);
+
+  // What Isoproterenol/Adenosine/Epinephrin read the moment they were
+  // focused, captured so their onBlur handler can tell whether the user
+  // actually changed anything (these fields write to context live on
+  // every keystroke, so there's no other "before" value left to compare
+  // against by the time blur fires).
+  const contextFieldBaselineRef = useRef<
+    Partial<Record<GuardedContextField, string>>
+  >({});
+
   const [maneuverCatalog, setManeuverCatalog] = useState<
     ManeuverCatalogEntry[]
   >([]);
@@ -230,6 +283,14 @@ export default function Home() {
   // caseRecord.ablationSessions.map below) without tripping the
   // react-hooks/purity rule the way an impure clock read would.
   const ablationSessionCounterRef = useRef(caseRecord.ablationSessions.length);
+
+  // Same reasoning as ablationSessionCounterRef above, for Clinical
+  // State ids — addClinicalState and appendClinicalStateFrom (the
+  // context-change prompt's "start a new state" resolution) both used
+  // to read Date.now() directly, which is exactly the impure-during-
+  // render pattern react-hooks/purity flags; a plain counter sidesteps
+  // it the same way.
+  const clinicalStateCounterRef = useRef(caseRecord.clinicalStates.length);
 
   // Which ablation session is currently expanded for editing — null
   // means "whichever is last" (see activeAblationSessionIndex below),
@@ -570,6 +631,163 @@ export default function Home() {
     logStateChange(label, String(value));
   }
 
+  /**
+   * Spins off a new Clinical State carrying `pendingKey: nextValue` plus
+   * every other field of `baseContext` unchanged — the "start a new
+   * state" resolution of the context-change prompt, and also what
+   * addClinicalState's NEW button used to do more narrowly (phase +
+   * sedation only). Appends and switches to it in a single setCaseRecord
+   * call so it can't race with a same-tick revert of the field on the
+   * outgoing state (see resolvePendingContextChange's "already applied"
+   * branch below).
+   */
+  function appendClinicalStateFrom(
+    baseContext: ClinicalStateContext,
+    pendingKey: GuardedContextField,
+    nextValue: string,
+  ) {
+    const nextNumber = caseRecord.clinicalStates.length + 1;
+    clinicalStateCounterRef.current += 1;
+    const id = `clinical-state-${clinicalStateCounterRef.current}`;
+    const nextState = createClinicalState(id, {
+      ...baseContext,
+      [pendingKey]: nextValue,
+    } as ClinicalStateContext);
+
+    setCaseRecord((current) => ({
+      ...current,
+      clinicalStates: [...current.clinicalStates, nextState],
+    }));
+    setActiveClinicalStateId(id);
+    logStateChange("Clinical state", `Added state ${nextNumber}`);
+  }
+
+  /**
+   * Entry point for the three <select> context fields (Phase/Rhythm/
+   * Sedation). Nothing has been written anywhere yet at this point — if
+   * the active state has no findings recorded, or the value didn't
+   * actually change, this applies immediately exactly like before the
+   * prompt existed. Only opens the prompt (and defers applying the
+   * change until it's resolved) when there's something on the active
+   * state the change could retroactively mislabel.
+   */
+  function requestContextChange<K extends GuardedContextField>(
+    key: K,
+    nextValue: ClinicalStateContext[K],
+    label: string,
+  ) {
+    const previousValue = activeClinicalState.context[key];
+    if (previousValue === nextValue) return;
+
+    if (!clinicalStateHasFindings(activeClinicalState)) {
+      updateContext(key, nextValue, label);
+      return;
+    }
+
+    setPendingContextChange({
+      key,
+      label,
+      previousValue: String(previousValue),
+      nextValue: String(nextValue),
+      alreadyApplied: false,
+    });
+  }
+
+  /**
+   * Entry point for the three free-text dose fields (Isoproterenol/
+   * Adenosine/Epinephrin), called on blur. Unlike the selects above,
+   * these already wrote the new value into the active state's context
+   * on every keystroke (kept from before the prompt existed, for a
+   * responsive typing feel) — so by the time this fires the edit is
+   * already applied, and the prompt (if it opens) has to account for
+   * that rather than apply it fresh. `clinicalStateHasFindings` only
+   * looks at measurements/performances, never at these three fields, so
+   * checking it after the live edit is still checking the right thing.
+   */
+  function handleContextFieldBlur(
+    key: "isoproterenol" | "adenosine" | "epinephrin",
+    label: string,
+  ) {
+    const previousValue = contextFieldBaselineRef.current[key] ?? "";
+    const nextValue = activeClinicalState.context[key];
+    if (nextValue === previousValue) return;
+
+    if (!clinicalStateHasFindings(activeClinicalState)) {
+      logStateChange(label, nextValue);
+      return;
+    }
+
+    setPendingContextChange({
+      key,
+      label,
+      previousValue,
+      nextValue,
+      alreadyApplied: true,
+    });
+  }
+
+  /** Resolves whichever prompt requestContextChange/handleContextFieldBlur
+   * opened. See PendingContextChange's doc comment for what
+   * `alreadyApplied` distinguishes. */
+  function resolvePendingContextChange(
+    action: "new-state" | "keep-here" | "cancel",
+  ) {
+    const pending = pendingContextChange;
+    if (!pending) return;
+    setPendingContextChange(null);
+
+    if (action === "cancel") {
+      // Only the already-applied (text field) case has anything to
+      // revert — the select case never wrote its new value anywhere.
+      if (pending.alreadyApplied) {
+        updateActiveClinicalState((current) => ({
+          ...current,
+          context: { ...current.context, [pending.key]: pending.previousValue },
+        }));
+      }
+      return;
+    }
+
+    if (action === "keep-here") {
+      if (pending.alreadyApplied) {
+        logStateChange(pending.label, pending.nextValue);
+      } else {
+        updateContext(
+          pending.key,
+          pending.nextValue as ClinicalStateContext[typeof pending.key],
+          pending.label,
+        );
+      }
+      return;
+    }
+
+    // action === "new-state": the new state should carry forward every
+    // other field of the state the change came from, so it reads as
+    // "everything the same except the one thing that changed." For the
+    // already-applied case, that means reverting the live edit on the
+    // outgoing state back to its baseline in the very same
+    // setCaseRecord call that appends the new state (see
+    // appendClinicalStateFrom) — otherwise the outgoing state would be
+    // left showing the new value too, as if it happened in both places.
+    const baseContext = pending.alreadyApplied
+      ? { ...activeClinicalState.context, [pending.key]: pending.previousValue }
+      : activeClinicalState.context;
+
+    if (pending.alreadyApplied) {
+      updateActiveClinicalState((current) => ({
+        ...current,
+        context: { ...current.context, [pending.key]: pending.previousValue },
+      }));
+    }
+
+    appendClinicalStateFrom(
+      baseContext as ClinicalStateContext,
+      pending.key,
+      pending.nextValue,
+    );
+    logStateChange(pending.label, pending.nextValue);
+  }
+
   function updateMeasurement(
     measurementId: string,
     value: string,
@@ -588,7 +806,8 @@ export default function Home() {
 
   function addClinicalState() {
     const nextNumber = caseRecord.clinicalStates.length + 1;
-    const id = `clinical-state-${Date.now()}`;
+    clinicalStateCounterRef.current += 1;
+    const id = `clinical-state-${clinicalStateCounterRef.current}`;
     const nextState = createClinicalState(id, {
       phase: activeClinicalState.context.phase,
       sedation: activeClinicalState.context.sedation,
@@ -880,7 +1099,7 @@ export default function Home() {
               id="phase"
               value={activeClinicalState.context.phase}
               onChange={(event) =>
-                updateContext(
+                requestContextChange(
                   "phase",
                   event.target.value as ClinicalStateContext["phase"],
                   "Phase",
@@ -899,7 +1118,7 @@ export default function Home() {
               id="rhythm"
               value={activeClinicalState.context.rhythm}
               onChange={(event) =>
-                updateContext(
+                requestContextChange(
                   "rhythm",
                   event.target.value as ClinicalStateContext["rhythm"],
                   "Rhythm",
@@ -918,7 +1137,7 @@ export default function Home() {
               id="sedation"
               value={activeClinicalState.context.sedation}
               onChange={(event) =>
-                updateContext(
+                requestContextChange(
                   "sedation",
                   event.target.value as ClinicalStateContext["sedation"],
                   "Sedation",
@@ -937,6 +1156,9 @@ export default function Home() {
               id="isoproterenol"
               inputMode="decimal"
               value={activeClinicalState.context.isoproterenol}
+              onFocus={(event) => {
+                contextFieldBaselineRef.current.isoproterenol = event.target.value;
+              }}
               onChange={(event) =>
                 updateActiveClinicalState((current) => ({
                   ...current,
@@ -946,9 +1168,7 @@ export default function Home() {
                   },
                 }))
               }
-              onBlur={(event) =>
-                logStateChange("Isoproterenol", event.target.value)
-              }
+              onBlur={() => handleContextFieldBlur("isoproterenol", "Isoproterenol")}
               aria-label="Isoproterenol value"
             />
           </div>
@@ -959,6 +1179,9 @@ export default function Home() {
               id="adenosine"
               inputMode="decimal"
               value={activeClinicalState.context.adenosine}
+              onFocus={(event) => {
+                contextFieldBaselineRef.current.adenosine = event.target.value;
+              }}
               onChange={(event) =>
                 updateActiveClinicalState((current) => ({
                   ...current,
@@ -968,9 +1191,7 @@ export default function Home() {
                   },
                 }))
               }
-              onBlur={(event) =>
-                logStateChange("Adenosine", event.target.value)
-              }
+              onBlur={() => handleContextFieldBlur("adenosine", "Adenosine")}
               aria-label="Adenosine value"
             />
           </div>
@@ -981,6 +1202,9 @@ export default function Home() {
               id="epinephrin"
               inputMode="decimal"
               value={activeClinicalState.context.epinephrin}
+              onFocus={(event) => {
+                contextFieldBaselineRef.current.epinephrin = event.target.value;
+              }}
               onChange={(event) =>
                 updateActiveClinicalState((current) => ({
                   ...current,
@@ -990,9 +1214,7 @@ export default function Home() {
                   },
                 }))
               }
-              onBlur={(event) =>
-                logStateChange("Epinephrin", event.target.value)
-              }
+              onBlur={() => handleContextFieldBlur("epinephrin", "Epinephrin")}
               aria-label="Epinephrin value"
             />
           </div>
@@ -1632,6 +1854,70 @@ export default function Home() {
                 type="button"
               >
                 Print
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pendingContextChange ? (
+        <div
+          className="modalBackdrop"
+          role="presentation"
+          onMouseDown={() => resolvePendingContextChange("cancel")}
+        >
+          <section
+            aria-labelledby="context-change-title"
+            aria-modal="true"
+            className="contextChangeModal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modalHeader">
+              <div>
+                <h2 id="context-change-title">
+                  Change {pendingContextChange.label}?
+                </h2>
+              </div>
+            </header>
+
+            <div className="modalBody">
+              <p>
+                This Clinical State already has findings recorded under
+                its current context. Changing {pendingContextChange.label}{" "}
+                from &ldquo;{formatContextChangeValue(pendingContextChange.previousValue)}
+                &rdquo; to &ldquo;{formatContextChangeValue(pendingContextChange.nextValue)}
+                &rdquo; here would apply to everything already recorded in
+                this state, including results captured under the old
+                value.
+              </p>
+              <p>
+                Start a new Clinical State with this change instead, or
+                apply it to the current state anyway?
+              </p>
+            </div>
+
+            <div className="modalFooter contextChangeModalFooter">
+              <button
+                className="modalOkButton"
+                onClick={() => resolvePendingContextChange("new-state")}
+                type="button"
+              >
+                Start new state
+              </button>
+              <button
+                className="modalSecondaryButton"
+                onClick={() => resolvePendingContextChange("keep-here")}
+                type="button"
+              >
+                Change this state
+              </button>
+              <button
+                className="modalGhostButton"
+                onClick={() => resolvePendingContextChange("cancel")}
+                type="button"
+              >
+                Cancel
               </button>
             </div>
           </section>
