@@ -1754,17 +1754,19 @@ button {
 }
 
 /*
- * Ablation — shares .effectiveRefractoryPeriodCard's grid/box treatment
- * verbatim (165px header column via .intervalsHeading, same margin/
- * border/background/shadow) so it lines up with Intervals/Refractory
- * Periods/Active Clinical State. Unlike those, this card is a single
- * line and stays a single line no matter how many ablation sessions
- * exist — nowrap plus horizontal scroll, never a second row. That's a
- * deliberate exception to this app's usual "expand vertically rather
- * than clip, hide, or scroll" rule (see .stateToolbarRow above): here
- * the user explicitly wants the opposite guarantee, so scroll is the
- * only fallback left once a run of collapsed session badges plus the
- * active entry fields no longer fit.
+ * Ablation Details — as of ABLATION-AS-PHASE-2026-08-08, this content
+ * lives inside a plain .clinicalMeasurementRow (the same row that shows
+ * Intervals the rest of the time), swapped in when the active Clinical
+ * State's Phase is "Ablation" — no dedicated card/section of its own
+ * anymore, so it inherits .clinicalMeasurementRow's grid/box treatment
+ * rather than needing its own. Unlike a typical Intervals row, this
+ * content is a single line and stays a single line no matter how many
+ * ablation sessions exist — nowrap plus horizontal scroll, never a
+ * second row. That's a deliberate exception to this app's usual "expand
+ * vertically rather than clip, hide, or scroll" rule (see
+ * .stateToolbarRow above): here the user explicitly wants the opposite
+ * guarantee, so scroll is the only fallback left once a run of
+ * collapsed session badges plus the active entry fields no longer fit.
  */
 .ablationRow {
   display: flex;

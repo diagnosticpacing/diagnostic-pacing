@@ -582,6 +582,13 @@ export default function Home() {
   const activeWorkspace =
     workspaceConfigurations[activeClinicalState.context.rhythm];
 
+  // While the Ablation phase is active, the Intervals section is replaced
+  // by Ablation Details (see the ablationRow JSX below) — a case's
+  // ablation sessions aren't tied to any one Rhythm, so this is keyed off
+  // Phase directly rather than being another per-Rhythm workspace
+  // configuration entry. See ABLATION-AS-PHASE-2026-08-08.
+  const isAblationPhase = activeClinicalState.context.phase === "Ablation";
+
   const enteredMeasurementCount = (
     clinicalState: (typeof caseRecord.clinicalStates)[number],
   ) => {
@@ -1228,67 +1235,209 @@ export default function Home() {
           </div>
         </div>
 
-        {activeWorkspace.sections.map((section) => (
-          <div className="clinicalMeasurementRow" key={section.id}>
+        {isAblationPhase ? (
+          <div className="clinicalMeasurementRow">
             <div className="intervalsHeading">
-              <span>{section.title}</span>
+              <span>Ablation Details</span>
             </div>
 
-            <div
-              className="clinicalMeasurementFields"
-              style={{
-                gridTemplateColumns: `repeat(${section.fields.length}, minmax(120px, 1fr))`,
-              }}
-            >
-              {section.fields.map((field) => {
-                return (
-                  <div
-                    className="toolbarField intervalField"
-                    key={field.id}
-                  >
-                    <label htmlFor={`measurement-${field.id}`}>
-                      {field.label}
-                    </label>
+            <div className="ablationRow">
+              {caseRecord.ablationSessions.map((session, index) => {
+                const isActive = index === activeAblationSessionIndex;
 
-                    <div className="unitInput">
+                if (!isActive) {
+                  return (
+                    <div
+                      className="ablationSessionBadge"
+                      key={session.id}
+                      title={summarizeAblationSession(session)}
+                    >
+                      <button
+                        className="ablationSessionBadgeLabel"
+                        onClick={() => setActiveAblationSessionId(session.id)}
+                        type="button"
+                      >
+                        ABL Session {index + 1}
+                      </button>
+                      <button
+                        aria-label={`Remove ABL Session ${index + 1}`}
+                        className="ablationSessionRemove"
+                        onClick={() => removeAblationSession(index)}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="ablationActiveFields" key={session.id}>
+                    <div className="ablationField ablationModalityField">
+                      <span className="ablationFieldLabel">Modality</span>
+                      <div className="ablationModalityToggles" role="group" aria-label="Modality">
+                        {ablationModalityOptions.map((modality) => {
+                          const selected = session.modalities.includes(modality);
+                          return (
+                            <button
+                              aria-pressed={selected}
+                              className={
+                                selected
+                                  ? "ablationModalityToggle active"
+                                  : "ablationModalityToggle"
+                              }
+                              key={modality}
+                              onClick={() => toggleAblationModality(index, modality)}
+                              title={modality}
+                              type="button"
+                            >
+                              {abbreviateAblationModality(modality)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="ablationField ablationLocationField">
+                      <span className="ablationFieldLabel">Location</span>
                       <input
-                        id={`measurement-${field.id}`}
-                        inputMode="decimal"
-                        value={
-                          activeClinicalState.measurements[field.id] ?? ""
+                        aria-label="Ablation location"
+                        onBlur={(event) =>
+                          logStateChange("Ablation location", event.target.value)
                         }
                         onChange={(event) =>
-                          updateActiveClinicalState((current) => ({
+                          updateAblationSession(index, (current) => ({
                             ...current,
-                            measurements: {
-                              ...current.measurements,
-                              [field.id]: event.target.value,
-                            },
+                            location: event.target.value,
                           }))
                         }
-                        onBlur={(event) =>
-                          updateMeasurement(
-                            field.id,
-                            event.target.value,
-                            field.label,
-                          )
-                        }
-                        aria-label={`${field.label} in milliseconds`}
+                        value={session.location}
                       />
-                      <span>{field.unit}</span>
+                    </div>
+
+                    <div className="ablationField ablationCountField">
+                      <span className="ablationFieldLabel"># Ablations</span>
+                      <input
+                        aria-label="Number of ablations"
+                        inputMode="numeric"
+                        onBlur={(event) =>
+                          logStateChange("Number of ablations", event.target.value)
+                        }
+                        onChange={(event) =>
+                          updateAblationSession(index, (current) => ({
+                            ...current,
+                            count: event.target.value,
+                          }))
+                        }
+                        value={session.count}
+                      />
+                    </div>
+
+                    <div className="ablationField">
+                      <span className="ablationFieldLabel">Duration</span>
+                      <div className="unitInput ablationDurationInput">
+                        <input
+                          aria-label="Ablation duration in seconds"
+                          inputMode="numeric"
+                          onBlur={(event) =>
+                            logStateChange("Ablation duration", event.target.value)
+                          }
+                          onChange={(event) =>
+                            updateAblationSession(index, (current) => ({
+                              ...current,
+                              durationSeconds: event.target.value,
+                            }))
+                          }
+                          value={session.durationSeconds}
+                        />
+                        <span>s</span>
+                      </div>
                     </div>
                   </div>
                 );
               })}
+
+              <button
+                aria-label="Start new ablation session"
+                className="ablationAddButton"
+                disabled={!hasAblationSessionData(lastAblationSession)}
+                onClick={addAblationSession}
+                title={
+                  hasAblationSessionData(lastAblationSession)
+                    ? "Start a new ablation session"
+                    : "Fill in at least one field before starting a new session"
+                }
+                type="button"
+              >
+                +
+              </button>
             </div>
           </div>
-        ))}
+        ) : (
+          <>
+            {activeWorkspace.sections.map((section) => (
+              <div className="clinicalMeasurementRow" key={section.id}>
+                <div className="intervalsHeading">
+                  <span>{section.title}</span>
+                </div>
 
-        {activeWorkspace.sections.length === 0 && (
-          <div className="clinicalWorkspacePlaceholder">
-            <strong>{activeClinicalState.context.rhythm}</strong>
-            <p>{activeWorkspace.placeholder}</p>
-          </div>
+                <div
+                  className="clinicalMeasurementFields"
+                  style={{
+                    gridTemplateColumns: `repeat(${section.fields.length}, minmax(120px, 1fr))`,
+                  }}
+                >
+                  {section.fields.map((field) => {
+                    return (
+                      <div
+                        className="toolbarField intervalField"
+                        key={field.id}
+                      >
+                        <label htmlFor={`measurement-${field.id}`}>
+                          {field.label}
+                        </label>
+
+                        <div className="unitInput">
+                          <input
+                            id={`measurement-${field.id}`}
+                            inputMode="decimal"
+                            value={
+                              activeClinicalState.measurements[field.id] ?? ""
+                            }
+                            onChange={(event) =>
+                              updateActiveClinicalState((current) => ({
+                                ...current,
+                                measurements: {
+                                  ...current.measurements,
+                                  [field.id]: event.target.value,
+                                },
+                              }))
+                            }
+                            onBlur={(event) =>
+                              updateMeasurement(
+                                field.id,
+                                event.target.value,
+                                field.label,
+                              )
+                            }
+                            aria-label={`${field.label} in milliseconds`}
+                          />
+                          <span>{field.unit}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {activeWorkspace.sections.length === 0 && (
+              <div className="clinicalWorkspacePlaceholder">
+                <strong>{activeClinicalState.context.rhythm}</strong>
+                <p>{activeWorkspace.placeholder}</p>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -1372,157 +1521,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="effectiveRefractoryPeriodCard ablationCard" aria-label="Ablation">
-        <div className="intervalsHeading">
-          <span>Ablation</span>
-        </div>
-
-        <div className="ablationRow">
-          {caseRecord.ablationSessions.map((session, index) => {
-            const isActive = index === activeAblationSessionIndex;
-
-            if (!isActive) {
-              return (
-                <div
-                  className="ablationSessionBadge"
-                  key={session.id}
-                  title={summarizeAblationSession(session)}
-                >
-                  <button
-                    className="ablationSessionBadgeLabel"
-                    onClick={() => setActiveAblationSessionId(session.id)}
-                    type="button"
-                  >
-                    ABL Session {index + 1}
-                  </button>
-                  <button
-                    aria-label={`Remove ABL Session ${index + 1}`}
-                    className="ablationSessionRemove"
-                    onClick={() => removeAblationSession(index)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            }
-
-            return (
-              <div className="ablationActiveFields" key={session.id}>
-                <div className="ablationField ablationModalityField">
-                  <span className="ablationFieldLabel">Modality</span>
-                  <div className="ablationModalityToggles" role="group" aria-label="Modality">
-                    {ablationModalityOptions.map((modality) => {
-                      const selected = session.modalities.includes(modality);
-                      return (
-                        <button
-                          aria-pressed={selected}
-                          className={
-                            selected
-                              ? "ablationModalityToggle active"
-                              : "ablationModalityToggle"
-                          }
-                          key={modality}
-                          onClick={() => toggleAblationModality(index, modality)}
-                          title={modality}
-                          type="button"
-                        >
-                          {abbreviateAblationModality(modality)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="ablationField ablationLocationField">
-                  <span className="ablationFieldLabel">Location</span>
-                  <input
-                    aria-label="Ablation location"
-                    onBlur={(event) =>
-                      logStateChange("Ablation location", event.target.value)
-                    }
-                    onChange={(event) =>
-                      updateAblationSession(index, (current) => ({
-                        ...current,
-                        location: event.target.value,
-                      }))
-                    }
-                    value={session.location}
-                  />
-                </div>
-
-                <div className="ablationField ablationCountField">
-                  <span className="ablationFieldLabel"># Ablations</span>
-                  <input
-                    aria-label="Number of ablations"
-                    inputMode="numeric"
-                    onBlur={(event) =>
-                      logStateChange("Number of ablations", event.target.value)
-                    }
-                    onChange={(event) =>
-                      updateAblationSession(index, (current) => ({
-                        ...current,
-                        count: event.target.value,
-                      }))
-                    }
-                    value={session.count}
-                  />
-                </div>
-
-                <div className="ablationField">
-                  <span className="ablationFieldLabel">Duration</span>
-                  <div className="unitInput ablationDurationInput">
-                    <input
-                      aria-label="Ablation duration in seconds"
-                      inputMode="numeric"
-                      onBlur={(event) =>
-                        logStateChange("Ablation duration", event.target.value)
-                      }
-                      onChange={(event) =>
-                        updateAblationSession(index, (current) => ({
-                          ...current,
-                          durationSeconds: event.target.value,
-                        }))
-                      }
-                      value={session.durationSeconds}
-                    />
-                    <span>s</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          <button
-            aria-label="Start new ablation session"
-            className="ablationAddButton"
-            disabled={!hasAblationSessionData(lastAblationSession)}
-            onClick={addAblationSession}
-            title={
-              hasAblationSessionData(lastAblationSession)
-                ? "Start a new ablation session"
-                : "Fill in at least one field before starting a new session"
-            }
-            type="button"
-          >
-            +
-          </button>
-        </div>
-      </section>
-
       <section className="workspace">
 
 
         <Panel className="maneuverPanel" eyebrow="Pacing maneuvers" title="">
-          <p className="maneuverGridSubhead">
-            Ordered by relevance to the current differential — no separate
-            &ldquo;already performed&rdquo; section, since a maneuver can
-            become relevant again under a different Clinical State. Every
-            card shows findings from every clinical state it&rsquo;s been
-            recorded under, with <strong>{activeClinicalStateSummary}</strong>{" "}
-            highlighted.
-          </p>
-
           {maneuverCatalogStatus === "loading" && (
             <p className="maneuverCatalogStatus">Loading maneuvers…</p>
           )}

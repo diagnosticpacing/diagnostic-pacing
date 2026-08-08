@@ -1,5 +1,6 @@
 export const phaseOptions = [
   "Pre-ablation",
+  "Ablation",
   "Post-ablation",
   "Post-ablation 2",
 ] as const;
@@ -401,14 +402,21 @@ export type ClinicalStateIsoTag = "Iso-On" | "Iso-Off";
 
 /**
  * Phase collapsed to just two buckets — deliberately coarser than the
- * Phase field itself (Pre-ablation / Post-ablation / Post-ablation 2),
- * and a distinct, narrowly-scoped abbreviation from clinicalStateSummary
- * above (which spells Phase out in full on purpose — see
- * CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04). Folding Post-ablation 2
- * into "Post-ABL" is the intended behavior here, not a compromise.
+ * Phase field itself (Pre-ablation / Ablation / Post-ablation /
+ * Post-ablation 2), and a distinct, narrowly-scoped abbreviation from
+ * clinicalStateSummary above (which spells Phase out in full on purpose
+ * — see CLINICAL-STATE-COMPACT-SUMMARY-2026-08-04). Folding Post-ablation
+ * 2 into "Post-ABL" is the intended behavior here, not a compromise.
+ * "Ablation" itself (the phase used while lesions are actively being
+ * made — see ABLATION-AS-PHASE-2026-08-08) buckets as "Pre-ABL": the
+ * ablation isn't complete yet, so anything recorded during that phase
+ * should read the same as pre-ablation findings until the case is
+ * explicitly moved to a Post-ablation phase.
  */
 export function clinicalStateAblationTag(phase: Phase): ClinicalStateAblationTag {
-  return phase === "Pre-ablation" ? "Pre-ABL" : "Post-ABL";
+  return phase === "Post-ablation" || phase === "Post-ablation 2"
+    ? "Post-ABL"
+    : "Pre-ABL";
 }
 
 /** Whether isoproterenol is running, tagged as "Iso-On"/"Iso-Off" — any

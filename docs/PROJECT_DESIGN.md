@@ -2959,3 +2959,93 @@ lowercase string-comparison consumer of it, an unrelated CSS class name
 historical prose in this document.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ABLATION-AS-PHASE-2026-08-08 -->
+## Ablation Folded Into Phase + Pacing Maneuvers Subhead Removed (implemented 2026-08-08)
+
+Two changes, requested together.
+
+**Pacing Maneuvers subhead removed.** The explanatory paragraph under
+the "Pacing maneuvers" panel eyebrow ("Ordered by relevance to the
+current differential — no separate 'already performed' section...")
+is gone from `app/page.tsx`. `activeClinicalStateSummary` (the value it
+used to interpolate) is still used elsewhere on the page, so nothing
+else needed to change.
+
+**Ablation is now a Phase value, not its own section.** Previously
+ablation sessions (Modality/Location/#Ablations/Duration) lived in a
+permanently-visible standalone card between Refractory Periods and
+Pacing Maneuvers. Per Murph's request, that card is gone; `"Ablation"`
+was added to `phaseOptions` in `app/clinical/model.ts` (ordered
+`Pre-ablation, Ablation, Post-ablation, Post-ablation 2`, matching
+chronological workflow), and the Active Clinical State's Intervals row
+now conditionally renders as **Ablation Details** instead of the normal
+per-Rhythm interval fields whenever the active state's Phase is
+`"Ablation"`:
+
+- `app/page.tsx` computes `isAblationPhase = activeClinicalState.context.phase === "Ablation"`
+  right where `activeWorkspace` is derived (Phase and Rhythm are
+  independent context fields, so this is its own boolean rather than
+  another per-Rhythm `workspaceConfigurations` entry). The
+  `.clinicalMeasurementRow` block that used to unconditionally map
+  `activeWorkspace.sections` now branches: `isAblationPhase` renders one
+  `.clinicalMeasurementRow` with an "Ablation Details" heading and the
+  exact same `.ablationRow` session markup (badges for collapsed
+  sessions, live fields for the active one, the `+` add button) that the
+  old standalone section used verbatim, byte-for-byte — same state
+  (`caseRecord.ablationSessions`, `activeAblationSessionId`), same
+  handlers (`updateAblationSession`, `toggleAblationModality`,
+  `addAblationSession`, `removeAblationSession`), same CSS classes.
+  Otherwise it falls back to the original per-Rhythm Intervals rendering
+  unchanged. This means switching Phase to/from Ablation on the active
+  Clinical State is the only thing that swaps the view — Rhythm keeps
+  driving which interval fields show up the rest of the time.
+- The standalone `<section className="effectiveRefractoryPeriodCard
+  ablationCard" aria-label="Ablation">` between Refractory Periods and
+  the maneuver grid is deleted outright. `.ablationCard` was already a
+  no-op class (nothing in `globals.css` ever selected on it — the shared
+  look came entirely from `.effectiveRefractoryPeriodCard`), so no CSS
+  rule needed removing, only the JSX. `.ablationRow` and its descendant
+  classes (`.ablationSessionBadge`, `.ablationField`,
+  `.ablationModalityToggle`, etc.) were already self-contained — none
+  were scoped under a `.ablationCard`/`.effectiveRefractoryPeriodCard`
+  parent selector — so they needed no CSS changes to keep working once
+  relocated into `.clinicalMeasurementRow`, which uses the identical
+  `165px minmax(0, 1fr)` two-column grid `.effectiveRefractoryPeriodCard`
+  did. The explanatory comment above `.ablationRow` was rewritten to
+  describe the new context instead of the old standalone card.
+- **Ablation-phase tag bucketing.** The existing Pre-ABL/Post-ABL tag
+  system (`clinicalStateAblationTag` in `clinical/model.ts`) only ever
+  had two phase buckets; adding a third raw Phase value needed a
+  decision about where it falls. Chose: `"Ablation"` buckets as
+  `"Pre-ABL"` — the ablation isn't complete until the case is moved to
+  a Post-ablation phase, so anything recorded while `"Ablation"` is
+  active should read the same as pre-ablation findings. Implemented by
+  flipping the function to explicit Post-ablation checks
+  (`phase === "Post-ablation" || phase === "Post-ablation 2" ? "Post-ABL" : "Pre-ABL"`)
+  rather than the old explicit Pre-ablation check, so it doesn't need to
+  keep enumerating every non-Post value by name if more phases are ever
+  added. `app/report/generate.ts`'s parallel `isPreAblation()` helper
+  (used to bucket Clinical States into the report's "Pre-Ablation
+  Measurements" vs. "Post-Ablation Measurements" sections) was updated
+  the same way, for the same reason, to stay consistent with the tag
+  logic. Ablation session data itself still isn't wired into the
+  generated report — unchanged, pre-existing scope gap, not something
+  this task touched.
+- **Tutorial**: the Walkthrough's separate "Ablation" step (which
+  targeted the now-deleted `[aria-label="Ablation"]`) is gone. Its
+  content was folded into the existing "Intervals" step (retitled
+  "Intervals / Ablation Details", same `.clinicalMeasurementRow`
+  target), which now also explains the Phase-triggered swap — keeping
+  two separate steps pointing at the same DOM element would have shown
+  stale/misleading content depending on whichever Phase happened to be
+  active when the tour ran.
+- No fixed-enum validation of `phase` exists in `app/case/persistence.ts`
+  (Save/Open case round-trips `context` as a loosely-typed object), so
+  the new option needed no changes there. `phaseOptions` itself is the
+  only place Phase's allowed values are enumerated in code.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+`npx next build` couldn't be run to completion in this sandbox (missing
+SWC binary for linux/arm64 — a pre-existing environment limitation, not
+caused by this change).

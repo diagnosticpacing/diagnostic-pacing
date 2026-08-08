@@ -47,19 +47,14 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: ".stateToolbarRow",
   },
   {
-    title: "Intervals",
-    body: "Enter observed interval measurements here — which fields appear depends on the active state's Rhythm. These feed straight into the Refractory Periods panel and the differential diagnosis engine.",
+    title: "Intervals / Ablation Details",
+    body: "Enter observed interval measurements here — which fields appear depends on the active state's Rhythm. Set Phase to Ablation and this area switches to Ablation Details instead, for logging modality, location, count, and duration; a new session can be started once the current one has at least one field filled in, and earlier sessions collapse to a small badge you can reopen anytime. Interval values feed straight into the Refractory Periods panel and the differential diagnosis engine.",
     target: ".clinicalMeasurementRow",
   },
   {
     title: "Refractory Periods",
     body: "Not entered directly — these are maneuver results tagged as refractory periods in the knowledge base, collected here automatically and split into Antegrade and Retrograde, across every Clinical State they were recorded under.",
     target: '[aria-label="Refractory Periods"]',
-  },
-  {
-    title: "Ablation",
-    body: "Log each ablation application here — modality, location, count, and duration. A new session can be started once the current one has at least one field filled in; earlier sessions collapse to a small badge you can reopen anytime.",
-    target: '[aria-label="Ablation"]',
   },
   {
     title: "Pacing Maneuvers",

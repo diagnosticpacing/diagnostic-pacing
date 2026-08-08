@@ -12,8 +12,12 @@ const isIsoOn = (state: ClinicalState) => state.context.isoproterenol.trim() !==
 // Post-ablation and Post-ablation 2 are both "post" for report purposes —
 // same two-bucket simplification the Refractory Periods panel's state tag
 // already uses (see CLINICAL-STATE-CARD-WRAP-AND-ABBREVIATION-2026-08-04 /
-// REFRACTORY-PERIODS-TWO-ROW-2026-08-05 in PROJECT_DESIGN.md).
-const isPreAblation = (state: ClinicalState) => state.context.phase === "Pre-ablation";
+// REFRACTORY-PERIODS-TWO-ROW-2026-08-05 in PROJECT_DESIGN.md). The
+// "Ablation" phase (lesions actively being made) buckets as "pre" too,
+// mirroring clinicalStateAblationTag in clinical/model.ts — see
+// ABLATION-AS-PHASE-2026-08-08.
+const isPreAblation = (state: ClinicalState) =>
+  state.context.phase !== "Post-ablation" && state.context.phase !== "Post-ablation 2";
 
 /** Every non-blank measurement recorded for a Clinical State, labeled
  * against whichever Rhythm's field set it was recorded under. */
