@@ -1680,26 +1680,61 @@ button {
 
 /*
  * Standardized Clinical State tag ("Pre-ABL · Iso-On", etc.) — shared
- * pill treatment across every place this tag appears (Refractory
- * Period findings, maneuver card history, maneuver card findings — see
- * STATE-TAG-STANDARDIZE-2026-08-08 in PROJECT_DESIGN.md). Fixed cyan
- * always, deliberately not recolored to signal "active state" — that's
- * a separate concern each container already indicates its own way
+ * neutral pill treatment across every place this tag appears
+ * (Refractory Period findings, maneuver card history, maneuver card
+ * findings — see STATE-TAG-STANDARDIZE-2026-08-08 and
+ * STATE-TAG-COLOR-2026-08-08 in PROJECT_DESIGN.md). The pill itself is
+ * neutral now — color lives on the two inner segments below
+ * (.stateTagPhase/.stateTagIso, rendered via ClinicalStateTagText), one
+ * fixed identity color per one of the four possible values, so each
+ * reads as a stable, memorable color rather than sharing one flat
+ * color across all four. Active-state highlighting is a separate
+ * concern layered on top of this neutral pill, never a color swap of
+ * the tag's own content — each container indicates it its own way
  * (.maneuverFindingRow.isActiveState background/border,
- * .maneuverHistoryTag.isActiveState ring below).
+ * .maneuverHistoryTag.isActiveState ring below) — and deliberately
+ * never uses green, which is reserved exclusively for that highlight
+ * so it can't also mean one of the four tag identities.
  */
 .refractoryPeriodFindingTag {
   display: inline-block;
   align-self: flex-start;
   padding: 2px 7px;
-  border: 1px solid rgba(91, 214, 220, 0.35);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(91, 214, 220, 0.1);
-  color: var(--cyan);
+  background: rgba(255, 255, 255, 0.035);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+/*
+ * The four fixed tag-identity colors, chosen from the existing palette
+ * (never green — see the doc comment above): the two Phase values use
+ * the "cool" pair (cyan/violet), the two Iso values use the "warm"
+ * pair (amber/red), so the two axes are visually distinguishable from
+ * each other at a glance in addition to each value being distinguishable
+ * within its own axis.
+ */
+.stateTagPhase.isPre {
+  color: var(--cyan);
+}
+
+.stateTagPhase.isPost {
+  color: var(--violet);
+}
+
+.stateTagIso.isOn {
+  color: var(--red);
+}
+
+.stateTagIso.isOff {
+  color: var(--amber);
+}
+
+.stateTagDivider {
+  color: var(--quiet);
 }
 
 /*
@@ -4303,16 +4338,17 @@ button.adminTableHeader.isSorted {
 }
 
 /* Same standardized Clinical State tag treatment as
- * .refractoryPeriodFindingTag — see STATE-TAG-STANDARDIZE-2026-08-08.
- * Active state gets a green ring around the pill, not a recolor of
- * the pill itself, so the tag's own color stays fixed everywhere. */
+ * .refractoryPeriodFindingTag — see STATE-TAG-STANDARDIZE-2026-08-08
+ * and STATE-TAG-COLOR-2026-08-08. Neutral pill, colored inner segments
+ * (.stateTagPhase/.stateTagIso). Active state gets a green ring around
+ * the pill, not a recolor of the pill or its content — green is
+ * reserved for that ring alone. */
 .maneuverHistoryTag {
   display: inline-block;
   padding: 2px 7px;
-  border: 1px solid rgba(91, 214, 220, 0.35);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(91, 214, 220, 0.1);
-  color: var(--cyan);
+  background: rgba(255, 255, 255, 0.035);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -4367,17 +4403,17 @@ button.adminTableHeader.isSorted {
 }
 
 /* Same standardized Clinical State tag treatment as
- * .refractoryPeriodFindingTag — see STATE-TAG-STANDARDIZE-2026-08-08.
+ * .refractoryPeriodFindingTag — see STATE-TAG-STANDARDIZE-2026-08-08
+ * and STATE-TAG-COLOR-2026-08-08. Neutral pill, colored inner segments.
  * No active-state variant needed here: the row itself already carries
  * the active highlight via .maneuverFindingRow.isActiveState above. */
 .maneuverFindingTag {
   display: inline-block;
   flex: 0 0 auto;
   padding: 2px 7px;
-  border: 1px solid rgba(91, 214, 220, 0.35);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(91, 214, 220, 0.1);
-  color: var(--cyan);
+  background: rgba(255, 255, 255, 0.035);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.02em;

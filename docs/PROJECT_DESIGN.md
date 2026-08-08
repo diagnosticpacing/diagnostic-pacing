@@ -2682,3 +2682,62 @@ just build and let the user react to.
 - Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
   clean (zero findings, including the previously-noted pre-existing
   one — see above).
+
+<!-- STATE-TAG-COLOR-2026-08-08 -->
+## Clinical State Tag: Per-Value Colors, Active Highlight Kept (implemented 2026-08-08)
+
+Revisits STATE-TAG-STANDARDIZE-2026-08-08 from earlier the same day.
+That pass gave the tag one fixed color (cyan) everywhere and kept
+"active state" as a separate highlight (ring or row background) rather
+than a color swap, per the user's answer to the AskUserQuestion asked
+at the time. The user has now asked for the opposite trade on the
+*identity* side while keeping the *active* side unchanged: each of the
+four possible tag values (Pre-ABL, Post-ABL, Iso-On, Iso-Off) should
+have its own distinct color from the existing style guide, and the
+active-state highlight should still be there.
+
+Color assignments, deliberately excluding `--green` (reserved
+exclusively for the active-state highlight everywhere it already
+appears — `.maneuverHistoryTag.isActiveState`'s ring,
+`.maneuverFindingRow.isActiveState`'s row background — so green can't
+mean two different things in the same view):
+- Pre-ABL — `--cyan` (kept from the prior single-color pass, so the
+  most-common/baseline value didn't change).
+- Post-ABL — `--violet`.
+- Iso-On — `--red`.
+- Iso-Off — `--amber`.
+
+The Phase axis (Pre-ABL/Post-ABL) uses the "cool" pair (cyan/violet)
+and the Iso axis (Iso-On/Iso-Off) uses the "warm" pair (amber/red), so
+the two axes read as visually distinct groups in addition to each of
+the four individual values being distinguishable. This exact mapping
+was a judgment call, not something the user specified value-by-value —
+flagging in case any of the four should be swapped.
+
+- New `app/clinical/ClinicalStateTagText.tsx`: a small presentational
+  component that takes the already-formatted tag string (e.g.
+  "Pre-ABL · Iso-On") and splits it on `" · "` into two independently
+  colored `<span>`s, rather than taking a `ClinicalStateContext`
+  directly. This was the key design choice that kept the change
+  minimal — `RefractoryPeriodFinding.stateTag` only ever carried the
+  formatted string, not the context it came from, so parsing the
+  string back apart (safe, since the format is entirely ours and only
+  ever has two fixed possible values per slot) avoided touching that
+  type or `refractoryPeriods/knowledge.ts` at all. All three render
+  sites (`app/page.tsx`'s two Refractory Period finding lists,
+  `app/maneuvers/ManeuverCard.tsx`'s history chips and finding rows)
+  now render `<ClinicalStateTagText tag={...} />` instead of the raw
+  string, with no other JSX restructuring.
+- `app/globals.css`: `.refractoryPeriodFindingTag`, `.maneuverHistoryTag`,
+  and `.maneuverFindingTag` dropped their fixed cyan
+  border/background/color in favor of a neutral pill (`var(--border)` /
+  a faint white wash) — color now lives entirely on the new
+  `.stateTagPhase.isPre`/`.isPost` and `.stateTagIso.isOn`/`.isOff`
+  rules. `.maneuverHistoryTag.isActiveState`'s green ring and
+  `.maneuverFindingRow.isActiveState`'s green-tinted row background are
+  unchanged — still the only place green appears on this tag.
+- `app/clinical/model.ts`: `formatClinicalStateTag`'s doc comment
+  updated to point at `ClinicalStateTagText` instead of the
+  now-inaccurate "single shared pill style" description.
+- Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
+  clean.

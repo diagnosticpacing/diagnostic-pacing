@@ -12,6 +12,7 @@ import {
   type ClinicalState,
   type ManeuverPerformance,
 } from "../clinical/model";
+import ClinicalStateTagText from "../clinical/ClinicalStateTagText";
 import {
   REFRACTORY_PERIOD_COMPONENT_COUNT,
   refractoryPeriodComponentKey,
@@ -429,7 +430,7 @@ export default function ManeuverCard({
                       key={clinicalState.id}
                       title={`Recorded — ${tag}`}
                     >
-                      {tag}
+                      <ClinicalStateTagText tag={tag} />
                     </span>
                   );
                 })
@@ -455,7 +456,9 @@ export default function ManeuverCard({
                     key={clinicalState.id}
                   >
                     <span className="maneuverFindingTag">
-                      {formatClinicalStateTag(clinicalState.context)}
+                      <ClinicalStateTagText
+                        tag={formatClinicalStateTag(clinicalState.context)}
+                      />
                     </span>
                     <span className="maneuverFindingText">
                       {summarizePerformance(entry, performance)}

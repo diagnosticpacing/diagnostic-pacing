@@ -27,6 +27,7 @@ import {
   type AblationModality,
   type ClinicalStateContext,
 } from "./clinical/model";
+import ClinicalStateTagText from "./clinical/ClinicalStateTagText";
 import {
   buildManeuverCatalog,
   scoreManeuverRelevance,
@@ -1322,7 +1323,7 @@ export default function Home() {
                     <span className="refractoryPeriodFindingUnit">ms</span>
                   </span>
                   <span className="refractoryPeriodFindingTag">
-                    {finding.stateTag}
+                    <ClinicalStateTagText tag={finding.stateTag} />
                   </span>
                 </div>
               ))}
@@ -1355,7 +1356,7 @@ export default function Home() {
                     <span className="refractoryPeriodFindingUnit">ms</span>
                   </span>
                   <span className="refractoryPeriodFindingTag">
-                    {finding.stateTag}
+                    <ClinicalStateTagText tag={finding.stateTag} />
                   </span>
                 </div>
               ))}

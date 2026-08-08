@@ -404,11 +404,10 @@ export function clinicalStateIsoTag(isoproterenol: string): ClinicalStateIsoTag 
  * (Iso-On/Iso-Off) — the two things that actually change how a recorded
  * result should be read. Rhythm, sedation, and the other drug fields
  * are left out on purpose, same scoping decision clinicalStateSummary()
- * makes above. This exact text and a single shared pill style
- * (.refractoryPeriodFindingTag / .maneuverHistoryTag /
- * .maneuverFindingTag in globals.css) is the standardized form of this
- * tag everywhere it's rendered — see
- * STATE-TAG-STANDARDIZE-2026-08-08 in PROJECT_DESIGN.md.
+ * makes above. This exact text, split on " · " and rendered through
+ * ClinicalStateTagText, is the standardized form of this tag everywhere
+ * it's rendered — see STATE-TAG-STANDARDIZE-2026-08-08 and
+ * STATE-TAG-COLOR-2026-08-08 in PROJECT_DESIGN.md.
  */
 export function formatClinicalStateTag(context: ClinicalStateContext): string {
   const phase = clinicalStateAblationTag(context.phase);
