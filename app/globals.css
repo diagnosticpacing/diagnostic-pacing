@@ -156,6 +156,27 @@ button {
   color: var(--text);
 }
 
+/* Same treatment as .aboutButton — a separate class rather than
+ * reusing it directly, since the two buttons open unrelated things and
+ * may want to diverge in style later (see TUTORIAL-WALKTHROUGH-2026-08-08). */
+.walkthroughButton {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.walkthroughButton:hover {
+  border-color: rgba(91, 214, 220, 0.34);
+  background: rgba(91, 214, 220, 0.08);
+  color: var(--text);
+}
+
 .topActions {
   justify-content: flex-end;
   gap: 9px;
@@ -1317,7 +1338,8 @@ button {
     white-space: normal;
   }
 
-  .aboutButton {
+  .aboutButton,
+  .walkthroughButton {
     display: none;
   }
 
@@ -4893,4 +4915,109 @@ button.adminTableHeader.isSorted {
 .adminDeleteCell button:disabled {
   cursor: not-allowed;
   opacity: 0.28;
+}
+
+/*
+ * Guided Walkthrough overlay (app/tutorial/Tutorial.tsx) — see
+ * TUTORIAL-WALKTHROUGH-2026-08-08. Three stacked pieces:
+ * .tutorialBlocker (full-viewport, click-blocking always, and — only
+ * on the no-target welcome/closing steps — the dim background itself),
+ * .tutorialSpotlight (the oversized-box-shadow cutout around the
+ * current step's target, rendered only when one exists — the box's own
+ * box-shadow paints the dim everywhere except its own rect, which is
+ * why .tutorialBlocker's background goes transparent whenever this is
+ * present, to avoid double-dimming the cutout itself), and
+ * .tutorialCard (the narration plus Back/Next/Skip controls). z-index
+ * sits above everything else in the app, including modals
+ * (.modalBackdrop is 100) — opening the tutorial always closes
+ * About/Report first, but the stacking order should stay safe even if
+ * that guard is ever removed.
+ */
+.tutorialBlocker {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+}
+
+.tutorialSpotlight {
+  position: fixed;
+  z-index: 401;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 9999px rgba(2, 8, 12, 0.78),
+    0 0 0 2px var(--cyan),
+    0 0 26px rgba(91, 214, 220, 0.35);
+  pointer-events: none;
+  transition:
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease;
+}
+
+.tutorialCard {
+  position: fixed;
+  z-index: 402;
+  width: min(320px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid var(--strong-border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
+.tutorialCardProgress {
+  margin-bottom: 6px;
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tutorialCardTitle {
+  margin: 0 0 8px;
+  color: var(--violet);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.tutorialCardBody {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.tutorialCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tutorialCardNav {
+  display: flex;
+  gap: 8px;
+}
+
+.tutorialCardNav .modalSecondaryButton,
+.tutorialCardNav .modalOkButton {
+  min-height: 34px;
+  padding: 0 16px;
+  font-size: 11.5px;
+}
+
+.tutorialSkipButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--quiet);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tutorialSkipButton:hover {
+  color: var(--text);
 }

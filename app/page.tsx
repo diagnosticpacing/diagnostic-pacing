@@ -49,6 +49,7 @@ import {
 import { generateCaseReport } from "./report/generate";
 import { exportCaseRecord, importCaseRecordFromFile } from "./case/persistence";
 import type { SheetId, SpreadsheetRow } from "./admin/model";
+import Tutorial from "./tutorial/Tutorial";
 
 // Display-only relabeling of the differential engine's internal status
 // values — "Possible" reads as "Included" on the cards, since a diagnosis
@@ -207,6 +208,11 @@ export default function Home() {
   const [reportCopyState, setReportCopyState] = useState<
     "idle" | "copied" | "error"
   >("idle");
+
+  // Manual-open only — unlike aboutOpen, this never auto-opens on load.
+  // Opening it closes About/Report so the tutorial's full-screen overlay
+  // is never stacked on top of another modal.
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [caseRecord, setCaseRecord] = useState(createInitialCase);
   const [activeClinicalStateId, setActiveClinicalStateId] = useState(
     "clinical-state-1",
@@ -847,6 +853,18 @@ export default function Home() {
             type="button"
           >
             About
+          </button>
+
+          <button
+            className="walkthroughButton"
+            onClick={() => {
+              setAboutOpen(false);
+              setReportOpen(false);
+              setTutorialOpen(true);
+            }}
+            type="button"
+          >
+            Walkthrough
           </button>
         </div>
 
@@ -1926,6 +1944,10 @@ export default function Home() {
           <span>GUI draft v1</span>
         </div>
       </footer>
+
+      {tutorialOpen ? (
+        <Tutorial onClose={() => setTutorialOpen(false)} />
+      ) : null}
     </main>
   );
 }

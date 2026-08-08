@@ -2803,3 +2803,105 @@ should carry the Phase/Iso information the old field grid used to.
   `.clinicalStateCardCycleLength`.
 - Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
   clean.
+
+<!-- TUTORIAL-WALKTHROUGH-2026-08-08 -->
+## Guided Walkthrough Tutorial (implemented 2026-08-08)
+
+A new "Walkthrough" button next to About opens a full-screen guided
+tour: one section of the GUI spotlighted at a time, in a fixed
+sequence, each with a short explanation and Back/Next/Skip controls.
+Manual-open only (no auto-open on load, unlike About) — purely a
+button-triggered reference tour, per the request.
+
+- New `app/tutorial/Tutorial.tsx`, self-contained: `TUTORIAL_STEPS` is
+  an array of `{ title, body, target }`, where `target` is a plain CSS
+  selector (or `null` for the centered opening/closing stops) resolved
+  fresh via `document.querySelector` on every step change. A selector
+  was chosen over refs deliberately — the eleven stops span several
+  independently-defined page.tsx sections plus `ManeuverCard`
+  instances, and threading a ref through all of them would have been
+  far more invasive than a handful of existing, already-unique class
+  names / aria-labels the elements already carry.
+- Spotlight technique: the classic oversized `box-shadow`
+  trick — `.tutorialSpotlight` is a small `position: fixed` box sized
+  to the target's `getBoundingClientRect()` (plus 8px padding), with
+  `box-shadow: 0 0 0 9999px rgba(2, 8, 12, 0.78)` painting the dim
+  everywhere *outside* its own rect, plus a cyan ring
+  (`0 0 0 2px var(--cyan)`) for definition. A separate full-viewport
+  `.tutorialBlocker` (`pointer-events: auto`, transparent whenever a
+  spotlight is present) sits underneath and does the actual click-
+  blocking across the *whole* viewport, including inside the
+  spotlighted rect — the box-shadow trick alone only affects paint, not
+  hit-testing, so without this second layer clicks inside the "hole"
+  would still reach the live page underneath it. The walkthrough is
+  therefore deliberately non-interactive: a narrated tour, not a
+  "try it live" one, so there's no risk of a tour step accidentally
+  editing real case data. `.tutorialBlocker`'s own background only
+  paints the dim color on the two `target: null` steps, where there's
+  no spotlight box to derive the dimming from otherwise.
+- Positioning: `computeCardPosition()` picks whichever side (below /
+  above / right / left of the target) has the most room in the current
+  viewport, then clamps the result to stay fully on-screen with a 16px
+  margin. Card size is measured via a ref in a `useLayoutEffect` (after
+  the card has rendered at its natural size, so variable-length body
+  text is accounted for) rather than assumed, keyed on both `rect` and
+  `stepIndex` so it re-runs on every step. Runs synchronously before
+  paint to avoid a visible flash at the wrong position.
+- Live tracking: the target's rect is re-measured on every
+  resize/scroll event (not just once per step), and each step change
+  triggers one `scrollIntoView({ behavior: "smooth", block: "center" })`
+  call on the target — needed for plain-document-flow sections
+  (Refractory Periods, Ablation, the maneuver grid, the state log)
+  that can be off-screen; a no-op for the two `position: fixed` side
+  rails and the sticky topbar fields, which are always already in
+  view. A missing target (e.g. the Intervals step, if the active
+  state's Rhythm happens to be AV Pacing, which has zero measurement
+  fields) degrades to a centered card with no spotlight rather than a
+  broken empty box.
+- Step selectors used: `.topActions`, `.clinicalStatesRail`,
+  `.stateToolbarRow`, `.clinicalMeasurementRow`,
+  `[aria-label="Refractory Periods"]`, `[aria-label="Ablation"]`,
+  `.maneuverPanel`, `.differentialDiagnosisRail`, `.stateLogPanel` —
+  all pre-existing, already-unique class names/aria-labels, so no
+  selector or markup changes were needed anywhere else in the app.
+- **Deliberately excluded from the tour, and worth flagging as a
+  separate finding**: while mapping out sections, found three pieces
+  of static/placeholder UI that don't actually do anything —
+  the "Evidence and reasoning" panel (`eyebrow="Current interpretation"`)
+  in `app/page.tsx`'s `.workspace` section, which renders a hardcoded
+  fake synthesis ("Typical AVNRT is favored...") with no binding to
+  live case data at all; the "Maneuver result entry" panel
+  (`eyebrow="Current finding"`) in `.lowerWorkspace`, whose only
+  content is a static empty-state and an "Enter manually" button with
+  no `onClick` handler; and the top half of the "Case timeline" panel
+  (`.timeline`, inside the same `eyebrow="Recorded steps"` Panel as
+  the real `.stateLogPanel`), which shows two hardcoded fake rows
+  ("Baseline observations" / "Retrograde activation review") unrelated
+  to the actual case. These all predate this session and were left
+  fully untouched — not a regression, not something this task was
+  asked to fix — but a tutorial step describing any of them as
+  functional would have been actively misleading, so the tour was
+  built to route around them instead (the real, live differential
+  output is the actual target of the Differential Diagnosis step; the
+  real, live audit trail is `.stateLogPanel` specifically, not the
+  whole "Recorded steps" panel). Worth wiring up or removing in a
+  future pass.
+- `app/page.tsx`: `tutorialOpen` state (manual-open only, no auto-open
+  effect like `aboutOpen` has). The Walkthrough button's `onClick`
+  closes About and Report first, so the tutorial's overlay is never
+  stacked on top of another modal.
+- `app/globals.css`: `.walkthroughButton` mirrors `.aboutButton`
+  exactly but as its own class (same reasoning as
+  `.modalSecondaryButton`/`.modalGhostButton` earlier this session —
+  visually identical today, free to diverge later since they open
+  unrelated things), hidden at the same mobile breakpoint
+  `.aboutButton` already was. New `.tutorialBlocker`
+  (z-index 400) / `.tutorialSpotlight` (401) / `.tutorialCard` (402) —
+  comfortably above `.modalBackdrop`'s z-index 100 and every rail/topbar
+  z-index in the app. `.tutorialCardNav` reuses `.modalSecondaryButton`/
+  `.modalOkButton` from the context-change prompt work earlier today,
+  sized down slightly for the more compact tutorial card.
+- Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
+  clean (including fixing two `react-hooks/exhaustive-deps` warnings
+  on the keyboard-shortcut effect by wrapping `goNext`/`goBack` in
+  `useCallback`).
