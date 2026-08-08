@@ -485,9 +485,16 @@ button {
   padding: 16px 24px 0;
 }
 
+/*
+ * Single column now — the "Maneuver result entry" panel that used to
+ * sit alongside Case timeline was static/dead placeholder content
+ * (Enter manually had no onClick) and was removed
+ * (MANEUVER-RESULT-ENTRY-REMOVED-2026-08-08); Case timeline (and the
+ * real, live State log inside it) is the only child left.
+ */
 .lowerWorkspace {
   display: grid;
-  grid-template-columns: 0.75fr 1.5fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding: 16px 24px 24px;
 }
@@ -552,15 +559,13 @@ button {
 }
 
 .diagnosisText h3,
-.evidenceList h3,
-.emptyState h3 {
+.evidenceList h3 {
   margin: 0;
   font-size: 12px;
 }
 
 .diagnosisText p,
 .evidenceList p,
-.emptyState p,
 .rationale p,
 .synthesis p,
 .safetyNotice p {
@@ -758,28 +763,6 @@ button {
   border: 1px solid rgba(240, 185, 106, 0.18);
   border-radius: 9px;
   background: rgba(240, 185, 106, 0.1);
-}
-
-.emptyState {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  min-height: 108px;
-  align-items: center;
-  gap: 13px;
-  padding: 15px;
-  border: 1px dashed var(--strong-border);
-  border-radius: 11px;
-}
-
-.emptyState > span {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(91, 214, 220, 0.1);
-  color: var(--cyan);
-  font-size: 20px;
 }
 
 .timeline {
@@ -4694,6 +4677,43 @@ button.adminTableHeader.isSorted {
   color: var(--text);
   font-size: 11px;
   font-weight: 700;
+}
+
+/*
+ * Yes/No Buttons input type — see the doc comment on its FieldControl
+ * branch in ManeuverCard.tsx. Same segmented-toggle visual language as
+ * .ablationModalityToggle, sized to match the other maneuver field
+ * controls (.maneuverField input/select) rather than the more compact
+ * ablation toggles.
+ */
+.maneuverFieldYesNo {
+  display: flex;
+  gap: 6px;
+}
+
+.maneuverFieldYesNoButton {
+  flex: 1 1 0;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.maneuverFieldYesNoButton:hover {
+  border-color: rgba(91, 214, 220, 0.5);
+  color: var(--text);
+}
+
+.maneuverFieldYesNoButton.isSelected {
+  border-color: rgba(91, 214, 220, 0.62);
+  background: rgba(91, 214, 220, 0.14);
+  color: var(--cyan);
+  font-weight: 800;
 }
 
 .maneuverFieldMultiSelect {

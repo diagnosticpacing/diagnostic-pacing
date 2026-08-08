@@ -2905,3 +2905,57 @@ button-triggered reference tour, per the request.
   clean (including fixing two `react-hooks/exhaustive-deps` warnings
   on the keyboard-shortcut effect by wrapping `goNext`/`goBack` in
   `useCallback`).
+
+<!-- MANEUVER-RESULT-ENTRY-REMOVED-2026-08-08 -->
+## Maneuver Result Entry Panel Removed + Yes/No Buttons Input Type (implemented 2026-08-08)
+
+Two related changes requested together: removing dead UI flagged during
+the Walkthrough tutorial work above, and adding a new admin-configurable
+input type the maneuver cards can use going forward.
+
+**Maneuver result entry panel removed.** The "Maneuver result entry"
+Panel (`eyebrow="Current finding"`) inside `.lowerWorkspace` — one of
+the three placeholder sections flagged as non-functional in
+`TUTORIAL-WALKTHROUGH-2026-08-08` above (static empty-state, "Enter
+manually" button with no `onClick`) — is now deleted from `app/page.tsx`
+entirely. Per explicit instruction, its sibling in the same
+`.lowerWorkspace` row, the "Case timeline" Panel (`eyebrow="Recorded
+steps"`, containing both the still-fake `.timeline` top half and the
+real, live `.stateLogPanel`), was left fully in place — both the
+synthesis/"Evidence and reasoning" panel elsewhere on the page and this
+Case timeline panel are earmarked to be wired up later, not removed now.
+`.lowerWorkspace`'s grid went from a two-column `0.75fr 1.5fr` split to
+a single `minmax(0, 1fr)` column now that Case timeline is the only
+child. Orphaned `.emptyState` CSS (the standalone block plus its two
+entries in shared selectors alongside `.diagnosisText`/`.evidenceList`)
+was removed from `globals.css`; confirmed via grep it no longer appears
+anywhere in the file.
+
+**Yes/No Buttons input type.** The Response Fields admin sheet's
+existing `inputType` column (`app/admin/model.ts`) gained a sixth
+option, `"Yes/No Buttons"`, alongside Checkbox/Single Select
+Dropdown/Multi Select Dropdown/Number Field/Text Field(s). Rendered in
+`ManeuverCard.tsx`'s `FieldControl` as two buttons, Yes and No
+(`.maneuverFieldYesNo` / `.maneuverFieldYesNoButton` in `globals.css`,
+visually matching the existing `.ablationModalityToggle` segmented-
+toggle language but sized to match the other maneuver field controls).
+The deliberate difference from Checkbox, spelled out in both the admin
+sheet's `modelUse` guidance text and a code comment on the
+`FieldControl` branch: Checkbox always starts unchecked, which is
+indistinguishable from an actual recorded "No" — Yes/No Buttons always
+starts with *neither* button selected (`value === ""`, unset until the
+field is first touched), so "not yet answered" stays visually distinct
+from "answered No" until the clinician actually clicks one. Clicking
+the already-selected button again clears it back to unset rather than
+forcing a permanent choice between only the two options, in case an
+entry was made by mistake.
+
+No second hardcoded list of input-type option strings exists anywhere
+else in the codebase — confirmed via a repo-wide grep for the other
+five option strings, which turned up only the admin sheet's own
+`options` array (the sole source of truth), `ManeuverCard.tsx`'s
+lowercase string-comparison consumer of it, an unrelated CSS class name
+(`.maneuverFieldCheckbox`) coincidentally containing "Checkbox", and
+historical prose in this document.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

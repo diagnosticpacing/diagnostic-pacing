@@ -112,6 +112,44 @@ function FieldControl({
     );
   }
 
+  // Unlike Checkbox above (which always starts unchecked — indistinguishable
+  // from an actual "No" answer), this always starts with neither button
+  // pressed: `value` is "" until the field is first touched (draftValues
+  // only ever holds what's actually been entered — see openEditor in
+  // ManeuverCard below), and clicking the already-selected button again
+  // clears it back to "" rather than forcing a choice between only Yes
+  // and No.
+  if (inputType === "yes/no buttons") {
+    return (
+      <div className="maneuverFieldYesNo" role="group" aria-label={field.prompt}>
+        <button
+          aria-pressed={value === "Yes"}
+          className={
+            value === "Yes"
+              ? "maneuverFieldYesNoButton isSelected"
+              : "maneuverFieldYesNoButton"
+          }
+          onClick={() => onChange(value === "Yes" ? "" : "Yes")}
+          type="button"
+        >
+          Yes
+        </button>
+        <button
+          aria-pressed={value === "No"}
+          className={
+            value === "No"
+              ? "maneuverFieldYesNoButton isSelected"
+              : "maneuverFieldYesNoButton"
+          }
+          onClick={() => onChange(value === "No" ? "" : "No")}
+          type="button"
+        >
+          No
+        </button>
+      </div>
+    );
+  }
+
   if (inputType === "single select dropdown") {
     return (
       <select

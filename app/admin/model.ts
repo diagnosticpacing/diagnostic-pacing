@@ -437,7 +437,8 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "inputType",
         label: "Input Type",
-        modelUse: "Determines which entry control is rendered for this field.",
+        modelUse:
+          "Determines which entry control is rendered for this field. Yes/No Buttons renders two buttons (Yes and No) rather than a single checkbox — unlike Checkbox, which always starts unchecked (indistinguishable from an answer of \"No\"), Yes/No Buttons always starts with neither pressed, so \"not yet answered\" stays visually distinct from an actual \"No\" until one is clicked.",
         width: "210px",
         required: true,
         options: [
@@ -446,6 +447,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
           "Multi Select Dropdown",
           "Number Field",
           "Text Field(s)",
+          "Yes/No Buttons",
         ],
       },
       {

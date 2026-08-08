@@ -1630,20 +1630,6 @@ export default function Home() {
       </section>
 
       <section className="lowerWorkspace">
-        <Panel eyebrow="Current finding" title="Maneuver result entry">
-          <div className="emptyState">
-            <span>+</span>
-            <div>
-              <h3>No active maneuver</h3>
-              <p>
-                Begin a maneuver to enter pacing parameters, observed responses,
-                and interpretation.
-              </p>
-            </div>
-            <button className="secondaryButton">Enter manually</button>
-          </div>
-        </Panel>
-
         <Panel eyebrow="Recorded steps" title="Case timeline">
           <div className="timeline">
             <div className="timelineHeader">
