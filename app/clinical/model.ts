@@ -302,6 +302,31 @@ export function upsertPerformance(
  * matching how performances only get committed in the first place —
  * see the lastCommittedValuesRef guard in ManeuverCard.tsx.
  */
+/**
+ * The tachycardia cycle length — the shorter of the AA and VV interval
+ * measurements, whichever is present (if only one was measured, that's
+ * the best available number; if both were, the shorter one is the
+ * actual cycle length). Used to headline Case Structure cards
+ * alongside "Tachycardia" — see CASE-STRUCTURE-CARD-REWORK-2026-08-08.
+ * "interval.aa"/"interval.vv" are the fixed field ids the Tachycardia
+ * workspace configuration always uses (see the `interval()` helper
+ * above) — hardcoded source, not admin-editable knowledge base data,
+ * so safe to reference directly here. Returns null if the state isn't
+ * Tachycardia at all, or neither field has a valid positive number
+ * entered yet.
+ */
+export function tachycardiaCycleLengthMs(clinicalState: ClinicalState): number | null {
+  if (clinicalState.context.rhythm !== "Tachycardia") return null;
+
+  const candidates = ["interval.aa", "interval.vv"]
+    .map((fieldId) =>
+      Number.parseFloat((clinicalState.measurements[fieldId] ?? "").trim()),
+    )
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return candidates.length > 0 ? Math.min(...candidates) : null;
+}
+
 export function clinicalStateHasFindings(clinicalState: ClinicalState): boolean {
   const hasMeasurement = Object.values(clinicalState.measurements).some(
     (value) => value.trim() !== "",

@@ -424,8 +424,8 @@ export default function ManeuverCard({
                     <span
                       className={
                         isActiveState
-                          ? "maneuverHistoryTag isActiveState"
-                          : "maneuverHistoryTag"
+                          ? "maneuverHistoryTag stateTagPill isActiveState"
+                          : "maneuverHistoryTag stateTagPill"
                       }
                       key={clinicalState.id}
                       title={`Recorded — ${tag}`}
@@ -455,7 +455,7 @@ export default function ManeuverCard({
                     }
                     key={clinicalState.id}
                   >
-                    <span className="maneuverFindingTag">
+                    <span className="maneuverFindingTag stateTagPill">
                       <ClinicalStateTagText
                         tag={formatClinicalStateTag(clinicalState.context)}
                       />

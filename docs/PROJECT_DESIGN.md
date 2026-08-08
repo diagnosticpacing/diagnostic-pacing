@@ -2741,3 +2741,65 @@ flagging in case any of the four should be swapped.
   now-inaccurate "single shared pill style" description.
 - Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
   clean.
+
+<!-- CASE-STRUCTURE-CARD-REWORK-2026-08-08 -->
+## Case Structure Card Rework: Rhythm+CL Title, Standardized Tag (implemented 2026-08-08)
+
+The Case Structure rail cards (`.clinicalStateCard`) showed Phase,
+Rhythm, and Iso as three equally-weighted fields in a row
+(EQUALIZE-CLINICAL-STATE-CARD-2026-08-04). The user asked to rework
+this now that the standardized Clinical State tag exists: Rhythm
+should become the card's headline, with cycle length appended when the
+state is Tachycardia, and the tag (Pre-ABL/Post-ABL · Iso-On/Iso-Off)
+should carry the Phase/Iso information the old field grid used to.
+
+- `app/clinical/model.ts`: added `tachycardiaCycleLengthMs(clinicalState)`
+  — the shorter of the `interval.aa`/`interval.vv` measurement values,
+  whichever is present (only one measured is still the best available
+  number; both measured, the shorter one is the true cycle length).
+  Returns `null` for any non-Tachycardia state or if neither field has
+  a valid positive number yet. The two field ids are the fixed ones
+  the Tachycardia `workspaceConfigurations` entry always uses (see the
+  `interval()` helper) — source-level constants, not admin-editable
+  knowledge base data, so safe to reference by literal string.
+- `app/page.tsx`: the old `.clinicalStateFields` three-column grid
+  (Phase/Rhythm/Iso) is gone. In its place: `.clinicalStateCardTitle`
+  holds the Rhythm name (still run through the existing
+  `abbreviateClinicalStateLabel` knowledge-base lookup, unchanged) at
+  a larger/bolder weight than anything else on the card, plus
+  `.clinicalStateCardCycleLength` ("CL 320 ms") right next to it when
+  `tachycardiaCycleLengthMs` returns non-null. Below that, a
+  `.clinicalStateCardTag` renders `<ClinicalStateTagText tag={...} />`
+  — the same colored Pre-ABL/Post-ABL · Iso-On/Iso-Off tag used
+  everywhere else in the app now, giving these cards the Phase/Iso
+  information the removed field grid used to carry, in the same visual
+  language as the maneuver cards and Refractory Periods panel.
+  Sedation was never shown here and still isn't — out of scope, not
+  requested.
+- Accepted tradeoff, flagged rather than silently absorbed: the old
+  Phase field showed the exact value (including the KB-abbreviated
+  distinction between "Post-ablation" and "Post-ablation 2") — the new
+  tag only shows the coarser Pre-ABL/Post-ABL bucket, same collapsing
+  `clinicalStateAblationTag` already applies everywhere else this tag
+  is used. This is the literal ask ("use this new tagging to express
+  ... information on the case structure cards"), not an oversight.
+- `app/globals.css`: introduced `.stateTagPill` as the shared base for
+  every property that was identical across all three existing tag
+  call sites (`.refractoryPeriodFindingTag`, `.maneuverHistoryTag`,
+  `.maneuverFindingTag`) plus the new fourth one
+  (`.clinicalStateCardTag`) — adding a fourth copy of the same nine
+  declarations was the trigger to finally do this refactor. Each
+  semantic class now only keeps what's genuinely specific to its own
+  layout context (`.refractoryPeriodFindingTag`/`.clinicalStateCardTag`:
+  `align-self: flex-start`; `.maneuverFindingTag`: `flex: 0 0 auto`;
+  `.maneuverHistoryTag`: nothing extra beyond its `.isActiveState`
+  ring) and is applied in JSX alongside `stateTagPill` in `className`.
+  Replaced the now-dead `.clinicalStateFields`/`.clinicalStateField`/
+  `.clinicalStateFieldLabel`/`.clinicalStateFieldValue` rules (the
+  cascade-winning copies only — the older, already-dead duplicate set
+  from an earlier full-rewrite pass was left alone, same
+  out-of-scope precedent as always) with
+  `.clinicalStateCardTitle`/`.clinicalStateCardRhythm`/
+  `.clinicalStateCardCycleLength`.
+- Verification: `npx tsc --noEmit` clean; `npx eslint app/` fully
+  clean.

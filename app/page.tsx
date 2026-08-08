@@ -17,11 +17,13 @@ import {
   createClinicalState,
   createInitialCase,
   findPerformance,
+  formatClinicalStateTag,
   hasAblationSessionData,
   phaseOptions,
   rhythmOptions,
   sedationOptions,
   summarizeAblationSession,
+  tachycardiaCycleLengthMs,
   upsertPerformance,
   workspaceConfigurations,
   type AblationModality,
@@ -915,6 +917,8 @@ export default function Home() {
         <div className="clinicalStateCards">
           {caseRecord.clinicalStates.map((clinicalState, index) => {
             const isActive = clinicalState.id === activeClinicalStateId;
+            const cycleLength = tachycardiaCycleLengthMs(clinicalState);
+            const stateTag = formatClinicalStateTag(clinicalState.context);
 
             return (
               <button
@@ -930,44 +934,29 @@ export default function Home() {
                   </span>
                 </div>
 
-                <div className="clinicalStateFields">
-                  <div className="clinicalStateField">
-                    <span className="clinicalStateFieldLabel">Phase</span>
-                    <span
-                      className="clinicalStateFieldValue"
-                      title={clinicalState.context.phase}
-                    >
-                      {abbreviateClinicalStateLabel(
-                        clinicalState.context.phase,
-                        knowledgeSheets.clinicalStates,
-                      )}
+                <div className="clinicalStateCardTitle">
+                  <span
+                    className="clinicalStateCardRhythm"
+                    title={clinicalState.context.rhythm}
+                  >
+                    {abbreviateClinicalStateLabel(
+                      clinicalState.context.rhythm,
+                      knowledgeSheets.clinicalStates,
+                    )}
+                  </span>
+                  {cycleLength !== null ? (
+                    <span className="clinicalStateCardCycleLength">
+                      CL {cycleLength} ms
                     </span>
-                  </div>
-                  <div className="clinicalStateField">
-                    <span className="clinicalStateFieldLabel">Rhythm</span>
-                    <span
-                      className="clinicalStateFieldValue"
-                      title={clinicalState.context.rhythm}
-                    >
-                      {abbreviateClinicalStateLabel(
-                        clinicalState.context.rhythm,
-                        knowledgeSheets.clinicalStates,
-                      )}
-                    </span>
-                  </div>
-                  <div className="clinicalStateField">
-                    <span className="clinicalStateFieldLabel">Iso</span>
-                    <span
-                      className="clinicalStateFieldValue"
-                      title={clinicalState.context.isoproterenol.trim() || "Off"}
-                    >
-                      {abbreviateClinicalStateLabel(
-                        clinicalState.context.isoproterenol.trim() || "Off",
-                        knowledgeSheets.clinicalStates,
-                      )}
-                    </span>
-                  </div>
+                  ) : null}
                 </div>
+
+                <span
+                  className="clinicalStateCardTag stateTagPill"
+                  title={stateTag}
+                >
+                  <ClinicalStateTagText tag={stateTag} />
+                </span>
 
                 <div className="clinicalStateMeta">
                   <span>
@@ -1322,7 +1311,7 @@ export default function Home() {
                     {finding.value}
                     <span className="refractoryPeriodFindingUnit">ms</span>
                   </span>
-                  <span className="refractoryPeriodFindingTag">
+                  <span className="refractoryPeriodFindingTag stateTagPill">
                     <ClinicalStateTagText tag={finding.stateTag} />
                   </span>
                 </div>
@@ -1355,7 +1344,7 @@ export default function Home() {
                     {finding.value}
                     <span className="refractoryPeriodFindingUnit">ms</span>
                   </span>
-                  <span className="refractoryPeriodFindingTag">
+                  <span className="refractoryPeriodFindingTag stateTagPill">
                     <ClinicalStateTagText tag={finding.stateTag} />
                   </span>
                 </div>
