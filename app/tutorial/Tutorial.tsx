@@ -38,7 +38,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: "Case Structure",
-    body: "Every Clinical State you've recorded is listed here — its Rhythm (plus cycle length, for tachycardia), and its ablation-phase / isoproterenol tag. Click a card to switch which state you're actively recording into.",
+    body: "Every Clinical State you've recorded is listed here — its Rhythm (plus cycle length, for tachycardia) and its ablation-phase / isoproterenol tag, or for a state whose Phase is Ablation, the modality and count (e.g. \"3 RF Ablation\") with location underneath instead. Click a card to switch which state you're actively recording into.",
     target: ".clinicalStatesRail",
   },
   {
@@ -48,7 +48,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: "Intervals / Ablation Details",
-    body: "Enter observed interval measurements here — which fields appear depends on the active state's Rhythm. Set Phase to Ablation and this area switches to Ablation Details instead, for logging modality, location, count, and duration; a new session can be started once the current one has at least one field filled in, and earlier sessions collapse to a small badge you can reopen anytime. Interval values feed straight into the Refractory Periods panel and the differential diagnosis engine.",
+    body: "Enter observed interval measurements here — which fields appear depends on the active state's Rhythm. Set Phase to Ablation and this area switches to Ablation Details instead, for logging one modality, location, count, and duration for this Clinical State; to log a second ablation session, start a new Clinical State with Phase set to Ablation. Interval values feed straight into the Refractory Periods panel and the differential diagnosis engine.",
     target: ".clinicalMeasurementRow",
   },
   {

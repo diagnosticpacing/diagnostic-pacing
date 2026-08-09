@@ -63,16 +63,25 @@ export type ClinicalState = {
   context: ClinicalStateContext;
   measurements: Record<string, string>;
   performances: ManeuverPerformance[];
+  ablation: AblationSession;
 };
 
 /**
- * A single ablation application/session — strictly for the case report,
- * never wired to clinical reasoning or the Pre-/Post-ablation Phase tag
- * anywhere else (that association is still made manually, the same way it
- * always has been, by however the user tags each Clinical State's Phase).
- * Lives on CaseRecord directly, not inside a Clinical State — it has no
- * Rhythm/Sedation/measurements of its own and isn't a "moment" in the
- * study the way a Clinical State is.
+ * Ablation detail (modality, location, count, duration) for a single
+ * Clinical State — strictly for the case report, never wired to clinical
+ * reasoning or the Pre-/Post-ablation Phase tag anywhere else (that
+ * association is still made manually, the same way it always has been, by
+ * however the user tags each Clinical State's Phase). Lives on the
+ * Clinical State itself (`ClinicalState.ablation`, always present, only
+ * meaningful when that state's Phase is "Ablation") — one ablation entry
+ * per Clinical State. Recording a second ablation session means creating a
+ * second Clinical State with Phase set to Ablation, the same way every
+ * other "new moment in the case" already works; there's deliberately no
+ * separate multi-session list anymore (see
+ * ABLATION-PER-CLINICAL-STATE-2026-08-09 in PROJECT_DESIGN.md — this used
+ * to be a shared case-level array with an add/remove/badge UI before that
+ * change). Modality is single-select on purpose (one modality per
+ * ablation-phase Clinical State), not the multi-toggle it briefly was.
  */
 export const ablationModalityOptions = [
   "Radio Frequency",
@@ -83,22 +92,23 @@ export const ablationModalityOptions = [
 export type AblationModality = (typeof ablationModalityOptions)[number];
 
 export type AblationSession = {
-  id: string;
-  modalities: AblationModality[];
+  modality: AblationModality | "";
   location: string;
   count: string;
   durationSeconds: string;
 };
 
-export function createAblationSession(id: string): AblationSession {
-  return { id, modalities: [], location: "", count: "", durationSeconds: "" };
+export function createAblationSession(): AblationSession {
+  return { modality: "", location: "", count: "", durationSeconds: "" };
 }
 
-/** True once any field on the session has something in it — gates the "+"
- * button so it can't spawn a run of empty "ABL Session N" badges. */
+/** True once any field on the ablation entry has something in it — used by
+ * clinicalStateHasFindings so switching Phase off "Ablation" on a state
+ * that already has ablation detail recorded gets the same
+ * new-state/keep-here protection measurements and performances get. */
 export function hasAblationSessionData(session: AblationSession): boolean {
   return (
-    session.modalities.length > 0 ||
+    session.modality !== "" ||
     session.location.trim() !== "" ||
     session.count.trim() !== "" ||
     session.durationSeconds.trim() !== ""
@@ -118,11 +128,13 @@ export function abbreviateAblationModality(modality: AblationModality): string {
   }
 }
 
-/** Tooltip text for a collapsed "ABL Session N" badge — the only place its
- * modality/location/count/duration are still visible once collapsed. */
+/** Full-detail summary of an ablation entry — used as the Case Structure
+ * card's tooltip (title attribute) for Ablation-phase states, since the
+ * card itself only has room for a compact "{count} {Modality} Ablation"
+ * headline plus the location line. */
 export function summarizeAblationSession(session: AblationSession): string {
   const parts: string[] = [];
-  if (session.modalities.length > 0) parts.push(session.modalities.join(", "));
+  if (session.modality) parts.push(session.modality);
   if (session.location.trim()) parts.push(session.location.trim());
   if (session.count.trim()) parts.push(`${session.count.trim()} ablations`);
   if (session.durationSeconds.trim()) {
@@ -135,7 +147,6 @@ export type CaseRecord = {
   id: string;
   title: string;
   clinicalStates: ClinicalState[];
-  ablationSessions: AblationSession[];
 };
 
 export type WorkspaceConfiguration = {
@@ -249,6 +260,7 @@ export function createClinicalState(
     },
     measurements: {},
     performances: [],
+    ablation: createAblationSession(),
   };
 }
 
@@ -293,10 +305,11 @@ export function upsertPerformance(
 /**
  * Whether a Clinical State already has anything worth protecting from a
  * context change made against it by mistake — a recorded interval
- * measurement, or a maneuver performance with at least one non-blank
- * value entered. Used to decide whether changing Phase, Rhythm,
- * Sedation, Isoproterenol, Adenosine, or Epinephrin on the active
- * Clinical State should prompt for a new Clinical State instead of
+ * measurement, a maneuver performance with at least one non-blank value
+ * entered, or an ablation entry with anything filled in (see
+ * ABLATION-PER-CLINICAL-STATE-2026-08-09). Used to decide whether changing
+ * Phase, Rhythm, Sedation, Isoproterenol, Adenosine, or Epinephrin on the
+ * active Clinical State should prompt for a new Clinical State instead of
  * silently rewriting the context a recorded finding was read under —
  * see CONTEXT-CHANGE-PROMPT-2026-08-08. Blank-valued performances
  * (a maneuver card opened and left with nothing entered) don't count,
@@ -334,9 +347,12 @@ export function clinicalStateHasFindings(clinicalState: ClinicalState): boolean 
   );
   if (hasMeasurement) return true;
 
-  return clinicalState.performances.some((performance) =>
+  const hasPerformance = clinicalState.performances.some((performance) =>
     Object.values(performance.values).some((value) => value.trim() !== ""),
   );
+  if (hasPerformance) return true;
+
+  return hasAblationSessionData(clinicalState.ablation);
 }
 
 export function createInitialCase(): CaseRecord {
@@ -344,7 +360,6 @@ export function createInitialCase(): CaseRecord {
     id: "case-1",
     title: "Untitled study",
     clinicalStates: [createClinicalState("clinical-state-1")],
-    ablationSessions: [createAblationSession("ablation-session-1")],
   };
 }
 

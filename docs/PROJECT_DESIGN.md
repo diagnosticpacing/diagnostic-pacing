@@ -151,11 +151,17 @@ section further down — this is an index, not a replacement.
   collapsing-session pattern — only the active session shows full
   fields, prior sessions collapse to a reopenable `ABL Session N` badge.
   See `ABLATION-SECTION-2026-08-05` and `ABLATION-SESSION-RECALL-2026-08-05`
-  (recall/reopen follow-up) for the original design; the session data
-  model, handlers, and CSS classes described there are all still in use
-  today, just relocated into the Intervals row instead of a standalone
-  card. Still **not wired into the case report generator** — ablation
-  data doesn't appear in generated reports yet.
+  for the original design and `ABLATION-AS-PHASE-2026-08-08` for the
+  relocation into the Intervals row. **The underlying session data model
+  itself is now also superseded** — see `ABLATION-PER-CLINICAL-STATE-2026-08-09`:
+  ablation detail lives on the Clinical State directly (one entry per
+  Ablation-phase state, single-select modality), not a shared case-level
+  array; the multi-session badge/add-session UI is gone, replaced by
+  "start a new Clinical State for a second session." Case Structure
+  cards for an Ablation-phase state now headline `{count} {Modality}
+  Ablation` with location underneath, in place of Rhythm. Still **not
+  wired into the case report generator** — ablation data doesn't appear
+  in generated reports yet.
 - Maneuver cards rebuilt end to end, in four passes:
   1. Redesigned per Murph's sketch — Name + Performed History on top, a
      Findings box in the middle (every recorded finding across every
@@ -238,7 +244,8 @@ section further down — this is an index, not a replacement.
 
 - Context-change guard: changing Phase, Rhythm, Sedation,
   Isoproterenol, Adenosine, or Epinephrin on a Clinical State that
-  already has findings recorded (measurements or maneuver results)
+  already has findings recorded (measurements, maneuver results, or —
+  as of `ABLATION-PER-CLINICAL-STATE-2026-08-09` — ablation detail)
   prompts "start a new state or change this one?" before applying the
   change — a `<select>` field is intercepted before it writes, a
   free-text dose field compares its blur value against a focus-time
@@ -248,7 +255,11 @@ section further down — this is an index, not a replacement.
   cycle length for Tachycardia (shorter of the AA/VV interval
   measurements), plus the standardized Clinical State tag — replacing
   the old three-column Phase/Rhythm/Iso grid. See
-  `CASE-STRUCTURE-CARD-REWORK-2026-08-08`.
+  `CASE-STRUCTURE-CARD-REWORK-2026-08-08`. **As of
+  `ABLATION-PER-CLINICAL-STATE-2026-08-09`**, a Clinical State whose
+  Phase is Ablation is the exception: the title becomes `{count}
+  {Modality} Ablation` and the location text renders underneath, in
+  place of Rhythm/cycle length.
 - Guided Walkthrough tutorial: a new "Walkthrough" button beside About
   opens an 11-step spotlight tour (`app/tutorial/Tutorial.tsx`) that
   highlights one live section of the GUI at a time with an oversized
@@ -308,8 +319,17 @@ section further down — this is an index, not a replacement.
   saves since — treat it as historical, not current, until re-verified.
 - Ablation session data (Modality/Location/#Ablations/Duration) still
   isn't wired into the generated case report — noted as a gap when the
-  Ablation section first shipped 2026-08-05 and still true after its
-  2026-08-08 relocation into the Intervals row.
+  Ablation section first shipped 2026-08-05, still true after its
+  2026-08-08 relocation into the Intervals row, and still true after
+  moving to a per-Clinical-State model 2026-08-09
+  (`ABLATION-PER-CLINICAL-STATE-2026-08-09`).
+- Opening a case file saved before `ABLATION-PER-CLINICAL-STATE-2026-08-09`
+  drops its ablation data: that format kept ablation sessions in a
+  shared case-level list, undifferentiated by Clinical State, and there's
+  no reliable way to map an old session onto one specific state on
+  import — each Clinical State just starts with a blank ablation entry
+  instead. Accepted and flagged to Murph when the change shipped, not
+  silently absorbed.
 - Two panels remain non-functional placeholder content, discovered and
   explicitly flagged (not fixed) while building the Walkthrough tutorial
   `TUTORIAL-WALKTHROUGH-2026-08-08`: "Evidence and reasoning" (hardcoded
@@ -3306,3 +3326,127 @@ starts back at "off" on a fresh load — the user reconnects the file via
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
 `npx next build` still can't complete in this sandbox (same pre-existing
 missing-SWC-binary limitation noted above, unrelated to this change).
+
+<!-- ABLATION-PER-CLINICAL-STATE-2026-08-09 -->
+## Ablation Data Moved to the Clinical State; Case Structure Cards Go Ablation-Aware (implemented 2026-08-09)
+
+Murph asked for Case Structure cards to look distinct for a Clinical
+State whose Phase is Ablation: instead of the Rhythm headline, show
+`{count} {Modality} Ablation` (e.g. "3 RF Ablation"), with the ablation
+entry's location text underneath.
+
+That only makes sense if one ablation entry belongs to one specific
+Clinical State. Since `ABLATION-SECTION-2026-08-05`, ablation data had
+actually lived at the case level (`CaseRecord.ablationSessions`) — a
+single shared list, decoupled from any Clinical State, with "whichever
+session is last (or clicked)" as the one editable session and a
+Modality *multiselect* (RF/PFA/Cryo could all be on at once). Flagged
+this mismatch to Murph and confirmed two decisions via AskUserQuestion
+before building:
+
+1. **Ablation data moves onto the Clinical State itself** — one entry
+   per state, not a shared case-level array. Recording a second
+   ablation session now means creating a second Clinical State with
+   Phase set to Ablation (the existing NEW button), the same way every
+   other "new moment in the case" already works — not a separate
+   add-session action inside one card.
+2. **Modality becomes single-select.** One modality per ablation-phase
+   Clinical State, not a multi-toggle.
+
+This removes the multi-session badge/scroll/add-session machinery
+entirely (nothing left to page through once it's 1:1 with a Clinical
+State) and replaces it with a single, always-editable set of fields
+tied to whichever Clinical State is active.
+
+- **`app/clinical/model.ts`.** `AblationSession` lost `id` (redundant —
+  it now lives inline on its owning `ClinicalState`, no separate key
+  needed) and changed `modalities: AblationModality[]` to `modality:
+  AblationModality | ""`. `createAblationSession()` dropped its `id`
+  param. `ClinicalState` gained `ablation: AblationSession`, seeded by
+  `createClinicalState()` via `createAblationSession()` — every
+  Clinical State always has one, blank until Phase is set to Ablation
+  and it's filled in. `CaseRecord.ablationSessions` is gone;
+  `createInitialCase()` no longer seeds a separate session (the seeded
+  Clinical State already carries its own via `createClinicalState`).
+  `hasAblationSessionData()` and `summarizeAblationSession()` both kept
+  (updated for the singular `modality`) rather than deleted as dead
+  code: `hasAblationSessionData` is now also called from
+  `clinicalStateHasFindings()` — an ablation-phase state with anything
+  filled in now counts as "has findings" the same way a measurement or
+  maneuver performance already did, so the existing context-change
+  guard (`CONTEXT-CHANGE-PROMPT-2026-08-08`) protects it too — and
+  `summarizeAblationSession` is repurposed as the Case Structure card's
+  tooltip text for the new ablation title, the same role
+  `clinicalState.context.rhythm` plays as the `title` attribute on the
+  non-ablation card.
+- **`app/case/persistence.ts`.** `isValidAblationSession` now checks a
+  singular `modality` (`""` or a member of `ablationModalitySet`)
+  instead of validating a `modalities` array.
+  `isValidClinicalState` treats `ablation` as optional-if-present —
+  same precedent as every other schema-gap case this file already
+  handles — so a pre-2026-08-09 export (no `ablation` on any state at
+  all) still opens instead of getting rejected. `isValidCaseRecord`
+  dropped its `ablationSessions` check entirely (no longer a
+  `CaseRecord` field). `importCaseRecordFromFile` now builds the
+  returned record from only `id`/`title`/`clinicalStates` — this drops
+  any stray old-format case-level `ablationSessions` array rather than
+  carrying it forward via spread, and defaults each clinical state's
+  `ablation` to a blank `createAblationSession()` when missing.
+  **Accepted, flagged gap:** those old case-level sessions can't be
+  reliably mapped onto specific Clinical States (they were an
+  undifferentiated shared list), so opening an old case file loses its
+  ablation data — every state just starts blank. Called out to Murph
+  directly, not silently absorbed.
+- **`app/page.tsx`.** Removed entirely: `ablationSessionCounterRef`,
+  `activeAblationSessionId` state (plus its two `startNewCase`/
+  `handleCaseFileSelected` resets), `lastAblationSession`,
+  `activeAblationSessionIndex`, `updateAblationSession`,
+  `toggleAblationModality`, `addAblationSession`,
+  `removeAblationSession`. Added `updateAblation(key, value)` — modeled
+  directly on the existing `updateMeasurement` pattern, writing into
+  `activeClinicalState.ablation` via `updateActiveClinicalState` — and
+  `selectAblationModality(modality)`, which sets the active state's
+  modality to the clicked one, or clears it back to `""` if the clicked
+  modality was already selected (keeps the existing "active" toggle-button
+  affordance, just enforcing single-select instead of multi-select).
+  The Ablation Details JSX (still inside `.clinicalMeasurementRow`,
+  still swapped in whenever `isAblationPhase`) lost its session
+  map/badges/"+" button and now renders one `.ablationActiveFields`
+  block bound straight to `activeClinicalState.ablation` — same
+  `.ablationField`/`.ablationModalityToggles`/`.ablationDurationInput`
+  markup and class names as before, so the CSS diff stays minimal.
+  Case Structure cards (`.clinicalStateCard` map): a Clinical State
+  whose Phase is `"Ablation"` now renders `.clinicalStateCardRhythm` as
+  `"{count} {Modality} Ablation"` (count omitted if blank; falls back
+  to plain `"Ablation"` if no modality is picked yet), with
+  `summarizeAblationSession(clinicalState.ablation)` as its tooltip —
+  no cycle-length span, since Rhythm isn't the headline here. A new
+  `.clinicalStateCardAblationLocation` line renders underneath,
+  location text only, when the location field is non-blank. Every other
+  Clinical State (Phase ≠ Ablation) renders exactly as before
+  (`CASE-STRUCTURE-CARD-REWORK-2026-08-08`, unchanged) — Rhythm +
+  cycle length. The tag pill and measurement-count meta row are
+  unchanged either way, both phases.
+- **`app/globals.css`.** Deleted the now-dead
+  `.ablationSessionBadge`/`.ablationSessionBadgeLabel`/
+  `.ablationSessionRemove`/`.ablationAddButton` rules (with their
+  `:hover`/`:disabled` variants) — nothing in the JSX renders those
+  classes anymore. `.ablationRow`/`.ablationActiveFields`/
+  `.ablationField*`/`.ablationModalityToggle*`/`.ablationDurationInput*`
+  all kept as-is (still used, unchanged markup). Added
+  `.clinicalStateCardAblationLocation` alongside the other
+  `.clinicalStateCard*` rules — small muted line (9.5px), sized between
+  the bold 12px title and the 7px meta row.
+- **`app/tutorial/Tutorial.tsx`.** The "Intervals / Ablation Details"
+  step's copy, which described the now-removed "a new session can be
+  started... earlier sessions collapse to a small badge" behavior, was
+  rewritten to describe starting a new Clinical State instead. The
+  "Case Structure" step's copy was extended to mention the
+  Ablation-phase title/location exception.
+- Not touched: `app/report/generate.ts` doesn't reference
+  `AblationSession`/`ablationSessions` at all (its Pre-/Post-ablation
+  bucketing reads `context.phase` directly) — no changes needed there,
+  and the pre-existing "ablation data isn't in the report yet" gap is
+  unaffected by this change.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

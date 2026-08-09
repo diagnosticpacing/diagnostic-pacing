@@ -1,4 +1,4 @@
-import { ablationModalityOptions } from "@/app/clinical/model";
+import { ablationModalityOptions, createAblationSession } from "@/app/clinical/model";
 import type {
   AblationSession,
   CaseRecord,
@@ -128,20 +128,6 @@ export async function writeCaseRecordToHandle(
   }
 }
 
-function isValidClinicalState(value: unknown): value is ClinicalState {
-  if (!value || typeof value !== "object") return false;
-  const state = value as Record<string, unknown>;
-
-  return (
-    typeof state.id === "string" &&
-    Boolean(state.context) &&
-    typeof state.context === "object" &&
-    Boolean(state.measurements) &&
-    typeof state.measurements === "object" &&
-    Array.isArray(state.performances)
-  );
-}
-
 const ablationModalitySet: ReadonlySet<string> = new Set(ablationModalityOptions);
 
 function isValidAblationSession(value: unknown): value is AblationSession {
@@ -149,14 +135,34 @@ function isValidAblationSession(value: unknown): value is AblationSession {
   const session = value as Record<string, unknown>;
 
   return (
-    typeof session.id === "string" &&
-    Array.isArray(session.modalities) &&
-    session.modalities.every(
-      (modality) => typeof modality === "string" && ablationModalitySet.has(modality),
-    ) &&
+    typeof session.modality === "string" &&
+    (session.modality === "" || ablationModalitySet.has(session.modality)) &&
     typeof session.location === "string" &&
     typeof session.count === "string" &&
     typeof session.durationSeconds === "string"
+  );
+}
+
+function isValidClinicalState(value: unknown): value is ClinicalState {
+  if (!value || typeof value !== "object") return false;
+  const state = value as Record<string, unknown>;
+
+  // ablation is optional here on purpose — a case file exported before
+  // ABLATION-PER-CLINICAL-STATE-2026-08-09 won't have it on any state at
+  // all, and that's fine (importCaseRecordFromFile defaults each state's
+  // ablation to a blank entry), but if it's present it needs to actually
+  // be well-formed.
+  const hasValidAblation =
+    state.ablation === undefined || isValidAblationSession(state.ablation);
+
+  return (
+    typeof state.id === "string" &&
+    Boolean(state.context) &&
+    typeof state.context === "object" &&
+    Boolean(state.measurements) &&
+    typeof state.measurements === "object" &&
+    Array.isArray(state.performances) &&
+    hasValidAblation
   );
 }
 
@@ -164,23 +170,12 @@ function isValidCaseRecord(value: unknown): value is CaseRecord {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
 
-  // ablationSessions is optional here on purpose — a case file exported
-  // before the Ablation section existed won't have it at all, and that's
-  // fine (importCaseRecordFromFile defaults it to []), but if it's
-  // present it needs to actually be well-formed.
-  const ablationSessions = record.ablationSessions;
-  const hasValidAblationSessions =
-    ablationSessions === undefined ||
-    (Array.isArray(ablationSessions) &&
-      ablationSessions.every(isValidAblationSession));
-
   return (
     typeof record.id === "string" &&
     typeof record.title === "string" &&
     Array.isArray(record.clinicalStates) &&
     record.clinicalStates.length > 0 &&
-    record.clinicalStates.every(isValidClinicalState) &&
-    hasValidAblationSessions
+    record.clinicalStates.every(isValidClinicalState)
   );
 }
 
@@ -223,10 +218,20 @@ export async function importCaseRecordFromFile(file: File): Promise<CaseRecord> 
     throw new Error("That case file is missing required data.");
   }
 
-  // Older exports (before the Ablation section existed) won't have this
-  // field at all — default it rather than rejecting the whole file.
+  // Build the returned record from only the fields CaseRecord actually has
+  // now. This defaults each state's ablation entry when missing (an
+  // export from before ABLATION-PER-CLINICAL-STATE-2026-08-09) and drops
+  // any stray old-format case-level `ablationSessions` array rather than
+  // carrying it along — those old sessions were an undifferentiated
+  // shared list and can't be reliably mapped onto specific Clinical
+  // States, so they're intentionally not migrated. An accepted, flagged
+  // gap, not an oversight.
   return {
-    ...candidate,
-    ablationSessions: candidate.ablationSessions ?? [],
+    id: candidate.id,
+    title: candidate.title,
+    clinicalStates: candidate.clinicalStates.map((state) => ({
+      ...state,
+      ablation: state.ablation ?? createAblationSession(),
+    })),
   };
 }
