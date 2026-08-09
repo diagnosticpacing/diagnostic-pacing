@@ -2,8 +2,8 @@
 
 This document records committed architecture, workflow, and interface decisions.
 
-<!-- STATUS-SUMMARY-2026-08-05 -->
-## Status Summary (checkpoint as of 2026-08-05)
+<!-- STATUS-SUMMARY-2026-08-08 -->
+## Status Summary (checkpoint as of 2026-08-08)
 
 A fast-read reconciliation point, since this doc is the only durable memory
 across sessions. Full reasoning for everything below lives in its own dated
@@ -16,13 +16,32 @@ section further down — this is an index, not a replacement.
   card's rhythm-specific display rules are superseded — see
   `REFRACTORY-PERIODS-V2-2026-08-03` below.
 - Refractory periods (FRP/ERP) are now maneuver results, not direct
-  entry: recorded on the back of whichever maneuver produces them
-  (tagged via Type/Direction/Structure on Maneuver Response Fields — one
-  field IS the whole result, Functional a single value and Effective up
-  to three), shown in a derived "Refractory Periods" panel under
+  entry: recorded on the back of whichever maneuver produces them,
+  tagged via a single **Refractory Period Direction** column on
+  Maneuver Response Fields (Antegrade/Retrograde/n/a — the Type and
+  Structure columns this originally shipped with were both later
+  removed as redundant, see `REFRACTORY-PERIODS-SIMPLIFY-2026-08-06`
+  below); every RP field always renders exactly 3 optional entry boxes,
+  and the clinician-facing label is just the field's own Maneuver
+  Response Prompt. Shown in a derived "Refractory Periods" panel under
   Intervals, restyled 2026-08-04 to match the Active State/Intervals
-  visual language — see `REFRACTORY-PERIODS-V2-2026-08-03` and
-  `REFRACTORY-PERIODS-STYLE-GUIDE-2026-08-04`.
+  visual language, each finding tagged with the standardized Clinical
+  State tag (see below) — see `REFRACTORY-PERIODS-V2-2026-08-03`,
+  `REFRACTORY-PERIODS-STYLE-GUIDE-2026-08-04`, and
+  `REFRACTORY-PERIODS-SIMPLIFY-2026-08-06`.
+- The Clinical State tag ("Pre-ABL · Iso-On", etc.) is standardized:
+  identical text and one shared pill component
+  (`ClinicalStateTagText`/`formatClinicalStateTag` in
+  `app/clinical/model.ts`) everywhere it's rendered (Refractory Period
+  findings, maneuver card history/findings, Case Structure cards), each
+  of the four possible values (Pre-ABL/Post-ABL/Iso-On/Iso-Off) with its
+  own fixed identity color (cyan/violet/red/amber), with an
+  Ablation-phase-aware bucketing (Phase `"Ablation"` reads as
+  `"Pre-ABL"` until the case moves to a Post-ablation phase) and a
+  separate active-state ring/highlight that's never a recolor — green is
+  reserved exclusively for that highlight. See
+  `STATE-TAG-STANDARDIZE-2026-08-08`, `STATE-TAG-COLOR-2026-08-08`, and
+  `ABLATION-AS-PHASE-2026-08-08`.
 - Knowledge base schema v2, including Clinical States, Rule Group ID /
   Required Clinical State on Clinical Reasoning, and the three-value
   Differential Action (Supports/Excludes/Confirms). The Clinical States
@@ -125,15 +144,18 @@ section further down — this is an index, not a replacement.
   `ACTIVE-STATE-SINGLE-ROW-2026-08-05`.
 - Default first-load width for both side rails bumped
   190px → 225px — see `RAIL-DEFAULT-WIDTH-2026-08-05`.
-- New Ablation section under Refractory Periods: Modality (multiselect
-  RF/Pulsed Field/Cryo), Location, Number of Ablations, Duration, kept
-  to one line always via a collapsing-session pattern — only the active
-  session shows full fields, prior sessions collapse to a reopenable
-  `ABL Session N` badge. Reporting-only, not wired to any clinical
-  reasoning. See `ABLATION-SECTION-2026-08-05` and
-  `ABLATION-SESSION-RECALL-2026-08-05` (recall/reopen follow-up). **Not
-  yet wired into the case report generator** — ablation data doesn't
-  appear in generated reports yet.
+- ~~New Ablation section under Refractory Periods~~ — **superseded
+  2026-08-08, see the "Ablation folded into Phase" bullet further down.**
+  Originally: Modality (multiselect RF/Pulsed Field/Cryo), Location,
+  Number of Ablations, Duration, kept to one line always via a
+  collapsing-session pattern — only the active session shows full
+  fields, prior sessions collapse to a reopenable `ABL Session N` badge.
+  See `ABLATION-SECTION-2026-08-05` and `ABLATION-SESSION-RECALL-2026-08-05`
+  (recall/reopen follow-up) for the original design; the session data
+  model, handlers, and CSS classes described there are all still in use
+  today, just relocated into the Intervals row instead of a standalone
+  card. Still **not wired into the case report generator** — ablation
+  data doesn't appear in generated reports yet.
 - Maneuver cards rebuilt end to end, in four passes:
   1. Redesigned per Murph's sketch — Name + Performed History on top, a
      Findings box in the middle (every recorded finding across every
@@ -160,7 +182,113 @@ section further down — this is an index, not a replacement.
      one field's entry control on tap, so a maneuver with many possible
      findings (e.g. up to 8 for Ventricular Extrastimulus) doesn't
      dump a wall of number boxes into a small card. Also documented
-     under `MANEUVER-CARD-LAYOUT-LOCK-2026-08-05`.
+     under `MANEUVER-CARD-LAYOUT-LOCK-2026-08-05`. **Note:** the
+     "Save"/"Cancel" pair described here was itself later merged into a
+     single "Done" button — see the Enter-key/autosave bullet under
+     2026-08-06 below.
+
+**Live and implemented — 2026-08-06:**
+
+- About modal (the auto-opening landing page) gained a green
+  "free-forever + no server-side storage" privacy callout, later
+  trimmed to one short sentence each; the amber disclaimer that used to
+  say "early GUI draft" now says something legally meaningful (medicine
+  only practiced by licensed physicians, no medical advice, consult
+  primary sources); a real mobile scrollability bug was fixed (the
+  modal had no `max-height`/scroll region, so the only dismiss button
+  could render off-screen with no way to reach it) using the same
+  fixed-header/scrollable-body/fixed-footer recipe as the Report modal.
+  See `ABOUT-MODAL-FREE-PRIVACY-NOTICE-2026-08-06` and
+  `ABOUT-MODAL-COPY-AND-MOBILE-FIX-2026-08-06`.
+- The topbar's "Active case" title is now an editable field (was static
+  text) — it already was the single source `exportCaseRecord()` (Save
+  filename) and the report generator (report title) read from, so only
+  the write path needed building. See `ACTIVE-CASE-TITLE-EDITABLE-2026-08-06`.
+- The header's plain "DP" text mark was replaced with Murph's own
+  finished wordmark logo, processed into a CSS `mask-image` (luminance
+  → alpha cutout) so it recolors live via `--cyan` with no baked-in
+  color; same-day follow-up simplified the full "Dp.org" lockup down to
+  a compact "Dp" monogram. See `BRAND-MARK-WORDMARK-2026-08-06`.
+- Case structure rail header collapsed from two lines to one; a new
+  `--violet` style-guide color (same hex the admin lock indicator
+  already used — `--locked` now points at it too) promotes three
+  section titles (Case structure / Differential diagnosis / Pacing
+  maneuvers) to larger, violet, sentence-case headings. See
+  `VIOLET-SECTION-ACCENTS-2026-08-06`.
+- Enter key now confirms/closes the About modal (previously only the OK
+  button worked). Maneuver card results: "Cancel" and "Save result"
+  merged into one "Done" button — there's no longer a silent-discard
+  path — and results also debounce-autosave 3 seconds after the user
+  stops typing, so data reaches the differential engine even if a card
+  is just left open. A `lastCommittedValuesRef` snapshot guards against
+  logging spurious no-op case-timeline entries from either path. See
+  `ENTER-KEY-ABOUT-OK-AND-MANEUVER-AUTOSAVE-2026-08-06`.
+- Refractory Period tagging simplified from three columns (Type,
+  Direction, Structure) to Direction only — see the core-architecture
+  bullet above for the current state, and
+  `REFRACTORY-PERIODS-SIMPLIFY-2026-08-06` for the full investigation
+  (Structure was cosmetic, Type was load-bearing) and the
+  AskUserQuestion-driven decision to accept losing the
+  Functional/Effective box-count distinction in exchange for the
+  simpler schema. One dormant edge case flagged, not fixed: a field
+  tagged under the old schema with Direction left at `"n/a"` will now
+  silently stop being recognized as an RP field.
+
+**Live and implemented — 2026-08-08:**
+
+- Context-change guard: changing Phase, Rhythm, Sedation,
+  Isoproterenol, Adenosine, or Epinephrin on a Clinical State that
+  already has findings recorded (measurements or maneuver results)
+  prompts "start a new state or change this one?" before applying the
+  change — a `<select>` field is intercepted before it writes, a
+  free-text dose field compares its blur value against a focus-time
+  baseline. See `CONTEXT-CHANGE-PROMPT-2026-08-08`.
+- Case Structure cards reworked: the title is now the Clinical State's
+  Rhythm (abbreviated via the knowledge base where available), plus
+  cycle length for Tachycardia (shorter of the AA/VV interval
+  measurements), plus the standardized Clinical State tag — replacing
+  the old three-column Phase/Rhythm/Iso grid. See
+  `CASE-STRUCTURE-CARD-REWORK-2026-08-08`.
+- Guided Walkthrough tutorial: a new "Walkthrough" button beside About
+  opens an 11-step spotlight tour (`app/tutorial/Tutorial.tsx`) that
+  highlights one live section of the GUI at a time with an oversized
+  box-shadow cutout, live-tracking the target's position on
+  resize/scroll. Deliberately routes around three panels found to be
+  non-functional placeholder content during the build: "Evidence and
+  reasoning" (hardcoded fake synthesis text), the "Maneuver result
+  entry" panel (since removed — see below), and the still-fake top half
+  of "Case timeline". See `TUTORIAL-WALKTHROUGH-2026-08-08`.
+- The dead "Maneuver result entry" panel (static empty-state, a
+  non-functional "Enter manually" button) is deleted; "Case timeline"
+  (including the real, live state log) stays, earmarked for future
+  wiring. New "Yes/No Buttons" Input Type option on the Response Fields
+  admin sheet — a two-button toggle that always starts with neither
+  selected, distinct from Checkbox (which always starts unchecked and
+  so can't represent "not yet answered" separately from an actual
+  "No"). See `MANEUVER-RESULT-ENTRY-REMOVED-2026-08-08`.
+- Ablation folded into Phase: `"Ablation"` is now a Phase option
+  (`Pre-ablation, Ablation, Post-ablation, Post-ablation 2`); selecting
+  it swaps the Active Clinical State's Intervals row to "Ablation
+  Details" (the same modality/location/count/duration session UI,
+  relocated) instead of the normal per-Rhythm interval fields. The old
+  always-visible standalone Ablation card/section is gone — see the
+  superseded 2026-08-05 bullet above. Pre-ABL/Post-ABL tag bucketing
+  and the report generator's Pre-/Post-Ablation Measurements sections
+  both treat the Ablation phase as pre-ablation until the case moves to
+  a Post-ablation phase. The Pacing Maneuvers panel's explanatory
+  subhead paragraph ("Ordered by relevance...") was also removed in
+  the same pass. See `ABLATION-AS-PHASE-2026-08-08`.
+- Case autosave to a local file: a new "Enable autosave" button
+  (Chromium-only — Firefox/Safari keep the existing manual Save/Open/New
+  unchanged and never see this button) uses the File System Access API
+  to let the user pick or create a file once; every later change to any
+  field is then silently rewritten to that same file, debounced ~1.5s
+  after the last edit. New case / Open case both disable autosave first
+  so a freshly loaded case can never get its edits silently written
+  into the previous case's file. The file handle doesn't survive a page
+  reload — the user reconnects via "Enable autosave" again each
+  session; no persistence layer was built for that. See
+  `CASE-AUTOSAVE-2026-08-08`.
 
 **Still open / intentionally deferred:**
 
@@ -178,6 +306,27 @@ section further down — this is an index, not a replacement.
 - The `INFRA-STATUS-2026-08-01` snapshot below (Blob revision number, row
   counts, the revision-index gap at 5/7) is now stale given the volume of
   saves since — treat it as historical, not current, until re-verified.
+- Ablation session data (Modality/Location/#Ablations/Duration) still
+  isn't wired into the generated case report — noted as a gap when the
+  Ablation section first shipped 2026-08-05 and still true after its
+  2026-08-08 relocation into the Intervals row.
+- Two panels remain non-functional placeholder content, discovered and
+  explicitly flagged (not fixed) while building the Walkthrough tutorial
+  `TUTORIAL-WALKTHROUGH-2026-08-08`: "Evidence and reasoning" (hardcoded
+  fake synthesis text, no binding to live case data) and the top half of
+  "Case timeline" (two hardcoded fake rows sitting above the real,
+  live `.stateLogPanel` in the same Panel). The Walkthrough tour
+  deliberately routes around both.
+- Refractory Period Direction's dormant `"n/a"` edge case from
+  `REFRACTORY-PERIODS-SIMPLIFY-2026-08-06`: a field tagged under the old
+  three-column schema with Direction left at `"n/a"` will silently stop
+  being recognized as an RP field, since Direction is now the sole
+  signal. Documented as "not used in practice" at the time, not
+  re-verified against current production data since.
+- Case autosave's file handle doesn't survive a page reload or browser
+  restart (`CASE-AUTOSAVE-2026-08-08`) — no IndexedDB-backed
+  handle-persistence layer was built, by design for this first pass, so
+  autosave always starts back at "off" on a fresh load.
 
 <!-- ERP-CLINICAL-STATE-DESIGN-V1 -->
 ## Clinical State Measurement Architecture (SUPERSEDED — see REFRACTORY-PERIODS-V2-2026-08-03)
