@@ -47,7 +47,13 @@ import {
   type DifferentialStatus,
 } from "./differential/engine";
 import { generateCaseReport } from "./report/generate";
-import { exportCaseRecord, importCaseRecordFromFile } from "./case/persistence";
+import {
+  exportCaseRecord,
+  importCaseRecordFromFile,
+  isFileSystemAccessSupported,
+  pickCaseFileForAutosave,
+  writeCaseRecordToHandle,
+} from "./case/persistence";
 import type { SheetId, SpreadsheetRow } from "./admin/model";
 import Tutorial from "./tutorial/Tutorial";
 
@@ -287,6 +293,23 @@ export default function Home() {
 
   const caseFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Autosave (File System Access API, Chromium-only) — see
+  // CASE-AUTOSAVE-2026-08-08 in PROJECT_DESIGN.md. autosaveHandle is the
+  // live file handle once the user has picked a file via "Enable
+  // autosave"; null means autosave is off (the default, and the only
+  // state ever reachable in browsers that don't support the API). A ref
+  // mirrors the handle for the debounced-write effect below so that
+  // effect doesn't need autosaveHandle in its own dependency array (which
+  // would otherwise cancel/reschedule the pending write on every render).
+  const [autosaveHandle, setAutosaveHandle] = useState<FileSystemFileHandle | null>(
+    null,
+  );
+  const autosaveHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<
+    "off" | "saving" | "saved" | "error"
+  >("off");
+  const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Plain counter, not Date.now() — keeps ablation session ids unique
   // (for React keys only; display numbering is positional, see
   // caseRecord.ablationSessions.map below) without tripping the
@@ -357,6 +380,38 @@ export default function Home() {
     const timeout = window.setTimeout(() => setReportCopyState("idle"), 2200);
     return () => window.clearTimeout(timeout);
   }, [reportCopyState]);
+
+  // Debounced autosave write — fires ~1.5s after the last change to
+  // caseRecord while autosave is on, coalescing rapid edits (e.g. typing
+  // in a text field, one change per keystroke) into a single disk write
+  // rather than one per keystroke. Reads autosaveHandleRef (not the
+  // autosaveHandle state value) inside the timeout so this effect only
+  // needs caseRecord as a dependency — enabling/disabling autosave
+  // shouldn't itself reschedule a write that's already pending, and a
+  // plain ref read doesn't need to be listed (its identity never
+  // changes, only .current does).
+  useEffect(() => {
+    if (!autosaveHandleRef.current) return;
+
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+
+    setAutosaveStatus("saving");
+    autosaveTimeoutRef.current = setTimeout(() => {
+      const handle = autosaveHandleRef.current;
+      if (!handle) return;
+
+      writeCaseRecordToHandle(handle, caseRecord)
+        .then(() => setAutosaveStatus("saved"))
+        .catch((error) => {
+          console.error("Autosave write failed.", error);
+          setAutosaveStatus("error");
+        });
+    }, 1500);
+
+    return () => {
+      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    };
+  }, [caseRecord]);
 
   function startRailResize(rail: RailId, event: ReactMouseEvent) {
     event.preventDefault();
@@ -520,9 +575,42 @@ export default function Home() {
 
   // Save/Open work entirely client-side (JSON file download/upload) — see
   // app/case/persistence.ts. Nothing is transmitted, consistent with the
-  // footer's "No patient data is being transmitted" / "Autosave: off".
+  // footer's "No patient data is being transmitted" note.
   function saveCaseToFile() {
     exportCaseRecord(caseRecord);
+  }
+
+  // Autosave — see CASE-AUTOSAVE-2026-08-08 in PROJECT_DESIGN.md. Enabling
+  // it opens the native "save file" picker once (and writes the current
+  // case immediately, so the picked file is never left empty); every
+  // later change to caseRecord — any field, anywhere — is silently
+  // rewritten to that same file via the debounced effect below, no
+  // further dialogs. Chromium-only — isFileSystemAccessSupported() gates
+  // whether "Enable autosave" even renders in topActions, so this is only
+  // ever reachable when the API actually exists.
+  async function enableAutosave() {
+    try {
+      const handle = await pickCaseFileForAutosave(caseRecord);
+      autosaveHandleRef.current = handle;
+      setAutosaveHandle(handle);
+      setAutosaveStatus("saved");
+    } catch (error) {
+      // AbortError means the user closed the picker without choosing a
+      // file — a deliberate cancel, not a failure worth surfacing.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.error("Couldn't start autosave.", error);
+      window.alert("Couldn't start autosave for that file. Try again.");
+    }
+  }
+
+  function disableAutosave() {
+    autosaveHandleRef.current = null;
+    setAutosaveHandle(null);
+    setAutosaveStatus("off");
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
+      autosaveTimeoutRef.current = null;
+    }
   }
 
   function startNewCase() {
@@ -533,6 +621,11 @@ export default function Home() {
     ) {
       return;
     }
+    // Autosave, if on, was writing the case being replaced — leaving it
+    // pointed at that file would silently overwrite it with the new blank
+    // case's edits. Turn it off; the user re-enables it explicitly (and
+    // picks a file) for the new case.
+    disableAutosave();
     setCaseRecord(createInitialCase());
     setActiveClinicalStateId("clinical-state-1");
     setActiveAblationSessionId(null);
@@ -558,6 +651,9 @@ export default function Home() {
 
     try {
       const imported = await importCaseRecordFromFile(file);
+      // Same reasoning as startNewCase above — the case being loaded in
+      // is different content than whatever autosave was writing before.
+      disableAutosave();
       setCaseRecord(imported);
       setActiveClinicalStateId(imported.clinicalStates[0].id);
       setActiveAblationSessionId(null);
@@ -588,6 +684,12 @@ export default function Home() {
   // Phase directly rather than being another per-Rhythm workspace
   // configuration entry. See ABLATION-AS-PHASE-2026-08-08.
   const isAblationPhase = activeClinicalState.context.phase === "Ablation";
+
+  // Same typeof-window-guard pattern as loadStoredRailWidth above —
+  // isFileSystemAccessSupported() is false during SSR (no window) and
+  // reflects the real browser once rendered client-side. The "Enable
+  // autosave" control in topActions only renders when this is true.
+  const autosaveSupported = isFileSystemAccessSupported();
 
   const enteredMeasurementCount = (
     clinicalState: (typeof caseRecord.clinicalStates)[number],
@@ -917,6 +1019,28 @@ export default function Home() {
           <button className="primaryButton" onClick={saveCaseToFile} type="button">
             Save case
           </button>
+          {autosaveSupported && (
+            <button
+              className={
+                autosaveHandle
+                  ? "secondaryButton autosaveButton isActive"
+                  : "secondaryButton autosaveButton"
+              }
+              onClick={autosaveHandle ? disableAutosave : () => void enableAutosave()}
+              title={
+                autosaveHandle
+                  ? `Autosaving to ${autosaveHandle.name} — click to stop`
+                  : "Pick a file to silently keep in sync with every change from now on"
+              }
+              type="button"
+            >
+              {autosaveHandle
+                ? autosaveStatus === "saving"
+                  ? "Autosaving…"
+                  : `Autosave: ${autosaveHandle.name}`
+                : "Enable autosave"}
+            </button>
+          )}
           <button
             className="secondaryButton"
             onClick={() => {
@@ -1928,7 +2052,16 @@ export default function Home() {
         </div>
         <div>
           <span>Rules engine: not connected</span>
-          <span>Autosave: off</span>
+          <span className={autosaveHandle ? "autosaveStatusText isActive" : "autosaveStatusText"}>
+            Autosave:{" "}
+            {autosaveStatus === "saving"
+              ? "saving…"
+              : autosaveStatus === "error"
+                ? "error — file not writable"
+                : autosaveHandle
+                  ? "on"
+                  : "off"}
+          </span>
           <span>GUI draft v1</span>
         </div>
       </footer>

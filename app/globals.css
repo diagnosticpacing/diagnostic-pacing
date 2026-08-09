@@ -267,6 +267,20 @@ button {
   color: var(--text);
 }
 
+/*
+ * Enable autosave — toggles between "off" (plain .secondaryButton look)
+ * and "connected to a file" (cyan, same active-toggle treatment as
+ * .ablationModalityToggle.active elsewhere) once the user has picked a
+ * file via the File System Access API. Only rendered in browsers that
+ * support the API at all — page.tsx gates this at the JSX level, not
+ * just visually here. See CASE-AUTOSAVE-2026-08-08 in PROJECT_DESIGN.md.
+ */
+.autosaveButton.isActive {
+  border-color: rgba(91, 214, 220, 0.5);
+  background: rgba(91, 214, 220, 0.11);
+  color: var(--cyan);
+}
+
 .caseStrip {
   display: flex;
   flex-direction: column;
@@ -825,6 +839,13 @@ button {
 
 .statusbar strong {
   color: var(--text);
+}
+
+/* Mirrors .autosaveButton.isActive's cyan treatment for the footer's
+ * plain-text status ("Autosave: on"/"saving…"/"off") — same feature,
+ * different container, so no button affordance needed here. */
+.autosaveStatusText.isActive {
+  color: var(--cyan);
 }
 
 .stateLogPanel {

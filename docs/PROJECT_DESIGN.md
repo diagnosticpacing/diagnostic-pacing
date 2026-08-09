@@ -3049,3 +3049,111 @@ Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
 `npx next build` couldn't be run to completion in this sandbox (missing
 SWC binary for linux/arm64 — a pre-existing environment limitation, not
 caused by this change).
+
+<!-- CASE-AUTOSAVE-2026-08-08 -->
+## Case Autosave to a Local File (implemented 2026-08-08)
+
+Murph asked whether the site could automatically resave the case file —
+rewriting the same file on disk — for every field entry, rather than
+requiring a manual "Save case" click each time. Answered directly first
+(see the chat: the existing download-based Save can't do this — a
+browser download is always a fresh save, never a silent overwrite of an
+existing file — but the File System Access API can, in Chromium browsers
+only), then confirmed two design decisions with Murph via AskUserQuestion
+before building: (1) browsers without the API (Firefox, Safari) keep
+today's manual Save/Open/New exactly as-is, no autosave UI shown at all;
+(2) autosave is a new, separate "Enable autosave" action, not folded into
+the existing Save case button.
+
+**Ambient types.** TypeScript's bundled `lib.dom.d.ts` (checked against
+typescript 5.9.3) already declares `FileSystemFileHandle`,
+`FileSystemHandle`, and `FileSystemWritableFileStream`/`createWritable` —
+but not `Window.showSaveFilePicker` (the actual entry point) or the
+`queryPermission`/`requestPermission` methods on `FileSystemHandle`. New
+`app/case/file-system-access.d.ts` adds just those two pieces via
+`declare global` interface augmentation/merging — deliberately minimal,
+not a full redeclaration of the spec.
+
+**`app/case/persistence.ts`** gained a new section alongside the existing
+Save/Open functions:
+
+- `isFileSystemAccessSupported()` — `typeof window !== "undefined" &&
+  "showSaveFilePicker" in window`. False during SSR by construction, so
+  it's safe to call directly in a component body (see the
+  `loadStoredRailWidth`-style typeof-window guard convention already used
+  elsewhere in `page.tsx`) without a hydration-mismatch-prone
+  effect/state dance.
+- `buildCaseFile(caseRecord)` — extracted from the body of
+  `exportCaseRecord` so both the download path and the new autosave write
+  path produce byte-identical file shape (same `fileFormat`/
+  `schemaVersion`/`exportedAt`/`case` envelope), meaning a file produced
+  by autosave is just as readable by `importCaseRecordFromFile` as one
+  produced by a manual Save.
+- `pickCaseFileForAutosave(caseRecord)` — opens the native
+  `showSaveFilePicker`, then immediately writes the current case to
+  whatever file the user picked/created (so the file is never left empty
+  the instant it exists) and returns the handle. Rejects with an
+  `AbortError` if the user cancels the picker — callers treat that as a
+  silent no-op.
+- `writeCaseRecordToHandle(handle, caseRecord)` — `createWritable()` →
+  write the JSON → `close()`. Used both for that initial write and for
+  every debounced autosave write afterward.
+
+**`app/page.tsx` wiring:**
+
+- `autosaveHandle` (state, drives the button/footer label) and
+  `autosaveHandleRef` (ref, read inside the debounce timeout) both track
+  the live `FileSystemFileHandle` or `null`. Kept as two mirrors rather
+  than one, specifically so the debounced write effect below can depend
+  on `caseRecord` alone — if it depended on `autosaveHandle` too, turning
+  autosave on/off would spuriously reschedule (or cancel) a write that's
+  unrelated to that toggle.
+- `autosaveStatus`: `"off" | "saving" | "saved" | "error"`, surfaced in
+  both the new topActions button's label and the footer's "Autosave: ..."
+  line (previously static placeholder text — see
+  `INFRA`/original-mockup-era code — now wired to something real for the
+  first time).
+- **The debounce.** A `useEffect` keyed only on `caseRecord` — meaning it
+  re-fires on every change to any field anywhere, per Murph's "for each
+  entry into any field" ask — clears any pending write timeout and
+  schedules a new one 1.5s out. Writing on literally every keystroke
+  would be excessive disk I/O and risked write races; 1.5s after the
+  *last* change in a burst is the practical reading of "automatically."
+  Status flips to `"saving"` the moment the timeout is (re)scheduled, not
+  just when the write actually starts, so the UI reflects "there's an
+  unsaved edit pending" during the debounce window too.
+- **Enable/disable.** `enableAutosave()` calls `pickCaseFileForAutosave`
+  and stores the resulting handle (both state and ref, together, always
+  in lockstep). `disableAutosave()` clears both, resets status to
+  `"off"`, and cancels any in-flight debounce timeout. `startNewCase()`
+  and `handleCaseFileSelected()` (Open case) both call `disableAutosave()`
+  before swapping in the new/opened `caseRecord` — deliberate: if autosave
+  stayed connected across a New/Open, the *next* debounced write would
+  silently overwrite the previous case's file with an entirely different
+  case's content, which is exactly the kind of silent data-loss this
+  feature should never cause. The user has to explicitly re-enable
+  autosave (and pick a file) for whatever case is now loaded.
+- **UI.** A new `.autosaveButton` in `topActions`, between Save case and
+  Report, only rendered when `autosaveSupported` (the typeof-window-guarded
+  `isFileSystemAccessSupported()` call) is true — so Firefox/Safari users
+  never see it, exactly per the first AskUserQuestion decision above.
+  Label reads "Enable autosave" when off, `Autosave: <filename>` when
+  connected (or "Autosaving…" mid-debounce), clicking it toggles
+  enable/disable. Styled with the same cyan "active toggle" treatment as
+  `.ablationModalityToggle.active` elsewhere (`.autosaveButton.isActive`
+  in `globals.css`) rather than green, since green stays reserved
+  exclusively for the Clinical State tag system's active-state highlight
+  (see `STATE-TAG-COLOR-2026-08-08`) and this is an unrelated generic
+  toggle. The footer's `.autosaveStatusText` gets the same cyan-when-on
+  treatment for consistency.
+
+**Known limitation, intentionally out of scope for now:** the file
+handle doesn't survive a page reload or browser restart (no
+IndexedDB-backed handle-persistence layer was built), so autosave always
+starts back at "off" on a fresh load — the user reconnects the file via
+"Enable autosave" again. This matches the scope Murph confirmed
+(a new, explicit action; no request for cross-reload persistence).
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+`npx next build` still can't complete in this sandbox (same pre-existing
+missing-SWC-binary limitation noted above, unrelated to this change).

@@ -34,17 +34,23 @@ function dateStamp(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Triggers a browser download of the case as a JSON file — no request
- * ever leaves the browser. */
-export function exportCaseRecord(caseRecord: CaseRecord): void {
-  const file: CaseFile = {
+/** The on-disk JSON shape, shared by both the one-shot download
+ * (exportCaseRecord) and the autosave write path (writeCaseRecordToHandle)
+ * below, so a file produced either way is equally readable by
+ * importCaseRecordFromFile. */
+function buildCaseFile(caseRecord: CaseRecord): CaseFile {
+  return {
     fileFormat: CASE_FILE_FORMAT,
     schemaVersion: CASE_FILE_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     case: caseRecord,
   };
+}
 
-  const blob = new Blob([JSON.stringify(file, null, 2)], {
+/** Triggers a browser download of the case as a JSON file — no request
+ * ever leaves the browser. */
+export function exportCaseRecord(caseRecord: CaseRecord): void {
+  const blob = new Blob([JSON.stringify(buildCaseFile(caseRecord), null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -57,6 +63,69 @@ export function exportCaseRecord(caseRecord: CaseRecord): void {
   document.body.removeChild(anchor);
 
   URL.revokeObjectURL(url);
+}
+
+// --- Autosave (File System Access API) ---------------------------------
+//
+// A separate, opt-in path from Save/Open above: instead of a one-shot
+// download, the user picks or creates a file once via a native picker and
+// the app keeps a live handle to it, silently rewriting it as the case
+// changes (debounced in page.tsx). Chromium-only (Chrome/Edge/Opera/Arc) —
+// Firefox and Safari don't implement the File System Access API at all, so
+// every call site behind this feature must check
+// isFileSystemAccessSupported() first and fall back to the existing manual
+// Save case button when it's false. See CASE-AUTOSAVE-2026-08-08 in
+// PROJECT_DESIGN.md and app/case/file-system-access.d.ts for the ambient
+// types this relies on (TypeScript's bundled DOM lib doesn't declare
+// showSaveFilePicker).
+
+/** Whether this browser can do live-file autosave at all. Always false
+ * during server-side rendering (no `window`), so callers can use it
+ * directly in a client-only useEffect/useState without a hydration
+ * mismatch. */
+export function isFileSystemAccessSupported(): boolean {
+  return typeof window !== "undefined" && "showSaveFilePicker" in window;
+}
+
+/**
+ * Opens the native "save file" picker so the user can create or overwrite
+ * the file autosave should target, and returns the resulting handle. The
+ * file is written immediately (not left empty) so the picker's result is a
+ * real, valid case file the instant it's created. Rejects (AbortError) if
+ * the user cancels the picker — callers should treat that as a silent
+ * no-op, not an error to surface.
+ */
+export async function pickCaseFileForAutosave(
+  caseRecord: CaseRecord,
+): Promise<FileSystemFileHandle> {
+  const handle = await window.showSaveFilePicker({
+    suggestedName: `${slugify(caseRecord.title)}-${dateStamp()}.json`,
+    types: [
+      {
+        description: "Diagnostic Pacing case file",
+        accept: { "application/json": [".json"] },
+      },
+    ],
+  });
+
+  await writeCaseRecordToHandle(handle, caseRecord);
+  return handle;
+}
+
+/** Overwrites the given file handle with the current case, in the same
+ * shape exportCaseRecord downloads. Used both for the initial write in
+ * pickCaseFileForAutosave and for every debounced autosave write
+ * afterward. */
+export async function writeCaseRecordToHandle(
+  handle: FileSystemFileHandle,
+  caseRecord: CaseRecord,
+): Promise<void> {
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(JSON.stringify(buildCaseFile(caseRecord), null, 2));
+  } finally {
+    await writable.close();
+  }
 }
 
 function isValidClinicalState(value: unknown): value is ClinicalState {
