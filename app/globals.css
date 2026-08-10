@@ -4697,6 +4697,40 @@ button.adminTableHeader.isSorted {
   font-size: 11px;
 }
 
+/*
+ * ANSWER-YESNO-INLINE-2026-08-10: a Yes/No Buttons field answers
+ * directly in its picker row (the label plus the actual Yes/No
+ * FieldControl, side by side) instead of being a clickable row that
+ * navigates into .maneuverFieldEditor like every other input type —
+ * see the branch in ManeuverCard.tsx's maneuverFieldPicker map. The
+ * row is a <div>, not a <button> (it now contains real <button>
+ * children, which can't nest inside another button), so `cursor:
+ * default` replaces the inherited pointer-cursor affordance from the
+ * base .maneuverFieldPickerItem rule, and the label is left free to
+ * grow/wrap (no .maneuverFieldPickerPreview/.maneuverFieldPickerChevron
+ * sharing the row to size against). The Yes/No buttons themselves are
+ * shrunk slightly from their standalone-editor size to fit a single
+ * list row's height.
+ */
+.maneuverFieldPickerItemYesNo {
+  cursor: default;
+}
+
+.maneuverFieldPickerItemYesNo .maneuverFieldPickerLabel {
+  flex: 1 1 auto;
+  white-space: normal;
+}
+
+.maneuverFieldPickerItemYesNo .maneuverFieldYesNo {
+  flex: 0 0 auto;
+  width: 132px;
+}
+
+.maneuverFieldPickerItemYesNo .maneuverFieldYesNoButton {
+  height: 28px;
+  font-size: 10px;
+}
+
 /* The single-field entry view a picker row expands into. */
 .maneuverFieldEditor {
   display: flex;

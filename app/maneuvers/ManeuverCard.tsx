@@ -656,6 +656,44 @@ export default function ManeuverCard({
                   ) : (
                     <div className="maneuverFieldPicker">
                       {visibleFields.map((field) => {
+                        // Yes/No Buttons fields answer directly in this
+                        // row — see the ANSWER-YESNO-INLINE-2026-08-10
+                        // comment in globals.css above
+                        // .maneuverFieldPickerItemYesNo. Every other
+                        // input type keeps navigating into the
+                        // single-field editor below.
+                        if (field.inputType.toLowerCase() === "yes/no buttons") {
+                          const answered = Boolean(draftValues[field.fieldId]);
+                          return (
+                            <div
+                              key={field.fieldId}
+                              className={
+                                answered
+                                  ? "maneuverFieldPickerItem maneuverFieldPickerItemYesNo hasValue"
+                                  : "maneuverFieldPickerItem maneuverFieldPickerItemYesNo"
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <span className="maneuverFieldPickerLabel">
+                                {field.prompt}
+                                {field.required && (
+                                  <span aria-hidden="true"> *</span>
+                                )}
+                              </span>
+                              <FieldControl
+                                field={field}
+                                value={draftValues[field.fieldId] ?? ""}
+                                onChange={(next) =>
+                                  setDraftValues((current) => ({
+                                    ...current,
+                                    [field.fieldId]: next,
+                                  }))
+                                }
+                              />
+                            </div>
+                          );
+                        }
+
                         const preview = draftFieldPreview(field, draftValues);
                         return (
                           <button

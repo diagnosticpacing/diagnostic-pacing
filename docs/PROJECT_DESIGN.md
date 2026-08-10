@@ -369,6 +369,12 @@ section further down — this is an index, not a replacement.
   column guidance v2" block) dropped from 150px to 92px to match, along
   with `.adminDeleteHeader`/`.adminLockHeader` so the header row stays
   aligned. See `ADMIN-COLUMN-GUIDE-SHORTEN-2026-08-10`.
+- Maneuver cards: a Yes/No Buttons response field answers inline in its
+  results-side picker row (label plus the real Yes/No buttons, side by
+  side) instead of being a clickable row that navigates into the
+  single-field editor screen the way every other input type still
+  does — a Yes/No answer is only two buttons, so the extra screen
+  wasn't buying anything. See `ANSWER-YESNO-INLINE-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -4158,5 +4164,71 @@ loading the admin site and looking. If a description still feels
 cramped or a lot of empty space remains under a short one, the floor
 or the `max-width: 48ch` wrap width on `.adminColumnGuide p` are the
 two knobs to revisit.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ANSWER-YESNO-INLINE-2026-08-10 -->
+## Yes/No Buttons Fields Answer Inline in the Field Picker (implemented 2026-08-10)
+
+Every response field on a maneuver's results side is listed as a
+single-line row in `.maneuverFieldPicker` — the "landing page" of
+possible findings — and clicking a row expands it into
+`.maneuverFieldEditor`, a dedicated view showing that one field's
+label and entry control. That's a reasonable amount of ceremony for a
+number field, a dropdown, or a Refractory Period triplet, but for a
+Yes/No Buttons field the entry control *is* two buttons — Murph asked
+for those to render right next to the prompt text in the picker row
+itself, not gated behind navigating into the single-field editor
+("not on another card flip").
+
+**Change (`app/maneuvers/ManeuverCard.tsx`).** In the
+`visibleFields.map` that builds `.maneuverFieldPicker`, a field whose
+`inputType` is `"Yes/No Buttons"` (case-insensitive, matching every
+other `inputType` check in this file) now renders as a plain `<div>`
+row containing the prompt label and the real `FieldControl` for that
+field (the same component the single-field editor uses), instead of
+the `<button>` row that navigates via `setSelectedFieldId`. Every
+other input type is unaffected — still a clickable row into
+`.maneuverFieldEditor`. The row is marked `.hasValue` (same class the
+button rows use) once the field has any recorded answer, for the same
+green-tinted "answered" affordance.
+
+**Why a `<div>`, and why it stops its own click from bubbling.** The
+row now contains real `<button>` children (the Yes/No buttons
+themselves) — a `<button>` can't nest inside another `<button>`, so
+the row can't be a button anymore the way every other picker row still
+is. That mattered for one other reason too: the maneuver card's back
+face has a "click anywhere to leave results" convenience handler
+(`handleFaceClick`) that ignores clicks landing inside a `button`,
+`input`, `select`, `textarea`, `a`, or `label` — which is exactly why
+the old all-button picker rows were safe to click anywhere on. A plain
+`<div>` isn't in that list, so clicking the row's padding or the label
+text (not literally one of the two Yes/No buttons) would have fallen
+through and closed the results side. Fixed by calling
+`event.stopPropagation()` on the row's own `onClick`, so a stray click
+inside the row does nothing instead of exiting.
+
+**Not affected, on purpose.** A maneuver with exactly one visible
+field already skips the picker entirely (`openEditor`'s
+`initiallyVisible.length === 1` auto-select) and lands straight on
+`.maneuverFieldEditor`, which already renders the label next to its
+control with no extra navigation step — that path already matched
+what Murph asked for and needed no change.
+
+**CSS (`app/globals.css`).** New `.maneuverFieldPickerItemYesNo`
+modifier on `.maneuverFieldPickerItem`: `cursor: default` (the row
+itself isn't clickable anymore), the label set to grow/wrap instead of
+truncating with an ellipsis (no more preview text or chevron sharing
+the row to size against), and the Yes/No button group narrowed to a
+fixed width with a slightly shorter button height so it reads as one
+row rather than stretching to the card's full width the way it does in
+the standalone editor.
+
+**Not done:** not visually verified against the running app — sizing
+(the 132px button-group width, 28px button height) was chosen to look
+proportionate against the existing picker row height, not measured
+against a live render. If a Yes/No row looks cramped or oversized next
+to the plain-text rows above/below it, `.maneuverFieldPickerItemYesNo`
+in `globals.css` is where to adjust it.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
