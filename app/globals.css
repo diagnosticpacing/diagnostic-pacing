@@ -3576,7 +3576,19 @@ button {
 }
 
 button.adminTableHeader {
-  position: relative;
+  /* No position override here on purpose — see the comment above
+   * .adminTableHeader (ADMIN-TABLE-STICKY-HEADER-2026-08-10 /
+   * ADMIN-STICKY-HEADER-SPECIFICITY-FIX-2026-08-10): this used to set
+   * `position: relative`, which — being the more specific selector —
+   * silently beat the base .adminTableHeader rule's `position: sticky`
+   * for every actual header cell (every one renders as a <button> in
+   * SpreadsheetTable.tsx, so this rule matched all of them), which was
+   * the real reason the sticky header never worked even after
+   * .adminTableViewport got a genuine scrolling height. `position:
+   * sticky` already establishes a positioned containing block (same as
+   * `relative` would have) for .adminColumnResizeHandle's `position:
+   * absolute` inside it, so nothing here needs to set position at all.
+   */
   cursor: pointer;
 }
 

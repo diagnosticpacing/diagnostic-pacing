@@ -330,18 +330,26 @@ section further down — this is an index, not a replacement.
   `RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10`.
 - Admin site: the spreadsheet's column-header row (labels + "How the
   application uses this" description) now actually freezes in place
-  while a long list of rows scrolls. It was already written as
-  `position: sticky` but silently inert — `.adminTableViewport`'s
-  `overflow: auto` had no height constraint, so it never actually
-  scrolled internally; the whole page scrolled past it instead. Fixed
-  by turning `.adminShell` into a fixed-viewport-height flex column (a
-  deliberate exception to every other top-level shell's ordinary
-  min-height-plus-page-scroll) with only `.adminTableViewport` (now
-  `flex: 1`) as a real scrolling region — which also pins the topbar,
-  tabs, maneuver subnav, sheet heading, and toolbar permanently above
-  the grid as a side effect. Applies to both the editable admin site
-  and the read-only public knowledge viewer, which share this exact
-  shell. See `ADMIN-TABLE-STICKY-HEADER-2026-08-10`.
+  while a long list of rows scrolls. Two independent bugs had to be
+  fixed, not one — see below for why the first fix alone didn't do it.
+  `.adminTableViewport`'s `overflow: auto` had no height constraint, so
+  it never actually scrolled internally; the whole page scrolled past
+  it instead. Fixed by turning `.adminShell` into a fixed-viewport-height
+  flex column (a deliberate exception to every other top-level shell's
+  ordinary min-height-plus-page-scroll) with only `.adminTableViewport`
+  (now `flex: 1`) as a real scrolling region — which also pins the
+  topbar, tabs, maneuver subnav, sheet heading, and toolbar permanently
+  above the grid as a side effect. Applies to both the editable admin
+  site and the read-only public knowledge viewer, which share this
+  exact shell. See `ADMIN-TABLE-STICKY-HEADER-2026-08-10`. That alone
+  turned out not to be enough: `button.adminTableHeader { position:
+  relative }` — a more specific selector matching every actual header
+  cell (all rendered as `<button>`) — was silently overriding the base
+  rule's `position: sticky` the entire time, for a reason unrelated to
+  scrolling at all. See `ADMIN-STICKY-HEADER-SPECIFICITY-FIX-2026-08-10`
+  for the second fix, found by reading Murph's screenshots of the
+  actual scrolled state after the first fix shipped and still didn't
+  work.
 - Clinical Reasoning's Operator column and Response Fields' Display
   Operator column both gained "Yes Selected"/"No Selected" options,
   alongside the existing "Is Checked"/"Is Unchecked" — intentional
@@ -4001,3 +4009,92 @@ alone; it's a pre-existing, already-noted-elsewhere gap (see the
 this change touches.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ADMIN-STICKY-HEADER-SPECIFICITY-FIX-2026-08-10 -->
+## Fix: The Real Reason the Admin Header Still Wasn't Sticky (fixed 2026-08-10)
+
+`ADMIN-TABLE-STICKY-HEADER-2026-08-10` (earlier the same day) gave
+`.adminTableViewport` a genuine scrolling height, which was real and
+necessary — but Murph reported the header was still disappearing on
+scroll, "the only thing on the page are the rows below the Title row."
+Screenshots settled it: scrolling the grid correctly kept the topbar,
+tabs, maneuver subnav, sheet heading, and toolbar fixed in place (that
+part of the first fix worked), but the spreadsheet's own column-header
+row — "the Title row" — vanished the instant the page scrolled at all,
+rather than sticking to the top of the grid the way it was supposed
+to.
+
+**Root cause: a completely different bug from the first fix, hiding
+behind the same symptom.** `app/globals.css` had two rules for the
+same element:
+
+```css
+.adminTableHeader {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  /* ... */
+}
+
+button.adminTableHeader {
+  position: relative;
+  cursor: pointer;
+}
+```
+
+Every real header cell in `SpreadsheetTable.tsx` renders as
+`<button className="adminTableHeader">` (or `"adminTableHeader
+isSorted"`) — so `button.adminTableHeader` (specificity: one element
+type + one class) matches every one of them, and beats the base
+`.adminTableHeader` rule (specificity: one class) in the cascade
+regardless of source order. Its `position: relative` was silently
+overriding the base rule's `position: sticky` for every actual header
+cell, the entire time — meaning the header was never actually
+`position: sticky` in the browser's computed style, no matter how the
+scroll container around it was fixed. It just scrolled away like
+ordinary in-flow content, because — as far as layout was concerned —
+that's exactly what it was.
+
+(One header cell was *not* affected: the small lock-column spacer
+renders as `<div className="adminTableHeader adminLockHeader">`, not a
+`<button>`, so `button.adminTableHeader` never matched it and it
+stayed genuinely sticky the whole time. Too narrow — 54px — for either
+of us to have noticed it behaving differently from the rest of the
+row.)
+
+**Why `position: relative` was there at all.** Each header button
+contains `.adminColumnResizeHandle`, a `position: absolute` drag
+handle for resizing the column — absolutely-positioned elements need a
+positioned ancestor to anchor against, and `button.adminTableHeader`'s
+`position: relative` was providing that. This wasn't a mistake when it
+was written; it just predates the base rule gaining `position: sticky`
+at some point, and nobody revisited whether `relative` was still
+needed once `sticky` — which is *also* a "positioned" value per the
+CSS spec, and establishes exactly the same kind of containing block —
+made it redundant.
+
+**Fix.** Removed `position: relative` from `button.adminTableHeader`,
+leaving only `cursor: pointer`. The base rule's `position: sticky`
+now applies uncontested to every header button, and the resize
+handle's positioning is unaffected — `sticky` satisfies the same
+containing-block requirement `relative` did.
+
+**Process note, for next time this kind of thing comes up:** the first
+sticky-header fix was verified by tracing CSS Overflow spec rules
+against the file's structure, not by loading the page — and that
+verification genuinely was correct as far as it went, but a second,
+unrelated bug (ordinary selector specificity, nothing to do with
+scroll containers at all) was sitting right next to it, and pure
+cascade-tracing missed it on the first pass because `button
+.adminTableHeader` is easy to skim past as "just a cursor style
+tweak." Two rounds of screenshots (top-of-page, then actually
+scrolled) were what surfaced it. Worth remembering that a layout bug
+report can have more than one independent cause even when the first
+one found is real and worth fixing.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS
+only; no `.ts`/`.tsx` touched). Not re-verified visually in this
+session either — same caveat as the first fix — but this one is a
+narrow, single-property removal with a clear, traceable mechanism
+(cascade specificity), rather than a structural layout change, so
+confidence is higher than the first pass.
