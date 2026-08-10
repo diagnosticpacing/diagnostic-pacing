@@ -383,6 +383,13 @@ section further down — this is an index, not a replacement.
   request so the findings list (the "summary side" of the card) is the
   only place the tag is used to differentiate results. See
   `TAG-DEDUP-REMOVE-CARD-TOP-PILLS-2026-08-10`.
+- Case Structure cards' title now shows Rhythm's Full Name (the value
+  already recorded on the Clinical State) instead of looking it up
+  against the Clinical States knowledge-base sheet and substituting its
+  Abbreviated Name — e.g. "Normal Sinus Rhythm" rather than "NSR".
+  `abbreviateClinicalStateLabel`, the lookup helper this used, is
+  removed (it had no other caller). See
+  `CASE-STRUCTURE-CARD-FULL-NAME-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -4275,5 +4282,41 @@ drop the removed one and note where it used to be.
 **Not touched:** `.maneuverFindingRow`/`.maneuverFindingTag` and the
 active-state highlighting on the findings list — already the
 "summary side" tagging Murph wants kept, unchanged by this removal.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- CASE-STRUCTURE-CARD-FULL-NAME-2026-08-10 -->
+## Case Structure Card Title: Full Name Instead of Abbreviated Name (implemented 2026-08-10)
+
+The Case Structure rail card's title (`.clinicalStateCardRhythm`) has
+shown Rhythm abbreviated since `CASE-STRUCTURE-CARD-REWORK-2026-08-08`
+— `abbreviateClinicalStateLabel()` matched the state's Rhythm value
+against the Clinical States knowledge-base sheet's Full Name column
+and, on a match, substituted that row's Abbreviated Name ("Normal
+Sinus Rhythm" → "NSR"). Murph asked for the Full Name column instead.
+
+**Why this was a smaller change than it might look.** A Clinical
+State's `context.rhythm` (`app/clinical/model.ts`'s `rhythmOptions`)
+is itself already full-name text ("Normal Sinus Rhythm", "Tachycardia",
+etc.) — it's the *input* `abbreviateClinicalStateLabel` matched against
+the knowledge base's Full Name column, not something separately
+abbreviated from. So showing the Full Name doesn't require a KB lookup
+at all; it just means displaying the value already on the Clinical
+State, unmodified, the way the card did before
+`CASE-STRUCTURE-CARD-REWORK-2026-08-08` introduced the abbreviation.
+
+**Change (`app/page.tsx`).** The card's title span now renders
+`clinicalState.context.rhythm` directly. Removed
+`abbreviateClinicalStateLabel()` entirely — this was its only call
+site — and the now-pointless `title={clinicalState.context.rhythm}`
+tooltip on the span, since the visible text and the tooltip text would
+now always be identical; `.clinicalStateCardRhythm` wraps rather than
+truncates (`overflow-wrap`/`word-break`), so there was never a
+truncation case for a tooltip to cover anyway.
+
+**Not touched:** the Ablation-phase title branch (`{modality}
+Ablation`) and the Clinical State tag pill (Pre-ABL/Post-ABL ·
+Iso-On/Off) below the title — neither one went through
+`abbreviateClinicalStateLabel`, so neither changes here.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

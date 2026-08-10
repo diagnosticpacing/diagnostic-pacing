@@ -130,30 +130,6 @@ function clampRailWidth(width: number): number {
   return Math.min(RAIL_WIDTH_MAX, viewportCap, Math.max(RAIL_WIDTH_MIN, width));
 }
 
-/**
- * Looks up `value` against the Clinical States knowledge-base sheet's Full
- * Name column and, if a row matches, returns its Abbreviated Name instead —
- * e.g. "Normal Sinus Rhythm" -> "NSR", once that row exists. Falls back to
- * `value` unchanged whenever there's no match (the sheet is still empty,
- * the row hasn't been added yet, or the value — Phase, for instance — isn't
- * part of this vocabulary at all), so it's safe to call before or after the
- * knowledge base is populated. This only ever shortens display text; the
- * Clinical States rail cards wrap rather than truncate regardless, so
- * nothing is ever cut off even when no abbreviation is available.
- */
-function abbreviateClinicalStateLabel(
-  value: string,
-  clinicalStates: SpreadsheetRow[] | undefined,
-): string {
-  const trimmed = value.trim();
-  if (!trimmed || !clinicalStates) return value;
-
-  const match = clinicalStates.find(
-    (row) => (row.fullName ?? "").trim().toLowerCase() === trimmed.toLowerCase(),
-  );
-  const abbreviation = match?.abbreviatedName?.trim();
-  return abbreviation ? abbreviation : value;
-}
 
 /** Display form for a context value inside the change-state prompt —
  * dose fields (Isoproterenol/Adenosine/Epinephrin) are often blank,
@@ -1072,14 +1048,14 @@ export default function Home() {
                     </span>
                   ) : (
                     <>
-                      <span
-                        className="clinicalStateCardRhythm"
-                        title={clinicalState.context.rhythm}
-                      >
-                        {abbreviateClinicalStateLabel(
-                          clinicalState.context.rhythm,
-                          knowledgeSheets.clinicalStates,
-                        )}
+                      {/* Full Name, not the Clinical States knowledge-base
+                          sheet's Abbreviated Name — see
+                          CASE-STRUCTURE-CARD-FULL-NAME-2026-08-10. No
+                          `title` tooltip needed: this card wraps rather
+                          than truncates (.clinicalStateCardRhythm), so the
+                          full text is always already on screen. */}
+                      <span className="clinicalStateCardRhythm">
+                        {clinicalState.context.rhythm}
                       </span>
                       {cycleLength !== null ? (
                         <span className="clinicalStateCardCycleLength">
