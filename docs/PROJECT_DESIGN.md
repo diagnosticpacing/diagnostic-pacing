@@ -390,6 +390,12 @@ section further down — this is an index, not a replacement.
   `abbreviateClinicalStateLabel`, the lookup helper this used, is
   removed (it had no other caller). See
   `CASE-STRUCTURE-CARD-FULL-NAME-2026-08-10`.
+- Admin/Knowledge site's per-sheet heading (`.adminSheetHeading`, above
+  the toolbar) no longer restates which sheet is selected — dropped
+  the "Knowledge-base sheet"/"Maneuver workbook" eyebrow and the `<h2>`
+  sheet name, since AdminTabs (and, for Maneuvers, ManeuverWorkspace's
+  subnav) already show that. Only the description line remains. See
+  `ADMIN-SHEET-HEADING-DEDUP-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -4318,5 +4324,50 @@ truncation case for a tooltip to cover anyway.
 Ablation`) and the Clinical State tag pill (Pre-ABL/Post-ABL ·
 Iso-On/Off) below the title — neither one went through
 `abbreviateClinicalStateLabel`, so neither changes here.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ADMIN-SHEET-HEADING-DEDUP-2026-08-10 -->
+## Admin/Knowledge Sheet Heading: Drop the Restated Sheet Name (implemented 2026-08-10)
+
+Murph: "there is a lot of redundancy in stating what the pages are.
+please use only the selectable menus to express what each spreadsheet
+is. you can keep the only line of further explanation that is
+currently there." `.adminSheetHeading` — the block sitting between the
+tabs/subnav and the toolbar on both `/admin` and the read-only
+`/knowledge` viewer (they share this exact shell) — was stating the
+active sheet's identity three times over for a top-level sheet: once
+as the selected `AdminTabs` button, once as an eyebrow line
+("Knowledge-base sheet"), and once again as an `<h2>{activeDefinition
+.label}</h2>`. For a Maneuvers sub-sheet it was worse — a fourth
+repeat, since `ManeuverWorkspace`'s subnav buttons already render both
+the sheet's name (`<strong>`) and its description (`<span>`) for every
+sheet, selected or not.
+
+**Change (`app/admin/AdminClient.tsx`, `app/knowledge/KnowledgeClient
+.tsx` — identical edit, since they share the same JSX shape here).**
+Removed the eyebrow (`"Maneuver workbook"`/`"Knowledge-base sheet"`)
+and the `<h2>{activeDefinition.label}</h2>` from `.adminSheetHeading`.
+What remains is exactly the one line Murph said to keep: the
+description paragraph, still switching between `activeManeuverDescription`
+and `activeDefinition.description` the same way it always did. Sheet
+identity is now expressed exactly once — by whichever menu button is
+currently `.isActive` (`AdminTabs`, or `ManeuverWorkspace`'s subnav
+when on the Maneuvers tab) — never restated in the body below it.
+
+**CSS (`app/globals.css`).** Removed the now-dead `.adminSheetHeading
+h2` rule. `.adminSheetHeading p`'s `margin-top: 0` (there to close the
+gap under the now-removed `<h2>`) became `margin: 0` — with the `<h2>`
+gone the paragraph is the div's only child, so there's no longer a
+gap-to-a-sibling to manage on either side, and zeroing both sides
+avoids the browser's default paragraph bottom margin stacking with
+`.adminSheetHeading`'s own `margin-bottom: 14px` before the toolbar (a
+minor incidental fix noticed while already editing this rule, not
+something separately reported).
+
+**Not touched:** the Maneuvers subnav's own name+description pairing
+(`ManeuverWorkspace.tsx`) — that's one of the "selectable menus"
+Murph's request explicitly wants doing this job, so it's untouched by
+design, not an oversight.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

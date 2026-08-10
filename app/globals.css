@@ -4245,6 +4245,15 @@ button.adminTableHeader.isSorted {
   line-height: 1.45;
 }
 
+/*
+ * Used to also carry an eyebrow label ("Knowledge-base sheet"/
+ * "Maneuver workbook") and an <h2> restating the active sheet's
+ * name — dropped 2026-08-10
+ * (ADMIN-SHEET-HEADING-DEDUP-2026-08-10): AdminTabs above, and
+ * ManeuverWorkspace's subnav for the Maneuvers tab, already say which
+ * sheet is selected, so naming it a second time here was pure
+ * redundancy. Only the description line remains.
+ */
 .adminSheetHeading {
   display: flex;
   flex: none;
@@ -4254,13 +4263,9 @@ button.adminTableHeader.isSorted {
   margin-bottom: 14px;
 }
 
-.adminSheetHeading h2 {
-  margin: 3px 0 5px;
-}
-
 .adminSheetHeading p {
   max-width: 900px;
-  margin-top: 0;
+  margin: 0;
 }
 
 @media (max-width: 900px) {

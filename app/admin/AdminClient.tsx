@@ -296,14 +296,13 @@ export default function AdminPage() {
           />
         )}
 
+        {/* Sheet identity (name) is expressed by the selectable menus
+            alone now — AdminTabs above, and ManeuverWorkspace's subnav
+            for the Maneuvers tab — rather than restated again here. See
+            ADMIN-SHEET-HEADING-DEDUP-2026-08-10. Only the one line of
+            further explanation (the sheet's description) remains. */}
         <div className="adminSheetHeading">
           <div>
-            <p className="adminEyebrow">
-              {activeTab === "maneuvers"
-                ? "Maneuver workbook"
-                : "Knowledge-base sheet"}
-            </p>
-            <h2>{activeDefinition.label}</h2>
             <p>
               {activeTab === "maneuvers"
                 ? activeManeuverDescription
