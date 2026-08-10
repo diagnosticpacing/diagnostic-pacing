@@ -328,6 +328,20 @@ section further down — this is an index, not a replacement.
   saved performance, so a follow-up field appears the instant its
   trigger is answered. See
   `RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10`.
+- Admin site: the spreadsheet's column-header row (labels + "How the
+  application uses this" description) now actually freezes in place
+  while a long list of rows scrolls. It was already written as
+  `position: sticky` but silently inert — `.adminTableViewport`'s
+  `overflow: auto` had no height constraint, so it never actually
+  scrolled internally; the whole page scrolled past it instead. Fixed
+  by turning `.adminShell` into a fixed-viewport-height flex column (a
+  deliberate exception to every other top-level shell's ordinary
+  min-height-plus-page-scroll) with only `.adminTableViewport` (now
+  `flex: 1`) as a real scrolling region — which also pins the topbar,
+  tabs, maneuver subnav, sheet heading, and toolbar permanently above
+  the grid as a side effect. Applies to both the editable admin site
+  and the read-only public knowledge viewer, which share this exact
+  shell. See `ADMIN-TABLE-STICKY-HEADER-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -3814,3 +3828,106 @@ Verification: `npx tsc --noEmit` and `npx eslint app/` both clean
 (the first ESLint pass caught the `useEffect`/`setState` issue above,
 fixed by switching to the derived-render-time approach before this
 final clean run — see "Runtime" above).
+
+<!-- ADMIN-TABLE-STICKY-HEADER-2026-08-10 -->
+## Fix: Admin Spreadsheet's Column-Header Row Wasn't Actually Sticky (fixed 2026-08-10)
+
+Murph asked to freeze the admin site's row-label/description header so
+it stays visible while scrolling a long list of rows.
+
+**Root cause.** `.adminTableHeader` (each column's label + "How the
+application uses this" description, rendered as a `<button>` grid item
+inside `.adminSpreadsheet`) already had `position: sticky; top: 0;
+z-index: 3` — someone had clearly already tried to build this. It just
+never worked, for a subtle reason: its nearest ancestor with non-`visible`
+overflow — the element `position: sticky` resolves its stickiness
+against — is `.adminTableViewport` (`overflow: auto`), and
+`.adminTableViewport` had no height constraint of its own (no `height`,
+`max-height`, or flex sizing — just `width: 100%; overflow: auto;`
+sitting in ordinary block flow). Per CSS Overflow spec, any element
+with non-`visible` overflow on either axis still *establishes* a
+scroll container regardless of whether it ever actually has enough
+content to overflow. `.adminTableViewport`'s box always grew to
+exactly fit its content (however many hundreds of rows), so its own
+`scrollHeight` never exceeded its `clientHeight` — it never scrolled
+internally at all. The visible "scrolling through a long list" Murph
+described was really the whole page (document) scrolling past a very
+tall, never-scrolling `.adminTableViewport`. A sticky element only
+sticks within its own scroll container's scrollport; since that
+container's internal scroll range was always zero, `.adminTableHeader`
+had nothing to stick against and just scrolled away with everything
+else. (`.adminWorkspace`, an ancestor further out, also has `overflow:
+hidden` for its rounded corners — but `.adminTableViewport` is the
+*nearer* non-visible-overflow ancestor, so it's the one that mattered
+here.)
+
+Two structurally different fixes were possible: strip
+`.adminTableViewport`'s overflow entirely and let stickiness resolve
+against the true document scroll (the same pattern the main clinical
+GUI's own `.topbar` already uses successfully) — but that sheet also
+needs `overflow-x: auto` for horizontal scrolling on sheets with many
+columns (`.adminSpreadsheet { min-width: max-content }` deliberately
+overflows it wide), and CSS Overflow's per-spec `overflow-x`/`overflow-y`
+coupling means setting one axis to non-`visible` forces the other to
+behave as `auto` too — so there's no way to keep horizontal scroll
+without also keeping (and needing to fix) vertical scroll on the same
+element. So the real fix had to be the other option: give
+`.adminTableViewport` an actual height constraint so it becomes a
+genuinely-scrolling region, the way it always should have been.
+
+**Fix — `app/globals.css`.** `.adminShell` (the page root, shared by
+both `app/admin/AdminClient.tsx` and `app/knowledge/KnowledgeClient.tsx`
+— they render the identical shell/workspace/viewport structure) changed
+from `min-height: 100vh` (ordinary page flow, page scrolls) to a fixed
+`height: 100vh` flex column — a deliberate, called-out exception to
+every other top-level shell in this app, which all use the ordinary
+min-height-plus-page-scroll pattern. `.adminTopbar`, `.adminTabs`
+(top-level section tabs), `.adminSubnav` (the maneuver-sheet subnav),
+`.adminSheetHeading` (sheet title + description), and `.adminToolbar`
+all got `flex: none` — fixed-height, non-shrinking flex items.
+`.adminWorkspace` (the rounded-corner card wrapping all of the above
+plus the grid) became a flex column itself, `flex: 1; min-height: 0` —
+`min-height: 0` overrides flexbox's default `min-height: auto` on flex
+items, which otherwise refuses to shrink an item below its content's
+natural height, defeating the entire point. Finally
+`.adminTableViewport` itself got `flex: 1; min-height: 240px` — the
+240px is a floor, not the typical case; on an ordinary viewport this
+fills essentially all remaining space below the now-fixed chrome above
+it, and the floor only matters on a pathologically short viewport,
+where the tradeoff becomes "the page overflows 100vh a little" instead
+of "the grid gets squeezed to nothing." With `.adminTableViewport` now
+a real scrolling region, `.adminTableHeader`'s pre-existing `position:
+sticky; top: 0` finally has something genuine to stick against —
+nothing about `.adminTableHeader` itself needed to change.
+
+**Side effect, not just the ask:** because everything above the grid
+is now a fixed, non-scrolling flex item rather than ordinary page
+content, the maneuver subnav, sheet title/description, and Add
+Row/Save/Download toolbar are now *also* permanently visible while
+scrolling a long list of rows — not just the column-header row Murph
+named. Called out here as a deliberate, reasonable side effect of the
+fix rather than scope creep: there was no way to make only the header
+row stick without making its containing scroll region real, and once
+that region is real, everything outside it stops scrolling too.
+
+**Also applies to the public knowledge viewer.** `app/knowledge/
+KnowledgeClient.tsx` renders the exact same `.adminShell` /
+`.adminWorkspace` / `SpreadsheetTable` structure as the editable admin
+site, so this fix (being pure CSS on shared class names, no JSX
+touched in either file) fixes the identical problem there too, for
+free.
+
+**Not verified visually in this session** — this changes the admin
+shell's fundamental sizing model (fixed-viewport-height flex column
+instead of ordinary page scroll), which is a bigger structural change
+than this project's usual CSS fixes; confirmed correct by tracing the
+CSS Overflow spec's scroll-container and sticky-positioning rules
+against the actual JSX/CSS structure (`.adminTableHeader`'s existing
+sticky rule, `.adminTableViewport`'s overflow, the full ancestor
+chain's overflow/height properties), not by loading the page. Worth a
+quick look next time Murph is in the admin site, especially on a short
+browser window (the 240px-floor edge case above).
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS
+itself isn't type/lint-checked — this confirms no incidental JS/TS
+breakage; no `.ts`/`.tsx` files were touched by this fix at all).

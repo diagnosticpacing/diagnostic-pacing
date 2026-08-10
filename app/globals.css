@@ -3237,8 +3237,26 @@ button {
    Isolated spreadsheet-style knowledge-base editor.
    ========================================================= */
 
+/*
+ * A fixed-viewport-height shell (rather than the ordinary min-height:
+ * 100vh + page scroll every other top-level shell in this app uses) so
+ * the row-label/description header inside the spreadsheet grid can
+ * actually freeze in place while a long list of rows scrolls. Everything
+ * above the grid (topbar, tabs, maneuver subnav, sheet heading,
+ * toolbar) is a fixed-size flex item that never scrolls; only
+ * .adminTableViewport (flex: 1, inside .adminWorkspace below) is a real
+ * scrolling region, which is what finally makes .adminTableHeader's
+ * long-standing `position: sticky; top: 0` (previously inert — see
+ * ADMIN-TABLE-STICKY-HEADER-2026-08-10 in PROJECT_DESIGN.md) actually
+ * take effect. Shared by both the editable admin site and the
+ * read-only public knowledge viewer (KnowledgeClient.tsx), which render
+ * the exact same .adminShell/.adminWorkspace/.adminTableViewport
+ * structure.
+ */
 .adminShell {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   padding-bottom: 40px;
   background:
     radial-gradient(
@@ -3254,6 +3272,7 @@ button {
   top: 0;
   z-index: 30;
   display: flex;
+  flex: none;
   min-height: 76px;
   align-items: center;
   justify-content: space-between;
@@ -3318,6 +3337,10 @@ button {
 }
 
 .adminWorkspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   margin: 22px 24px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -3358,6 +3381,7 @@ button {
 
 .adminTabs {
   display: flex;
+  flex: none;
   min-width: 0;
   gap: 3px;
   overflow-x: auto;
@@ -3414,6 +3438,7 @@ button {
 
 .adminToolbar {
   display: flex;
+  flex: none;
   min-height: 62px;
   align-items: center;
   justify-content: space-between;
@@ -3504,6 +3529,18 @@ button {
 
 .adminTableViewport {
   width: 100%;
+  /* flex: 1 + min-height give this its own real height constraint —
+   * without one, this element's overflow: auto scroll container never
+   * actually overflows (the box just grows to fit every row), which is
+   * what silently defeated .adminTableHeader's sticky header below. The
+   * 240px min-height is a floor, not the usual case: on an ordinary
+   * viewport this fills essentially all the remaining space beneath the
+   * fixed chrome above it; the floor just keeps the grid from being
+   * squeezed to nothing on a very short viewport, at the cost of the
+   * page overflowing 100vh in that edge case instead.
+   */
+  flex: 1;
+  min-height: 240px;
   overflow: auto;
 }
 
@@ -4135,6 +4172,7 @@ button.adminTableHeader.isSorted {
 
 .adminSubnav {
   display: grid;
+  flex: none;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 10px;
   margin-bottom: 18px;
@@ -4183,6 +4221,7 @@ button.adminTableHeader.isSorted {
 
 .adminSheetHeading {
   display: flex;
+  flex: none;
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
