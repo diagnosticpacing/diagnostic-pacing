@@ -357,6 +357,18 @@ section further down — this is an index, not a replacement.
   the same two cases) so the dropdown reads naturally whichever of the
   two Yes/No-style input types the field being compared actually is.
   See `ADMIN-OPERATOR-YES-NO-ALIASES-2026-08-10`.
+- Admin site: every column's "How the application uses this" description
+  (`modelUse` in `app/admin/model.ts`) rewritten to be short — usually one
+  clause, rarely more than a sentence — instead of the multi-sentence
+  copy that had accumulated column by column. Prompted by the header row
+  no longer scrolling out of view
+  (`ADMIN-STICKY-HEADER-SPECIFICITY-FIX-2026-08-10`), which turned that
+  copy's height into permanent, always-visible page space rather than
+  something that scrolled away. `.adminTableHeader`'s `min-height` floor
+  (the one that actually renders — see the "Administration visible
+  column guidance v2" block) dropped from 150px to 92px to match, along
+  with `.adminDeleteHeader`/`.adminLockHeader` so the header row stays
+  aligned. See `ADMIN-COLUMN-GUIDE-SHORTEN-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -4098,3 +4110,53 @@ session either — same caveat as the first fix — but this one is a
 narrow, single-property removal with a clear, traceable mechanism
 (cascade specificity), rather than a structural layout change, so
 confidence is higher than the first pass.
+
+<!-- ADMIN-COLUMN-GUIDE-SHORTEN-2026-08-10 -->
+## Admin Column Guide Text Shortened (implemented 2026-08-10)
+
+Once `ADMIN-STICKY-HEADER-SPECIFICITY-FIX-2026-08-10` made the
+spreadsheet's column-header row genuinely stay on screen while
+scrolling, Murph pointed out the flip side: the "How the application
+uses this" description under every column label — some of them
+several sentences long — now permanently occupies vertical page space
+instead of scrolling away with the rest of the row. Requested: shorten
+them, across every sheet, not just the ones added this session.
+
+**Rewrite.** Every `modelUse` string in `app/admin/model.ts` (all
+eight sheets — Intervals, Clinical States, Diagnoses, Maneuver
+Definitions, Response Fields, Response Options, Clinical Reasoning,
+References) was rewritten to be as short as the underlying rule
+allows — usually one clause, rarely more than one sentence — while
+keeping every load-bearing detail a column's description existed to
+convey: what auto-populates a column and from where, when a column is
+disabled or ignored, which columns a lookup is narrowed by, and how
+the Yes/No-style operator aliases work. Nothing about the columns
+themselves (`key`, `width`, `options`, `lookup`, `filterBy`, and so
+on) changed — this was copy-only.
+
+**CSS: the header's height floor no longer assumes long copy.**
+`.adminTableHeader`'s `min-height` is only a floor (the header still
+grows taller than it if a column's description genuinely needs more
+room), but it had been sized at 150px around the old, much longer
+text — so even a column whose new description is one short line was
+still forced to reserve the old amount of vertical space. There are
+two `.adminTableHeader` rule blocks in `globals.css` ("Administration
+column guidance v1" at 112px, and "Administration visible column
+guidance v2" at 150px, both same specificity, source order decides —
+v2 wins and is the one that actually renders; v1 is left alone as
+already-dead code, matching this file's existing precedent for
+superseded blocks). Dropped v2's floor from 150px to 92px, and did the
+same to `.adminDeleteHeader` (same block) and `.adminLockHeader`
+(the lock-column spacer's own rule, "Row locking v1" section) so every
+cell in the header row still lines up at the same height — they'd
+been kept in sync with the old 150px value for the same reason.
+
+**Not done:** re-measuring what floor value is actually optimal against
+the real rendered page — 92px was sized by estimating line count from
+the new description lengths at the existing 48ch wrap width, not by
+loading the admin site and looking. If a description still feels
+cramped or a lot of empty space remains under a short one, the floor
+or the `max-width: 48ch` wrap width on `.adminColumnGuide p` are the
+two knobs to revisit.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

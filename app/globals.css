@@ -4071,9 +4071,20 @@ button.adminTableHeader.isSorted {
 
 /* Administration visible column guidance v2 */
 
+/*
+ * min-height dropped from 150px to 92px on 2026-08-10
+ * (ADMIN-COLUMN-GUIDE-SHORTEN-2026-08-10): 150px was sized around the
+ * old, much longer "How the application uses this" copy. That copy is
+ * now short (usually 1-2 lines), and this is only a floor — a header
+ * with the rare longer description still grows past it — so a lower
+ * floor lets every ordinary column reclaim the vertical space the long
+ * copy used to force onto every header regardless of its own text
+ * length. .adminDeleteHeader and .adminLockHeader are kept at the same
+ * value so every header cell in the row still lines up.
+ */
 .adminTableHeader {
   display: flex;
-  min-height: 150px;
+  min-height: 92px;
   flex-direction: column;
   justify-content: space-between;
   gap: 14px;
@@ -4083,7 +4094,7 @@ button.adminTableHeader.isSorted {
 }
 
 .adminDeleteHeader {
-  min-height: 150px;
+  min-height: 92px;
   justify-content: flex-end;
   padding-bottom: 14px;
   text-align: center;
@@ -4920,7 +4931,11 @@ button.adminTableHeader.isSorted {
 /* Row locking v1 */
 
 .adminLockHeader {
-  min-height: 150px;
+  /* Kept in sync with .adminTableHeader/.adminDeleteHeader's min-height —
+   * see the ADMIN-COLUMN-GUIDE-SHORTEN-2026-08-10 comment above the v2
+   * guidance block — so the lock-column spacer still lines up with the
+   * rest of the header row. */
+  min-height: 92px;
   justify-content: flex-end;
   padding-bottom: 14px;
   text-align: center;

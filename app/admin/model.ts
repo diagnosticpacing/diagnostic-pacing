@@ -165,8 +165,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "termId",
         label: "Interval ID",
-        modelUse:
-          "Stable identifier used when another record needs to reference this interval, e.g. IID-001.",
+        modelUse: "Stable ID used to reference this interval elsewhere, e.g. IID-001.",
         width: "170px",
         required: true,
         idPrefix: "IID-",
@@ -174,15 +173,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "name",
         label: "Name",
-        modelUse: "The preferred human-readable name of the interval.",
+        modelUse: "The interval's preferred human-readable name.",
         width: "220px",
         required: true,
       },
       {
         key: "definition",
         label: "Definition",
-        modelUse:
-          "Defines what the interval means so it can be interpreted consistently in clinical reasoning and explanations.",
+        modelUse: "What the interval means, for consistent use in reasoning and explanations.",
         width: "minmax(360px, 1fr)",
         multiline: true,
         required: true,
@@ -190,8 +188,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "numberOfFields",
         label: "Number of Fields",
-        modelUse:
-          "Defines the format the value is expressed in, e.g. 500 vs 500/300.",
+        modelUse: "Value format: a single number or two (e.g. 500 vs 500/300).",
         width: "160px",
         required: true,
         options: ["n/a", "1", "2"],
@@ -199,14 +196,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "unitOfMeasure",
         label: "Unit of Measure",
-        modelUse: "The unit of measure used for the interval, if applicable.",
+        modelUse: "Unit of measure, if applicable.",
         width: "150px",
         options: ["", "ms", "mV"],
       },
       {
         key: "notes",
         label: "Notes",
-        modelUse: "Optional synonyms, cautions, usage guidance, or editorial context.",
+        modelUse: "Optional synonyms, cautions, or usage notes.",
         width: "minmax(280px, 0.8fr)",
         multiline: true,
       },
@@ -222,8 +219,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "stateId",
         label: "State ID",
-        modelUse:
-          "Stable identifier used by Clinical Reasoning and Maneuver Definitions to reference this clinical state.",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
         width: "170px",
         required: true,
         idPrefix: "SID-",
@@ -231,8 +227,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "fullName",
         label: "Full Name",
-        modelUse:
-          "Full name of the clinical state displayed in reporting and summary explanations.",
+        modelUse: "Full name shown in reports and explanations.",
         width: "240px",
         required: true,
         options: [
@@ -248,16 +243,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "abbreviatedName",
         label: "Abbreviated Name",
-        modelUse:
-          "Compact label displayed where the full clinical state name would be too long, and the value used elsewhere to reference this state.",
+        modelUse: "Compact label used in place of the full name, and referenced elsewhere.",
         width: "170px",
         required: true,
       },
       {
         key: "notes",
         label: "Notes",
-        modelUse:
-          "Optional caveats, variants, terminology guidance, or state-specific context.",
+        modelUse: "Optional caveats, variants, or terminology notes.",
         width: "minmax(280px, 0.8fr)",
         multiline: true,
       },
@@ -273,7 +266,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "diagnosisId",
         label: "Diagnosis ID",
-        modelUse: "Stable identifier used by Clinical Reasoning to update this diagnosis.",
+        modelUse: "Stable ID used by Clinical Reasoning to update this diagnosis.",
         width: "180px",
         required: true,
         idPrefix: "DID-",
@@ -281,31 +274,28 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "fullName",
         label: "Full Name",
-        modelUse:
-          "Full name of the arrhythmia mechanism displayed in reporting and summary explanations.",
+        modelUse: "Full mechanism name shown in reports and explanations.",
         width: "280px",
         required: true,
       },
       {
         key: "abbreviatedName",
         label: "Abbreviated Name",
-        modelUse: "Compact label displayed where the full diagnosis name would be too long.",
+        modelUse: "Compact label used where the full name would be too long.",
         width: "170px",
         required: true,
       },
       {
         key: "description",
         label: "Description",
-        modelUse:
-          "Defines the mechanism and important distinguishing characteristics associated with the diagnosis.",
+        modelUse: "The mechanism and key distinguishing features of the diagnosis.",
         width: "minmax(380px, 1fr)",
         multiline: true,
       },
       {
         key: "notes",
         label: "Notes",
-        modelUse:
-          "Optional caveats, variants, terminology guidance, or diagnosis-specific context.",
+        modelUse: "Optional caveats, variants, or context.",
         width: "minmax(280px, 0.75fr)",
         multiline: true,
       },
@@ -313,7 +303,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "baseRank",
         label: "Base Rank",
         modelUse:
-          "Fixed population-frequency order. Used as the default sort position and as the tiebreaker when two diagnoses have equal supporting evidence. Lower numbers are more common.",
+          "Default sort order and tiebreaker by population frequency; lower is more common.",
         width: "130px",
         required: true,
       },
@@ -330,7 +320,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "maneuverId",
         label: "Maneuver ID",
         modelUse:
-          "Stable identifier connecting this maneuver to response fields, response options, reasoning, references, and saved performances.",
+          "Stable ID linking this maneuver to its fields, options, reasoning, references, and saved performances.",
         width: "180px",
         required: true,
         idPrefix: "MID-",
@@ -338,23 +328,21 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "maneuverName",
         label: "Maneuver Name",
-        modelUse: "The maneuver name displayed on the front of its tile and in reporting.",
+        modelUse: "Name shown on the tile and in reports.",
         width: "280px",
         required: true,
       },
       {
         key: "baseRank",
         label: "Base Rank",
-        modelUse:
-          "Fixed default order for the maneuver card grid before any relevance scoring is applied, and the tiebreaker when two maneuvers score equally relevant. Lower numbers appear first.",
+        modelUse: "Default card order before relevance scoring, and the tiebreaker; lower appears first.",
         width: "130px",
         required: true,
       },
       {
         key: "relevantDiagnoses",
         label: "Relevant Diagnoses",
-        modelUse:
-          "The diagnoses this maneuver's result can inform. Used to decide which maneuver to suggest next, and as a fallback signal before Clinical Reasoning rules exist for this maneuver.",
+        modelUse: "Diagnoses this maneuver's result can inform; drives suggestions and fallback scoring.",
         width: "minmax(240px, 0.85fr)",
         multiSelect: true,
         lookup: { sheet: "diagnoses", column: "abbreviatedName" },
@@ -362,7 +350,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "requiredStates",
         label: "Required States",
-        modelUse: "The clinical states necessary to perform this pacing maneuver.",
+        modelUse: "Clinical states necessary to perform this maneuver.",
         width: "minmax(220px, 0.8fr)",
         multiSelect: true,
         lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
@@ -370,7 +358,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "technique",
         label: "Technique",
-        modelUse: "Description of how to perform the maneuver and record the result.",
+        modelUse: "How to perform the maneuver and record the result.",
         width: "minmax(380px, 1.1fr)",
         multiline: true,
       },
@@ -386,7 +374,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "fieldId",
         label: "Field ID",
         modelUse:
-          "Stable identifier connecting this response field to response options, reasoning, references, and saved performances.",
+          "Stable ID linking this field to response options, reasoning, references, and saved performances.",
         width: "180px",
         required: true,
         idPrefix: "FID-",
@@ -394,7 +382,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "associatedManeuverName",
         label: "Associated Maneuver",
-        modelUse: "Identifies which maneuver owns this response field.",
+        modelUse: "Which maneuver owns this field.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
         populatesColumn: "associatedManeuverId",
@@ -402,15 +390,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "associatedManeuverId",
         label: "Associated Maneuver ID",
-        modelUse:
-          "Identifies which maneuver owns this response field. Auto-populated from Associated Maneuver.",
+        modelUse: "Which maneuver owns this field. Auto-filled from Associated Maneuver.",
         width: "200px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
       },
       {
         key: "order",
         label: "Order",
-        modelUse: "Determines the order in which this field appears among the maneuver's response fields.",
+        modelUse: "Where this field appears among the maneuver's response fields.",
         width: "90px",
         required: true,
         options: ["1", "2", "3", "4", "5", "6", "7", "8"],
@@ -418,8 +405,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "prompt",
         label: "Maneuver Response Prompt",
-        modelUse:
-          "The question or label displayed to the clinician when prompted to enter pacing maneuver results.",
+        modelUse: "The question or label shown to the clinician for this field.",
         width: "minmax(320px, 0.9fr)",
         multiline: true,
         required: true,
@@ -427,8 +413,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "availableTerms",
         label: "Available Terms",
-        modelUse:
-          "Which comparison operators are valid against this field's result. Filters the operator choices available to Clinical Reasoning.",
+        modelUse: "Comparison operators valid for this field; filters Clinical Reasoning's choices.",
         width: "180px",
         required: true,
         multiSelect: true,
@@ -438,7 +423,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "inputType",
         label: "Input Type",
         modelUse:
-          "Determines which entry control is rendered for this field. Yes/No Buttons renders two buttons (Yes and No) rather than a single checkbox — unlike Checkbox, which always starts unchecked (indistinguishable from an answer of \"No\"), Yes/No Buttons always starts with neither pressed, so \"not yet answered\" stays visually distinct from an actual \"No\" until one is clicked.",
+          "Which entry control renders. Yes/No Buttons starts with neither pressed, so \"unanswered\" stays distinct from an actual \"No\" (unlike Checkbox, which always starts unchecked).",
         width: "210px",
         required: true,
         options: [
@@ -453,7 +438,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "units",
         label: "Units",
-        modelUse: "Optional units displayed beside a numeric response.",
+        modelUse: "Optional units shown beside a numeric response.",
         width: "110px",
         required: true,
         options: ["n/a", "ms", "mV", "mA"],
@@ -462,7 +447,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "refractoryPeriodDirection",
         label: "Refractory Period Direction",
         modelUse:
-          "Tags this field as a Refractory Period result recorded on this maneuver's back side, rather than an ordinary field — leave n/a for fields that aren't one. Antegrade/Retrograde also determines which row of the derived Refractory Periods display this field's result appears in (determined by which maneuver produced it — e.g. atrial pacing measures antegrade, ventricular pacing measures retrograde — not a free choice per field). This one field IS the whole result: it always renders as up to three boxes (a second and third extrastimulus are optional, left blank if not performed). The display label is this field's own Maneuver Response Prompt — write the full clinician-facing name there directly (e.g. \"AVN ERP\"), since the panel already separates Antegrade from Retrograde into its own row.",
+          "Tags this as a Refractory Period result (n/a otherwise). Sets which row it appears in on the derived display; the field's own Prompt becomes that row's label.",
         width: "220px",
         required: true,
         options: ["n/a", "Antegrade", "Retrograde"],
@@ -470,7 +455,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "required",
         label: "Required",
-        modelUse: "Controls whether the maneuver can be accepted without completing this field.",
+        modelUse: "Whether the maneuver can be accepted without this field completed.",
         width: "110px",
         required: true,
         options: ["Yes", "No"],
@@ -479,7 +464,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "displayWhen",
         label: "Display When",
         modelUse:
-          "Controls whether this field is always shown, or only shown once another field on the same maneuver has a matching response. \"Always\" is the default for every existing row — a blank value is treated as \"Always\", the same way other additive columns on this sheet default to their neutral value.",
+          "Always shown, or only shown once another field on this maneuver has a matching answer. Blank defaults to Always.",
         width: "120px",
         required: true,
         options: ["Always", "If"],
@@ -488,7 +473,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "displayField",
         label: "Display Field",
         modelUse:
-          "The other response field on this same maneuver whose recorded answer controls whether this field is shown. Only takes effect when Display When is \"If\" — otherwise ignored, the same way other conditional columns on this sheet (e.g. Refractory Period Direction's \"n/a\") are ignored when they don't apply. Narrowed to fields belonging to the maneuver selected above via Associated Maneuver.",
+          "The field on this maneuver that controls visibility (used only when Display When is \"If\"). Limited to this maneuver's own fields.",
         width: "260px",
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
         filterBy: { ownColumn: "associatedManeuverId", matchColumn: "associatedManeuverId" },
@@ -497,8 +482,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "displayFieldId",
         label: "Display Field ID",
-        modelUse:
-          "Identifies the other response field this field's visibility depends on. Auto-populated from Display Field.",
+        modelUse: "Field this one's visibility depends on. Auto-filled from Display Field.",
         width: "200px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
       },
@@ -506,7 +490,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "displayOperator",
         label: "Display Operator",
         modelUse:
-          "Defines how Display Field's recorded response is compared against Display Value to decide whether this field is shown. Only takes effect when Display When is \"If\". Same operator vocabulary as Clinical Reasoning's Operator column, for the same reason — one comparison engine, reused everywhere a response gets checked against an expected value. \"Yes Selected\"/\"No Selected\" and \"Is Checked\"/\"Is Unchecked\" compare identically (both read the field's actual recorded Yes/No answer) — pick whichever term matches Display Field's own Input Type (Yes/No Buttons vs. Checkbox) so the row reads naturally.",
+          "How Display Field's answer is compared to Display Value. \"Yes/No Selected\" and \"Is Checked/Unchecked\" work the same — pick whichever matches Display Field's Input Type.",
         width: "160px",
         options: [
           "Is Checked",
@@ -522,14 +506,13 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "displayValue",
         label: "Display Value",
-        modelUse:
-          "The value Display Operator compares Display Field's recorded response to, if applicable. Only takes effect when Display When is \"If\".",
+        modelUse: "Value Display Operator compares against, if applicable.",
         width: "180px",
       },
       {
         key: "helpText",
         label: "Help Text",
-        modelUse: "Context shown near the field to explain how the response should be determined or entered.",
+        modelUse: "Guidance shown near the field on how to answer it.",
         width: "minmax(300px, 0.9fr)",
         multiline: true,
       },
@@ -544,7 +527,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "optionId",
         label: "Option ID",
-        modelUse: "Stable identifier for this particular response field answer option.",
+        modelUse: "Stable ID for this particular answer option.",
         width: "200px",
         required: true,
         idPrefix: "OID-",
@@ -552,7 +535,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "associatedManeuverName",
         label: "Associated Maneuver Name",
-        modelUse: "Identifies which maneuver's response field owns this option.",
+        modelUse: "Which maneuver's field owns this option.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
         populatesColumn: "associatedManeuverId",
@@ -560,16 +543,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "associatedManeuverId",
         label: "Associated Maneuver ID",
-        modelUse:
-          "Identifies which maneuver's response field owns this option. Auto-populated from Associated Maneuver Name.",
+        modelUse: "Which maneuver's field owns this option. Auto-filled from Associated Maneuver Name.",
         width: "190px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
       },
       {
         key: "associatedManeuverResponsePrompt",
         label: "Associated Maneuver Response Prompt",
-        modelUse:
-          "Identifies the response field in which this option should appear, narrowed to fields belonging to the maneuver selected above.",
+        modelUse: "Which field this option belongs to, limited to the maneuver above.",
         width: "260px",
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
         filterBy: { ownColumn: "associatedManeuverId", matchColumn: "associatedManeuverId" },
@@ -578,15 +559,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "associatedFieldId",
         label: "Associated Field ID",
-        modelUse:
-          "Identifies the response field in which this option should appear. Auto-populated from Associated Maneuver Response Prompt.",
+        modelUse: "Field this option belongs to. Auto-filled from Associated Maneuver Response Prompt.",
         width: "220px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
       },
       {
         key: "order",
         label: "Order",
-        modelUse: "Determines the order in which this option appears in the control.",
+        modelUse: "Order this option appears in the control.",
         width: "90px",
         required: true,
         options: ["1", "2", "3", "4", "5", "6", "7", "8"],
@@ -594,8 +574,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "displayLabel",
         label: "Display Label",
-        modelUse:
-          "The clinician-facing wording shown in the dropdown, button group, or selection list.",
+        modelUse: "Wording shown in the dropdown or button group.",
         width: "300px",
       },
     ],
@@ -610,7 +589,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "reasoningId",
         label: "Reasoning ID",
-        modelUse: "Stable identifier for this individual clinical reasoning statement.",
+        modelUse: "Stable ID for this individual reasoning statement.",
         width: "180px",
         required: true,
         idPrefix: "CRID-",
@@ -619,7 +598,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "maneuverConsidered",
         label: "Maneuver Considered",
         modelUse:
-          "The maneuver this reasoning statement evaluates, as an alternative to Interval Considered. Disabled while Interval Considered holds a value — clear that first to use this instead.",
+          "Maneuver this rule evaluates (alternative to Interval Considered). Disabled once Interval Considered is set.",
         width: "220px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverName" },
         populatesColumn: "maneuverId",
@@ -628,8 +607,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "maneuverId",
         label: "Maneuver ID",
-        modelUse:
-          "Identifies the maneuver whose result activates this reasoning statement. Intended to auto-populate from Maneuver Considered.",
+        modelUse: "Maneuver whose result activates this rule. Auto-fills from Maneuver Considered.",
         width: "150px",
         lookup: { sheet: "maneuverDefinitions", column: "maneuverId" },
         disabledWhenFilled: ["intervalConsidered", "intervalName"],
@@ -637,8 +615,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "responseFieldPrompt",
         label: "Response Field Prompt",
-        modelUse:
-          "The specific maneuver response field being evaluated, narrowed to fields belonging to the maneuver selected above.",
+        modelUse: "Which response field is evaluated, limited to the maneuver above.",
         width: "240px",
         lookup: { sheet: "maneuverResponseFields", column: "prompt" },
         filterBy: { ownColumn: "maneuverId", matchColumn: "associatedManeuverId" },
@@ -648,8 +625,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "fieldId",
         label: "Associated Field ID",
-        modelUse:
-          "Identifies the specific maneuver response field being evaluated. Intended to auto-populate from Response Field Prompt.",
+        modelUse: "Field being evaluated. Auto-fills from Response Field Prompt.",
         width: "180px",
         lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
         disabledWhenFilled: ["intervalConsidered", "intervalName"],
@@ -658,7 +634,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "intervalConsidered",
         label: "Interval Considered",
         modelUse:
-          "The interval this reasoning statement evaluates directly, as an alternative to a Maneuver/Response Field pair — e.g. an AH interval threshold rather than a maneuver result. Disabled while Maneuver Considered holds a value — clear that first to use this instead.",
+          "Interval this rule evaluates directly (alternative to Maneuver/Field). Disabled once Maneuver Considered is set.",
         width: "220px",
         lookup: { sheet: "clinicalTerms", column: "name" },
         populatesColumn: "intervalName",
@@ -668,8 +644,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "intervalName",
         label: "Interval Name",
-        modelUse:
-          "Identifies the specific interval being evaluated, by name (Intervals has no other sheet referencing it by ID, so this mirrors the readable name rather than a code). Intended to auto-populate from Interval Considered.",
+        modelUse: "Interval being evaluated, by name. Auto-fills from Interval Considered.",
         width: "180px",
         lookup: { sheet: "clinicalTerms", column: "name" },
         disabledWhenFilled: ["maneuverConsidered", "maneuverId"],
@@ -678,7 +653,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "operator",
         label: "Operator",
         modelUse:
-          "Defines how the recorded response is compared with the expected value. \"Yes Selected\"/\"No Selected\" and \"Is Checked\"/\"Is Unchecked\" compare identically (both read the field's actual recorded Yes/No answer) — pick whichever term matches the considered field's own Input Type (Yes/No Buttons vs. Checkbox) so the row reads naturally.",
+          "How the recorded response is compared to the expected value. \"Yes/No Selected\" and \"Is Checked/Unchecked\" work the same — pick whichever matches the field's Input Type.",
         width: "160px",
         required: true,
         options: [
@@ -695,13 +670,13 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "comparedValue",
         label: "Compared Value",
-        modelUse: "The value the operator compares the field's result to, if applicable.",
+        modelUse: "Value the operator compares the result to, if applicable.",
         width: "200px",
       },
       {
         key: "differentialAction",
         label: "Differential Action",
-        modelUse: "Determines what kind of conclusion this result contributes to the diagnosis.",
+        modelUse: "What kind of conclusion this result contributes.",
         width: "170px",
         required: true,
         options: ["Supports", "Excludes", "Confirms"],
@@ -710,7 +685,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "diagnosisAffected",
         label: "Diagnosis Affected",
         modelUse:
-          "The diagnosis that this clinical reasoning acts upon. Narrowed to diagnoses the maneuver selected above is relevant to when this row uses Maneuver Considered; shows every diagnosis when it uses Interval Considered instead.",
+          "Diagnosis this rule acts on. Limited to the maneuver's relevant diagnoses when using Maneuver Considered.",
         width: "200px",
         lookup: { sheet: "diagnoses", column: "abbreviatedName" },
         filterBy: {
@@ -725,8 +700,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "diagnosisId",
         label: "Diagnosis ID",
-        modelUse:
-          "The diagnosis that this clinical reasoning acts upon. Intended to auto-populate from Diagnosis Affected.",
+        modelUse: "Diagnosis this rule acts on. Auto-fills from Diagnosis Affected.",
         width: "150px",
         lookup: { sheet: "diagnoses", column: "diagnosisId" },
       },
@@ -734,14 +708,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "explanation",
         label: "Explanation",
         modelUse:
-          "The clinician-facing explanation of why this response has the stated effect on the diagnosis. Excerpted manuscript text preferred.",
+          "Clinician-facing explanation of the effect on the diagnosis. Excerpted manuscript text preferred.",
         width: "minmax(380px, 1.1fr)",
         multiline: true,
       },
       {
         key: "referenceTitle",
         label: "Reference Title",
-        modelUse: "The reference that supports the explanation for this clinical reasoning.",
+        modelUse: "Reference supporting this explanation.",
         width: "220px",
         lookup: { sheet: "references", column: "referenceTitle" },
         populatesColumn: "referenceId",
@@ -749,23 +723,21 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "referenceId",
         label: "Reference ID",
-        modelUse:
-          "The reference that supports the explanation for this clinical reasoning. Intended to auto-populate from Reference Title.",
+        modelUse: "Reference supporting this explanation. Auto-fills from Reference Title.",
         width: "160px",
         lookup: { sheet: "references", column: "referenceId" },
       },
       {
         key: "ruleGroupId",
         label: "Rule Group ID",
-        modelUse:
-          "Rows sharing the same Rule Group ID must all be satisfied together (AND) before the Differential Action applies. Leave blank for a standalone condition.",
+        modelUse: "Rows sharing this ID must all be satisfied together (AND). Blank means standalone.",
         width: "180px",
       },
       {
         key: "requiredClinicalState",
         label: "Required Clinical State",
         modelUse:
-          "Restricts this condition to results recorded while the specified Clinical State was active. Narrowed to states the maneuver selected above requires when this row uses Maneuver Considered; shows every Clinical State when it uses Interval Considered instead. Used together with Rule Group ID to require the same finding across multiple states.",
+          "Restricts this rule to the specified Clinical State. Combine with Rule Group ID to require it across multiple states.",
         width: "220px",
         lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
         filterBy: {
@@ -779,7 +751,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "ruleDescription",
         label: "Rule Description",
-        modelUse: "Plain language description of the rule.",
+        modelUse: "Plain-language description of the rule.",
         width: "minmax(280px, 0.9fr)",
         multiline: true,
       },
@@ -794,7 +766,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "referenceId",
         label: "Reference ID",
-        modelUse: "Stable identifier used to attach this publication to maneuvers and clinical reasoning statements.",
+        modelUse: "Stable ID linking this publication to maneuvers and reasoning statements.",
         width: "180px",
         required: true,
         idPrefix: "REFID-",
@@ -802,14 +774,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "referenceTitle",
         label: "Reference Title",
-        modelUse: "The title of the manuscript.",
+        modelUse: "The manuscript title.",
         width: "300px",
         required: true,
       },
       {
         key: "abbreviatedAuthor",
         label: "Abbreviated Author",
-        modelUse: "The first author, followed by et al.",
+        modelUse: "First author, followed by et al.",
         width: "200px",
         required: true,
       },
@@ -832,13 +804,13 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "pmidDoi",
         label: "PMID / DOI",
-        modelUse: "A publication identifier used to locate, verify, and deduplicate the source.",
+        modelUse: "Identifier used to locate, verify, and deduplicate the source.",
         width: "220px",
       },
       {
         key: "notes",
         label: "Notes",
-        modelUse: "Explains what the source supports and records any important limitations.",
+        modelUse: "What the source supports, and any important limitations.",
         width: "minmax(280px, 0.8fr)",
         multiline: true,
       },
