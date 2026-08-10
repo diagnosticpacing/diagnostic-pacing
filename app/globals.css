@@ -3005,6 +3005,28 @@ button {
   padding-left: 0;
 }
 
+/*
+ * Cancel the 24px right padding left over from .workspace/.lowerWorkspace's
+ * original 3-column-grid-era base rules (further up this file) — that
+ * padding never got zeroed out the way padding-left did above, even after
+ * both sections became a single full-width column
+ * (MANEUVER-RESULT-ENTRY-REMOVED-2026-08-08 and earlier). .caseStrip and
+ * .effectiveRefractoryPeriodCard carry no outer padding of their own, so
+ * this stale 24px was the entire reason the Pacing Maneuvers panel (and
+ * Case Timeline/Evidence and reasoning below it) rendered narrower on the
+ * right than Active Clinical State, Intervals, and Refractory Periods,
+ * even though all four sections already share the exact same
+ * margin-left/margin-right. See MANEUVER-PANEL-WIDTH-FIX-2026-08-10 in
+ * PROJECT_DESIGN.md. Top/bottom padding are deliberately left alone —
+ * .workspace's 16px top padding is this pair's real inter-section gap,
+ * playing the same role .caseStrip's 18px and
+ * .effectiveRefractoryPeriodCard's 14px margin-top already play.
+ */
+.workspace,
+.lowerWorkspace {
+  padding-right: 0;
+}
+
 /* ---------------------------------------------------------
    RESPONSIVE FALLBACK
    --------------------------------------------------------- */

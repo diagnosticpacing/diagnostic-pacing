@@ -303,6 +303,15 @@ section further down — this is an index, not a replacement.
   reload — the user reconnects via "Enable autosave" again each
   session; no persistence layer was built for that. See
   `CASE-AUTOSAVE-2026-08-08`.
+- Pacing Maneuvers panel width fix: `.workspace` and `.lowerWorkspace`
+  had a stale 24px `padding-right` left over from an older 3-column
+  grid design, making the Pacing Maneuvers panel (and Case Timeline /
+  Evidence and reasoning below it) render 24px narrower on the right
+  than Active Clinical State, Intervals, and Refractory Periods, which
+  carry no outer padding of their own. Both sections' right padding is
+  now zeroed alongside the left, matching all four top-level sections'
+  already-shared outer margins. See
+  `MANEUVER-PANEL-WIDTH-FIX-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -3549,3 +3558,72 @@ this doc ("Still open / intentionally deferred") isn't built yet.
   Clinical-Reasoning-weighted / value-of-information data.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- MANEUVER-PANEL-WIDTH-FIX-2026-08-10 -->
+## Fix: Pacing Maneuvers Panel Was Narrower Than the Other Sections (fixed 2026-08-10)
+
+Murph reported that the Pacing Maneuvers section renders at a slightly
+different size than Refractory Periods, Intervals, and Active Clinical
+State — asked for it to match.
+
+Root cause: `.appShell > .caseStrip, .appShell > .effectiveRefractoryPeriodCard,
+.appShell > .workspace, .appShell > .lowerWorkspace` already share one
+rule giving all four top-level sections identical `margin-left`/
+`margin-right` (both `calc()`'d off `--clinical-state-rail-width` /
+`--diagnosis-monitor-width` / `--side-monitor-gap`), so their outer
+bounding boxes were never the mismatch. The mismatch was inside that
+shared box: `.caseStrip` (Active Clinical State + Intervals) and
+`.effectiveRefractoryPeriodCard` (Refractory Periods) carry no padding
+of their own — only `margin`, set in their own older base rules — so
+their content runs edge-to-edge inside the shared bounding box. But
+`.workspace` (wrapping the Pacing Maneuvers `Panel`, which fills
+`width: 100%` of its parent) still carries `padding: 16px 24px 0` from
+its original 3-column-grid-era base rule, and `.lowerWorkspace`
+(wrapping Case Timeline / Evidence and reasoning, below Pacing
+Maneuvers) still carries `padding: 16px 24px 24px` from the same era.
+An existing cleanup rule already zeroed `padding-left` on both
+sections once they'd each collapsed to a single full-width column (see
+`MANEUVER-RESULT-ENTRY-REMOVED-2026-08-08` and earlier), but never
+zeroed the matching `padding-right` — so both sections have rendered
+24px narrower on the right than the other three sections' content ever
+since, and it went unnoticed because 24px against a wide panel reads
+as "slightly off," not obviously broken.
+
+**Fix — `app/globals.css`.** Extended the existing "Cancel older
+left-rail padding/margin assumptions" rule (which zeroes `padding-left`
+on `.caseStrip`, `.effectiveRefractoryPeriodCard`, `.workspace`, and
+`.lowerWorkspace`) with an adjacent rule that also zeroes
+`padding-right` on `.workspace` and `.lowerWorkspace` (the only two of
+the four that had any). Deliberately left `padding-top`/`padding-bottom`
+alone on both — `.workspace`'s 16px top padding is the real
+inter-section gap above Pacing Maneuvers, playing the same role
+`.caseStrip`'s 18px and `.effectiveRefractoryPeriodCard`'s 14px
+`margin-top` already play for the sections above them, and
+`.lowerWorkspace`'s 24px bottom padding is the page's bottom gutter
+below Case Timeline / Evidence and reasoning.
+
+**Bonus fix, same root cause:** `.lowerWorkspace` (Case Timeline /
+Evidence and reasoning, below Pacing Maneuvers) had the identical
+stale-`padding-right` bug and is fixed by the same rule — it wasn't
+named in Murph's report but would have stayed visibly narrower than
+the panel directly above it once Pacing Maneuvers was corrected, so
+it's included rather than left mismatched.
+
+**Noted, not fixed — pre-existing, unrelated:** the `max-width: 720px`
+mobile breakpoint sets its own `.workspace, .lowerWorkspace { padding-left:
+12px; padding-right: 12px; }` for a deliberate mobile gutter. Because
+the unconditional (non-media-query) `padding-left: 0` rule already
+comes later in the file's source order than that breakpoint rule, it
+was already silently winning over the mobile `padding-left: 12px` even
+before this fix — the same cascade collision now also applies to the
+new `padding-right: 0` rule, silently winning over the mobile
+`padding-right: 12px` too. This is pre-existing, imperfect behavior
+this fix didn't introduce; flagging it here rather than touching mobile
+layout, which is out of scope for this request.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS
+itself isn't type/lint-checked; this confirms no incidental JS/TS
+breakage). Root cause and fix were confirmed by reading every
+non-media-query `.workspace { }` / `.lowerWorkspace { }` rule block in
+source order to identify the winning padding declaration before and
+after the change.
