@@ -6,6 +6,7 @@ import {
   type MeasurementField,
   type Rhythm,
 } from "@/app/clinical/model";
+import { evaluateOperator } from "@/app/shared/operatorEvaluation";
 
 export type DifferentialAction = "Supports" | "Excludes" | "Confirms";
 export type DifferentialStatus = "Confirmed" | "Possible" | "Excluded";
@@ -103,49 +104,12 @@ function parseReasoningRow(row: SpreadsheetRow): ReasoningRow | null {
   };
 }
 
-/**
- * Compares a recorded value against a Clinical Reasoning row's operator and
- * Compared Value. Numeric-aware: when both sides parse as numbers, the
- * comparison is numeric (so "80" = "80.0"); otherwise it falls back to a
- * case-insensitive string comparison for "=" / "≠". An unrecorded (blank)
- * actual value never satisfies a condition — "no data" is treated as
- * "unknown", not as a negative result.
- */
-function evaluateOperator(
-  operator: string,
-  actualRaw: string | undefined,
-  comparedValue: string,
-): boolean {
-  const actual = trimmed(actualRaw);
-  const compared = trimmed(comparedValue);
-  if (!actual) return false;
-
-  switch (operator) {
-    case "Is Checked":
-      return actual.toLowerCase() === "yes";
-    case "Is Unchecked":
-      return actual.toLowerCase() === "no";
-    case "=":
-    case "≠": {
-      const actualNumber = Number.parseFloat(actual);
-      const comparedNumber = Number.parseFloat(compared);
-      const equal =
-        !Number.isNaN(actualNumber) && !Number.isNaN(comparedNumber)
-          ? actualNumber === comparedNumber
-          : actual.toLowerCase() === compared.toLowerCase();
-      return operator === "=" ? equal : !equal;
-    }
-    case ">":
-    case "<": {
-      const actualNumber = Number.parseFloat(actual);
-      const comparedNumber = Number.parseFloat(compared);
-      if (Number.isNaN(actualNumber) || Number.isNaN(comparedNumber)) return false;
-      return operator === ">" ? actualNumber > comparedNumber : actualNumber < comparedNumber;
-    }
-    default:
-      return false;
-  }
-}
+// evaluateOperator (comparing a recorded value against an operator and a
+// compared value) now lives in app/shared/operatorEvaluation.ts — it's
+// reused as-is by conditional Response Field visibility
+// (app/maneuvers/ManeuverCard.tsx), which isn't a differential-diagnosis
+// concern, so the comparison logic no longer lives only in this file. See
+// RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10 in docs/PROJECT_DESIGN.md.
 
 function normalizeIntervalTerm(value: string): string {
   return value

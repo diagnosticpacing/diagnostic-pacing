@@ -312,6 +312,22 @@ section further down — this is an index, not a replacement.
   now zeroed alongside the left, matching all four top-level sections'
   already-shared outer margins. See
   `MANEUVER-PANEL-WIDTH-FIX-2026-08-10`.
+- Conditional Response Field visibility: four new columns on the
+  Response Fields sheet (Display When, Display Field, Display Field ID,
+  Display Operator, Display Value) let a field only appear once another
+  field on the *same* maneuver has a matching recorded response — e.g.
+  a follow-up question that only shows after a Yes/No Buttons field is
+  answered "Yes." Display Field is a cascading lookup narrowed to the
+  same maneuver (the same mechanism Response Options' Associated Field
+  already used), and Display Operator reuses Clinical Reasoning's exact
+  operator vocabulary (`Is Checked`, `Is Unchecked`, `=`, `≠`, `>`, `<`)
+  via a newly shared `evaluateOperator` (moved out of
+  `app/differential/engine.ts` into `app/shared/operatorEvaluation.ts`
+  so it's not owned by the differential engine anymore). Evaluated live
+  against the in-progress draft in `ManeuverCard.tsx`, not just the last
+  saved performance, so a follow-up field appears the instant its
+  trigger is answered. See
+  `RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -3627,3 +3643,174 @@ breakage). Root cause and fix were confirmed by reading every
 non-media-query `.workspace { }` / `.lowerWorkspace { }` rule block in
 source order to identify the winning padding declaration before and
 after the change.
+
+<!-- RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10 -->
+## Conditional Response Field Visibility (implemented 2026-08-10)
+
+Murph asked to make certain Maneuver Response Fields conditional — only
+shown once another field on the same maneuver has been answered a
+certain way (e.g. a follow-up question that only appears after a
+Yes/No Buttons field is answered "Yes"). Discussed as a design question
+first: should this be a hardcoded GUI ruleset, or driven by new admin
+spreadsheet columns? Agreed it should be spreadsheet-driven, matching
+every other piece of clinical logic in this app (Clinical Reasoning,
+maneuver relevance, refractory period tagging) — a clinician should be
+able to add or change a conditional field without a code deploy, the
+same as everything else in the knowledge base. Also confirmed with
+Murph: a field's condition can only reference another field on the
+*same* maneuver, not across maneuvers — cross-maneuver conditions would
+need to decide which Clinical State's occurrence of that other maneuver
+counts, which is a materially bigger feature (the same ambiguity
+Clinical Reasoning already lives with via its existential
+across-all-states check) and was deliberately scoped out.
+
+**Schema — `app/admin/model.ts`, `maneuverResponseFields` sheet.** Four
+new columns added right after Required:
+
+- **Display When** (`displayWhen`) — `Always` / `If`. Required, since
+  every row needs one value; a blank value on a row saved before this
+  column existed is treated as `Always` at parse time, same convention
+  as every other additive-optional-column migration in this project
+  (e.g. Refractory Period Direction's `n/a` default).
+- **Display Field** (`displayField`) — a lookup dropdown listing other
+  Response Fields' prompts, narrowed via `filterBy: { ownColumn:
+  "associatedManeuverId", matchColumn: "associatedManeuverId" }` to
+  only fields belonging to the same maneuver already selected earlier
+  on this row. This is the exact same cascading-lookup mechanism
+  Response Options' "Associated Maneuver Response Prompt" column and
+  Clinical Reasoning's "Response Field Prompt" column already use —
+  just pointed at its own sheet instead of a different one, since no
+  new machinery in `SpreadsheetTable.tsx` was needed (it's fully
+  data-driven off `ColumnDefinition.lookup`/`filterBy`/
+  `populatesColumn`, with no per-sheet or per-column-key special
+  casing — confirmed by reading it before relying on it).
+- **Display Field ID** (`displayFieldId`) — hidden, auto-populated from
+  Display Field via `populatesColumn`, same pattern as every other
+  name→ID pair on this sheet (e.g. Associated Maneuver → Associated
+  Maneuver ID).
+- **Display Operator** (`displayOperator`) — `Is Checked`, `Is
+  Unchecked`, `=`, `≠`, `>`, `<`. Deliberately the *exact* vocabulary
+  and labels Clinical Reasoning's own Operator column already uses,
+  not a second, differently-worded set (the original request proposed
+  "checked/unchecked/yes selected/no selected" as four separate terms;
+  confirmed by reading `ManeuverCard.tsx` that Checkbox and Yes/No
+  Buttons both store their answer as the literal strings `"Yes"`/`"No"`
+  — Yes/No Buttons just starts blank instead of defaulting to `"No"` —
+  so "yes selected"/"checked" and "no selected"/"unchecked" are the
+  same underlying comparison regardless of which field type is being
+  watched, and don't need distinct operators).
+- **Display Value** (`displayValue`) — free text, same shape as
+  Clinical Reasoning's Compared Value (not required, no options).
+
+Display Field/Display Field ID/Display Operator/Display Value are only
+meaningful when Display When is `If` — like Refractory Period
+Direction's `n/a` and Units' `n/a` elsewhere on this same sheet, they're
+simply ignored at runtime rather than being disabled in the admin grid
+when they don't apply (the admin model's `disabledWhenFilled` only
+supports "disabled when a sibling is *filled*," not "disabled unless a
+sibling equals a specific value" — adding that was judged not worth it
+for a first pass; noted as a possible future tightening below).
+
+**Shared comparison logic — new `app/shared/operatorEvaluation.ts`.**
+`evaluateOperator` (numeric-aware `=`/`≠`/`>`/`<`, plus `Is
+Checked`/`Is Unchecked` checking for a case-insensitive `"yes"`/`"no"`;
+a blank/unrecorded value never satisfies any operator) moved out of
+`app/differential/engine.ts` — where it was a private, unexported
+function — into its own module, unchanged. `engine.ts` now imports it
+instead of defining it. It was never actually a differential-diagnosis
+concept, just string/number comparison against an operator; leaving it
+private to the differential engine would have meant either duplicating
+it for Response Field visibility or having `app/maneuvers/` reach into
+`app/differential/` for a utility function that has nothing to do with
+diagnoses. One comparison engine, reused everywhere a recorded response
+gets checked against an expected value (currently: Clinical Reasoning
+row conditions, and now Response Field visibility).
+
+**Data model — `app/maneuvers/knowledge.ts`.** New `DisplayOperator`
+type (the six-value union above) and `DisplayCondition` type (`{
+fieldId, operator, value }`), modeled directly on the existing
+`RefractoryPeriodTag` pattern (a small tag object, or `null` meaning
+"doesn't apply"). `ManeuverResponseField` gained `display:
+DisplayCondition | null`. New `parseDisplayCondition`: returns `null`
+(meaning always shown) unless Display When is exactly `"If"` *and* both
+Display Field ID and Display Operator hold valid values — a
+misconfigured `"If"` row (missing Field ID, or an Operator outside the
+six known values) falls back to always-shown rather than hiding the
+field with no way to reveal it.
+
+**Runtime — `app/maneuvers/ManeuverCard.tsx`.** New `fieldIsVisible(field,
+values)`: `true` when `field.display` is `null`, otherwise
+`evaluateOperator(field.display.operator, values[field.display.fieldId],
+field.display.value)`. Evaluated against the live `draftValues` object
+(not just the last saved performance), so a follow-up field appears the
+instant its trigger is answered — the same "results side updates live"
+feel every other field on this card already has. Touch points:
+
+- A new `visibleFields` (entry.fields filtered by `fieldIsVisible`
+  against the live draft) replaces `entry.fields` everywhere the
+  results-side field picker and its "‹ All fields" back button decide
+  what to show/count. `entry.fields` itself (unfiltered) is kept for
+  the outer "no response fields are defined for this maneuver yet"
+  check — that's about whether the admin has defined *any* fields at
+  all, not about current visibility — and a new, distinct message
+  ("Every response field on this maneuver is conditional, and none of
+  their trigger fields have been answered yet") covers the edge case
+  where fields exist but all are currently hidden.
+- `openEditor` now auto-selects straight into the single-field editor
+  (skipping the picker) based on how many fields are visible given the
+  performance's *saved* values at the moment the card is opened, not
+  the maneuver's raw field count — so a maneuver with two fields, one
+  of them conditional and not yet triggered, still opens straight to
+  the one visible field instead of an unnecessary one-item picker.
+- The currently-open field's editor can go stale if editing an earlier
+  field's answer causes it to stop satisfying its own Display
+  condition (e.g. the clinician backs out a "Yes" the follow-up
+  depended on while the follow-up is open). Handled as a derived
+  render-time value, not a `useEffect` + `setSelectedFieldId(null)` —
+  the lint config here (`react-hooks/set-state-in-effect`) flagged the
+  effect-based version as exactly the "calling setState synchronously
+  within an effect" anti-pattern it exists to catch, so `selectedField`
+  now falls back to `null` (showing the picker again) directly during
+  render whenever the raw selected field is no longer visible, with no
+  effect involved. `selectedFieldId` itself is left untouched when this
+  happens — picking a field again (or the same field becoming visible
+  again) is what moves it forward, not a background reset.
+- `summarizePerformance`/`draftFieldPreview` (the front-face Findings
+  history and the picker's per-field value preview) were deliberately
+  left iterating `entry.fields`, not `visibleFields` — a field that was
+  answered while visible and then hidden by a later answer still shows
+  in the recorded history, since that reflects what was actually
+  entered, not what's currently reachable. Visibility isn't tracked
+  per-performance-snapshot; only whether a value is present is.
+
+**Confirmed before building, not assumed:** `required` on a Response
+Field turned out to be purely cosmetic already (only renders a `*` next
+to the prompt in `ManeuverCard.tsx`; nothing blocks saving or reporting
+on it) — so a hidden required field needed no special handling, since
+nothing enforces required-ness either way today.
+
+**Accepted, flagged gaps for this first pass:**
+
+- No cycle/self-reference prevention. Nothing stops an admin from
+  picking a Display Field that comes later in Order than the field
+  being configured, or the field's own ID. Not a crash risk —
+  `evaluateOperator` returns `false` against a blank/unrecorded value,
+  so a self-referencing field just never becomes visible rather than
+  looping — but it is a confusing dead-end if it happens by mistake.
+  Real prevention would need either a lower-Order-only filter on the
+  Display Field lookup or admin-side validation; left for later if it
+  turns out to matter in practice.
+- No AND/OR grouping — one condition per field, unlike Clinical
+  Reasoning's `ruleGroupId`. Matches what was explicitly agreed to
+  before building this: single-condition is enough for a first pass.
+- The admin grid doesn't disable Display Field/Display Operator/Display
+  Value when Display When is `Always` — they're just silently ignored
+  at runtime. A `disabledUnless: { column, equals }` column-definition
+  option (a value-conditional sibling to the existing
+  `disabledWhenFilled`) would tighten this later without much
+  restructuring.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean
+(the first ESLint pass caught the `useEffect`/`setState` issue above,
+fixed by switching to the derived-render-time approach before this
+final clean run — see "Runtime" above).

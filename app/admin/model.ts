@@ -476,6 +476,48 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         options: ["Yes", "No"],
       },
       {
+        key: "displayWhen",
+        label: "Display When",
+        modelUse:
+          "Controls whether this field is always shown, or only shown once another field on the same maneuver has a matching response. \"Always\" is the default for every existing row — a blank value is treated as \"Always\", the same way other additive columns on this sheet default to their neutral value.",
+        width: "120px",
+        required: true,
+        options: ["Always", "If"],
+      },
+      {
+        key: "displayField",
+        label: "Display Field",
+        modelUse:
+          "The other response field on this same maneuver whose recorded answer controls whether this field is shown. Only takes effect when Display When is \"If\" — otherwise ignored, the same way other conditional columns on this sheet (e.g. Refractory Period Direction's \"n/a\") are ignored when they don't apply. Narrowed to fields belonging to the maneuver selected above via Associated Maneuver.",
+        width: "260px",
+        lookup: { sheet: "maneuverResponseFields", column: "prompt" },
+        filterBy: { ownColumn: "associatedManeuverId", matchColumn: "associatedManeuverId" },
+        populatesColumn: "displayFieldId",
+      },
+      {
+        key: "displayFieldId",
+        label: "Display Field ID",
+        modelUse:
+          "Identifies the other response field this field's visibility depends on. Auto-populated from Display Field.",
+        width: "200px",
+        lookup: { sheet: "maneuverResponseFields", column: "fieldId" },
+      },
+      {
+        key: "displayOperator",
+        label: "Display Operator",
+        modelUse:
+          "Defines how Display Field's recorded response is compared against Display Value to decide whether this field is shown. Only takes effect when Display When is \"If\". Same operator vocabulary as Clinical Reasoning's Operator column, for the same reason — one comparison engine, reused everywhere a response gets checked against an expected value.",
+        width: "160px",
+        options: ["Is Checked", "Is Unchecked", "=", "≠", ">", "<"],
+      },
+      {
+        key: "displayValue",
+        label: "Display Value",
+        modelUse:
+          "The value Display Operator compares Display Field's recorded response to, if applicable. Only takes effect when Display When is \"If\".",
+        width: "180px",
+      },
+      {
         key: "helpText",
         label: "Help Text",
         modelUse: "Context shown near the field to explain how the response should be determined or entered.",

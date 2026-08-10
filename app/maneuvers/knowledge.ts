@@ -36,6 +36,46 @@ export type RefractoryPeriodTag = {
   direction: RefractoryPeriodDirection;
 };
 
+/**
+ * The comparison operators a Display Operator column can use — identical
+ * vocabulary to Clinical Reasoning's Operator column (and evaluated by the
+ * same shared evaluateOperator function), so a response field's visibility
+ * is checked the same way a Clinical Reasoning row's condition is.
+ */
+export type DisplayOperator = "Is Checked" | "Is Unchecked" | "=" | "≠" | ">" | "<";
+
+const DISPLAY_OPERATORS: DisplayOperator[] = [
+  "Is Checked",
+  "Is Unchecked",
+  "=",
+  "≠",
+  ">",
+  "<",
+];
+
+/**
+ * A response field's conditional-visibility rule: this field is only
+ * shown once `fieldId` (another Response Field on the same maneuver —
+ * enforced by the admin editor's cascading Display Field lookup, not
+ * re-checked here) has a recorded response satisfying `operator`/`value`.
+ * `null` means "Display When: Always" — the default for every existing
+ * row, since the column didn't used to exist. See
+ * RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10 in
+ * docs/PROJECT_DESIGN.md.
+ *
+ * Nothing here prevents a misconfigured row from pointing at itself or
+ * at a field that appears later in Order (a self- or forward-reference)
+ * — that's an accepted, flagged gap for this first pass, not a crash
+ * risk: evaluateOperator returns false against a blank/unrecorded
+ * value, so a self-referencing field just never becomes visible rather
+ * than looping.
+ */
+export type DisplayCondition = {
+  fieldId: string;
+  operator: DisplayOperator;
+  value: string;
+};
+
 export type ManeuverResponseField = {
   fieldId: string;
   associatedManeuverId: string;
@@ -47,6 +87,7 @@ export type ManeuverResponseField = {
   required: boolean;
   helpText: string;
   refractoryPeriod: RefractoryPeriodTag | null;
+  display: DisplayCondition | null;
 };
 
 export type ManeuverResponseOption = {
@@ -118,6 +159,32 @@ function parseRefractoryPeriodTag(row: SpreadsheetRow): RefractoryPeriodTag | nu
   return { direction: direction as RefractoryPeriodDirection };
 }
 
+/**
+ * Parses a Response Field's Display When/Display Field ID/Display
+ * Operator/Display Value columns into a condition, or null when the
+ * field is always shown. "Always" (or a blank/missing Display When, for
+ * rows saved before this column existed) always wins regardless of
+ * what's in the other three columns — same "ignored unless the mode
+ * column asks for it" convention Refractory Period Direction and Units
+ * already use on this sheet via their "n/a" option. A "If" row missing
+ * a valid Display Field ID or Display Operator is treated as
+ * misconfigured and falls back to Always, rather than hiding the field
+ * with no way to reveal it.
+ */
+function parseDisplayCondition(row: SpreadsheetRow): DisplayCondition | null {
+  if (trimmed(row.displayWhen) !== "If") return null;
+
+  const fieldId = trimmed(row.displayFieldId);
+  const operator = trimmed(row.displayOperator);
+  if (!fieldId || !DISPLAY_OPERATORS.includes(operator as DisplayOperator)) return null;
+
+  return {
+    fieldId,
+    operator: operator as DisplayOperator,
+    value: trimmed(row.displayValue),
+  };
+}
+
 function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {
   const fieldId = trimmed(row.fieldId);
   const associatedManeuverId = trimmed(row.associatedManeuverId);
@@ -134,6 +201,7 @@ function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {
     required: trimmed(row.required).toLowerCase() === "yes",
     helpText: trimmed(row.helpText),
     refractoryPeriod: parseRefractoryPeriodTag(row),
+    display: parseDisplayCondition(row),
   };
 }
 

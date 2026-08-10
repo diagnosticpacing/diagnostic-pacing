@@ -17,6 +17,7 @@ import {
   REFRACTORY_PERIOD_COMPONENT_COUNT,
   refractoryPeriodComponentKey,
 } from "../refractoryPeriods/knowledge";
+import { evaluateOperator } from "../shared/operatorEvaluation";
 
 /** One Clinical State this maneuver has actually been performed under,
  * paired with the recorded values — not just "it happened," the full
@@ -57,6 +58,30 @@ function draftFieldPreview(
     return parts.join("/");
   }
   return (values[field.fieldId] ?? "").trim();
+}
+
+/**
+ * Whether a field should currently be shown, per its Display When/Display
+ * Field/Display Operator/Display Value configuration (see
+ * RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10 in PROJECT_DESIGN.md).
+ * Evaluated against the live in-progress draft, not just the last saved
+ * performance, so a follow-up field appears the moment its trigger field
+ * is answered — the same "results side edits update live" feel every
+ * other field on this card already has, not something that waits for
+ * Done. `values` is read generically so this also works against a saved
+ * performance's `values` (e.g. for a future "was this ever answered"
+ * check) without change.
+ */
+function fieldIsVisible(
+  field: ManeuverCatalogField,
+  values: Record<string, string>,
+): boolean {
+  if (!field.display) return true;
+  return evaluateOperator(
+    field.display.operator,
+    values[field.display.fieldId],
+    field.display.value,
+  );
 }
 
 function summarizePerformance(
@@ -316,14 +341,38 @@ export default function ManeuverCard({
       (performedState) => performedState.clinicalState.id === activeClinicalStateId,
     )?.performance ?? null;
 
-  const selectedField =
+  // Recomputed on every render against the live draft — a field's
+  // visibility can change the instant its trigger field's answer
+  // changes, so this can't be memoized off anything less than
+  // draftValues itself. See fieldIsVisible above.
+  const visibleFields = entry.fields.filter((field) =>
+    fieldIsVisible(field, draftValues),
+  );
+
+  // Derived, not stored: if editing an earlier field's answer causes the
+  // currently-open field to no longer satisfy its own Display condition,
+  // this falls back to null (showing the picker again) on its own, the
+  // same render where draftValues changed — no effect/setState needed to
+  // "notice" the field went stale. selectedFieldId itself is left as-is
+  // when this happens; picking a field (or a future answer that makes it
+  // visible again) is what moves it forward again.
+  const rawSelectedField =
     entry.fields.find((field) => field.fieldId === selectedFieldId) ?? null;
+  const selectedField =
+    rawSelectedField && fieldIsVisible(rawSelectedField, draftValues)
+      ? rawSelectedField
+      : null;
 
   function openEditor() {
     const initialValues = activePerformance?.values ?? {};
     setDraftValues(initialValues);
     lastCommittedValuesRef.current = JSON.stringify(initialValues);
-    setSelectedFieldId(entry.fields.length === 1 ? entry.fields[0].fieldId : null);
+    const initiallyVisible = entry.fields.filter((field) =>
+      fieldIsVisible(field, initialValues),
+    );
+    setSelectedFieldId(
+      initiallyVisible.length === 1 ? initiallyVisible[0].fieldId : null,
+    );
     setFlipState("results");
   }
 
@@ -584,11 +633,16 @@ export default function ManeuverCard({
                   No response fields are defined for this maneuver yet — add them
                   in the admin knowledge base.
                 </p>
+              ) : visibleFields.length === 0 ? (
+                <p className="maneuverFieldEmpty">
+                  Every response field on this maneuver is conditional, and
+                  none of their trigger fields have been answered yet.
+                </p>
               ) : (
                 <div className="maneuverFieldList">
                   {selectedField ? (
                     <div className="maneuverFieldEditor">
-                      {entry.fields.length > 1 && (
+                      {visibleFields.length > 1 && (
                         <button
                           type="button"
                           className="maneuverFieldEditorBack"
@@ -601,7 +655,7 @@ export default function ManeuverCard({
                     </div>
                   ) : (
                     <div className="maneuverFieldPicker">
-                      {entry.fields.map((field) => {
+                      {visibleFields.map((field) => {
                         const preview = draftFieldPreview(field, draftValues);
                         return (
                           <button
