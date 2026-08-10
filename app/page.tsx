@@ -435,12 +435,33 @@ export default function Home() {
       .map((result) => result.diagnosis.abbreviatedName.toUpperCase()),
   );
 
-  // Relevance score first (highest first); Base Rank breaks ties (lowest
-  // first) — this is the knob that controls the grid's default layout
-  // before any relevance scoring differentiates maneuvers, and still
-  // settles ties once it does, same tiebreak role Base Rank already
-  // plays for diagnoses in the differential engine.
+  // Whether any Maneuver Response Field has been recorded anywhere in the
+  // case yet (any Clinical State, any performance, any non-blank value) —
+  // see MANEUVER-GRID-BASE-RANK-FIX-2026-08-10 in PROJECT_DESIGN.md. Until
+  // this is true, relevance scoring stays out of the sort entirely: with
+  // nothing recorded yet, every diagnosis reads as "not excluded," so
+  // scoreManeuverRelevance isn't actually neutral (0 for everyone) the way
+  // the old comment here assumed — it's just "how many Relevant Diagnoses
+  // this maneuver happens to have tagged," which varies maneuver to
+  // maneuver and was overriding Base Rank from the very first render.
+  const caseHasRecordedManeuverResponse = caseRecord.clinicalStates.some(
+    (clinicalState) =>
+      clinicalState.performances.some((performance) =>
+        Object.values(performance.values).some((value) => value.trim() !== ""),
+      ),
+  );
+
+  // Base Rank only (lowest first) until something's actually been
+  // recorded — the grid's real default layout. Once a response field has
+  // been filled in anywhere, the relevance-score fallback (highest first,
+  // Base Rank tiebreak) takes over, standing in for the fuller
+  // Clinical-Reasoning-weighted recommendation engine that isn't built
+  // yet — same tiebreak role Base Rank already plays for diagnoses in the
+  // differential engine.
   const sortedManeuverCatalog = [...maneuverCatalog].sort((a, b) => {
+    if (!caseHasRecordedManeuverResponse) {
+      return a.definition.baseRank - b.definition.baseRank;
+    }
     const relevanceDelta =
       scoreManeuverRelevance(b.definition, activeDiagnosisAbbreviations) -
       scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations);

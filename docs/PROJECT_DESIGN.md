@@ -312,7 +312,10 @@ section further down — this is an index, not a replacement.
 - Maneuver relevance scoring still uses the documented fallback (count of
   a maneuver's own Relevant Diagnoses still active) rather than the fuller
   Clinical-Reasoning-weighted / value-of-information approach — needs more
-  real reasoning-rule data before that's worth building.
+  real reasoning-rule data before that's worth building. As of
+  `MANEUVER-GRID-BASE-RANK-FIX-2026-08-10`, this fallback is only used to
+  sort the maneuver grid once the case has recorded Maneuver Response
+  Field data — an empty case sorts by Base Rank alone.
 - Two schema-v2 items flagged but never explicitly re-confirmed: the
   `enabled` Yes/No row-disable toggle, and `storedValue` on Response
   Options (Compared Value is currently free text with no controlled
@@ -3498,5 +3501,51 @@ count moved down to the second line as "`<location> X<count>`" (e.g.
   `ABLATION-PER-CLINICAL-STATE-2026-08-09`) — this pass only restyles
   how a Clinical State's ablation entry is *summarized* on its Case
   Structure card, not how it's entered.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- MANEUVER-GRID-BASE-RANK-FIX-2026-08-10 -->
+## Fix: Maneuver Grid Wasn't Actually Honoring Base Rank (fixed 2026-08-10)
+
+Murph reported the Pacing Maneuvers grid didn't appear to sort by Base
+Rank (high-to-low, left-to-right). Root cause, not a rendering bug:
+`sortedManeuverCatalog` in `app/page.tsx` sorts by relevance score
+first, Base Rank only as a tiebreak — and the relevance score
+(`scoreManeuverRelevance` in `app/maneuvers/knowledge.ts`) counts how
+many of a maneuver's tagged Relevant Diagnoses are "active," where
+active means "not yet Excluded" by `evaluateDifferential`. On a fresh
+case, or any time nothing has actually been recorded, *no* diagnosis is
+Excluded — every diagnosis reads as active — so the score isn't neutral
+(0 for everyone) the way the old comment above the sort assumed
+("before any relevance scoring differentiates maneuvers"); it's really
+just "how many Relevant Diagnoses this maneuver happens to have
+tagged," which varies maneuver to maneuver and was overriding Base Rank
+from the very first render, not just once the differential narrowed.
+
+Confirmed the fix with Murph via AskUserQuestion: sort by Base Rank
+only while the case has no recorded Maneuver Response Field data at
+all; once any performance has a non-blank value recorded anywhere in
+the case, hand off to "a still-unbuilt recommendation engine" — for now
+that's the existing relevance-score fallback (unchanged itself), since
+the real Clinical-Reasoning-weighted version referenced elsewhere in
+this doc ("Still open / intentionally deferred") isn't built yet.
+
+- **`app/page.tsx`.** New `caseHasRecordedManeuverResponse`: true if
+  any Clinical State's `performances` has any field with a non-blank
+  value — same blank-check convention `clinicalStateHasFindings`
+  already uses in `app/clinical/model.ts`, just scanning every Clinical
+  State in the case rather than one. `sortedManeuverCatalog`'s
+  comparator now short-circuits to `baseRank - baseRank` (ascending —
+  same "lower number sorts first" convention as everywhere else Base
+  Rank is used) whenever `caseHasRecordedManeuverResponse` is false;
+  otherwise falls through to the existing relevance-then-Base-Rank
+  comparator, unchanged.
+- Not touched: `scoreManeuverRelevance` itself, `activeDiagnosisAbbreviations`,
+  and the differential engine — all unchanged. This fix only changes
+  *when* the relevance fallback is allowed to run, not how it scores
+  once it does.
+- Still true, unaffected by this fix: the "Still open" gap noting
+  maneuver relevance scoring is a placeholder pending real
+  Clinical-Reasoning-weighted / value-of-information data.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
