@@ -375,6 +375,14 @@ section further down — this is an index, not a replacement.
   single-field editor screen the way every other input type still
   does — a Yes/No answer is only two buttons, so the extra screen
   wasn't buying anything. See `ANSWER-YESNO-INLINE-2026-08-10`.
+- Maneuver cards no longer show a duplicate row of Clinical State tag
+  pills top-right (`.maneuverPerformedHistory`, next to the maneuver
+  name) — that tag already appears on every row of the findings list
+  below, paired with the actual result, so the top-right copy was
+  redundant and never carried a value of its own. Removed at Murph's
+  request so the findings list (the "summary side" of the card) is the
+  only place the tag is used to differentiate results. See
+  `TAG-DEDUP-REMOVE-CARD-TOP-PILLS-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -4230,5 +4238,42 @@ proportionate against the existing picker row height, not measured
 against a live render. If a Yes/No row looks cramped or oversized next
 to the plain-text rows above/below it, `.maneuverFieldPickerItemYesNo`
 in `globals.css` is where to adjust it.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- TAG-DEDUP-REMOVE-CARD-TOP-PILLS-2026-08-10 -->
+## Removed the Duplicate Clinical State Tag Row From Maneuver Cards (implemented 2026-08-10)
+
+Murph pointed out the Pre/Post-ABL · Iso-On/Off Clinical State tag was
+being shown twice on a maneuver card's front face: once as a compact
+row of tag-only pills top-right, next to the maneuver name
+(`.maneuverPerformedHistory`, "performed 3 times, here's when"), and
+again on every row of `.maneuverCardFindings` below, where each tag is
+paired with that state's actual recorded result. Request: stop placing
+the pills top-right; the findings list is the one place tags should be
+used to differentiate results.
+
+**Change (`app/maneuvers/ManeuverCard.tsx`).** Deleted the
+`.maneuverPerformedHistory` block entirely from `.maneuverCardTop` —
+the empty-state ("Not yet performed") and per-state tag-pill map it
+used to render. `.maneuverCardTop` now holds only the maneuver name
+`<h3>`. No behavior lost: the findings list already has its own
+empty-state message ("No findings recorded yet — use Enter below.")
+for the zero-performances case, and every performed state's tag is
+still shown — just once, next to its value, instead of twice.
+
+**CSS (`app/globals.css`).** Removed the now-dead
+`.maneuverPerformedHistory`, `.maneuverPerformedHistoryEmpty`, and
+`.maneuverHistoryTag.isActiveState` rules (matching this file's
+precedent of deleting rules once their class no longer renders,
+rather than leaving them as unreachable dead weight). `.maneuverCardTop`
+dropped `justify-content: space-between`, which existed only to push
+the now-gone pill row to the opposite end from the title. Updated the
+shared `.stateTagPill` doc comment (it enumerated every call site) to
+drop the removed one and note where it used to be.
+
+**Not touched:** `.maneuverFindingRow`/`.maneuverFindingTag` and the
+active-state highlighting on the findings list — already the
+"summary side" tagging Murph wants kept, unchanged by this removal.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

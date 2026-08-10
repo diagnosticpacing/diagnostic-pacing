@@ -1714,8 +1714,8 @@ button {
 /*
  * Standardized Clinical State tag ("Pre-ABL · Iso-On", etc.) — shared
  * neutral pill treatment across every place this tag appears
- * (Refractory Period findings, maneuver card history, maneuver card
- * findings — see STATE-TAG-STANDARDIZE-2026-08-08 and
+ * (Refractory Period findings, maneuver card findings, Case Structure
+ * cards — see STATE-TAG-STANDARDIZE-2026-08-08 and
  * STATE-TAG-COLOR-2026-08-08 in PROJECT_DESIGN.md). The pill itself is
  * neutral now — color lives on the two inner segments below
  * (.stateTagPhase/.stateTagIso, rendered via ClinicalStateTagText), one
@@ -1723,19 +1723,22 @@ button {
  * reads as a stable, memorable color rather than sharing one flat
  * color across all four. Active-state highlighting is a separate
  * concern layered on top of this neutral pill, never a color swap of
- * the tag's own content — each container indicates it its own way
- * (.maneuverFindingRow.isActiveState background/border,
- * .maneuverHistoryTag.isActiveState ring below) — and deliberately
- * never uses green, which is reserved exclusively for that highlight
- * so it can't also mean one of the four tag identities.
+ * the tag's own content — indicated via
+ * .maneuverFindingRow.isActiveState's background/border — and
+ * deliberately never uses green, which is reserved exclusively for
+ * that highlight so it can't also mean one of the four tag identities.
+ * (A maneuver card used to carry a second copy of this tag, top-right,
+ * with its own .maneuverHistoryTag.isActiveState ring variant —
+ * removed in TAG-DEDUP-REMOVE-CARD-TOP-PILLS-2026-08-10 as a redundant
+ * duplicate of the tag already on every .maneuverCardFindings row.)
  *
  * .stateTagPill is the shared base (every property that's identical
- * across all four call sites); each of the four semantic class names
- * below adds it alongside their own name in className and keeps only
- * whatever's genuinely specific to their own layout context
- * (align-self/flex/margin) — added as a fourth call site
- * (.clinicalStateCardTag) picked up in CASE-STRUCTURE-CARD-REWORK-2026-08-08
- * without yet another copy of the same nine declarations.
+ * across all call sites); each semantic class name below adds it
+ * alongside their own name in className and keeps only whatever's
+ * genuinely specific to their own layout context (align-self/flex/
+ * margin) — added as a third call site (.clinicalStateCardTag) picked
+ * up in CASE-STRUCTURE-CARD-REWORK-2026-08-08 without yet another copy
+ * of the same nine declarations.
  */
 .stateTagPill {
   display: inline-block;
@@ -4389,16 +4392,23 @@ button.adminTableHeader.isSorted {
 }
 
 /*
- * Title + Performed History — fixed. flex-shrink: 0 so flex's default
- * shrink-everything-proportionally behavior can never squeeze this row
- * when content below is tall; only .maneuverCardFindings (flex: 1,
- * min-height: 0) is allowed to give ground by scrolling internally.
+ * Title — fixed. flex-shrink: 0 so flex's default shrink-everything-
+ * proportionally behavior can never squeeze this row when content
+ * below is tall; only .maneuverCardFindings (flex: 1, min-height: 0)
+ * is allowed to give ground by scrolling internally.
+ *
+ * Used to also hold .maneuverPerformedHistory, a duplicate row of the
+ * same Clinical State tag pills shown top-right — removed
+ * 2026-08-10 (TAG-DEDUP-REMOVE-CARD-TOP-PILLS-2026-08-10): the tag was
+ * already carried on every row of .maneuverCardFindings below (paired
+ * with that state's actual result, which the top-right copy never
+ * was), so the two were redundant and Murph asked for the summary
+ * side to be the only place the tag appears.
  */
 .maneuverCardTop {
   display: flex;
   flex: 0 0 auto;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 8px;
 }
 
@@ -4410,44 +4420,12 @@ button.adminTableHeader.isSorted {
 }
 
 /*
- * Every Clinical State this maneuver's been recorded under, compactly —
- * just the tags (Pre/Post · Iso on/off), no values. A fast-scan index
- * ("performed 3 times, here's when") that sits above .maneuverCardFindings
- * below, which pairs each of those same tags with its actual value.
- */
-.maneuverPerformedHistory {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-  max-width: 55%;
-}
-
-.maneuverPerformedHistoryEmpty {
-  color: var(--quiet);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-align: right;
-  text-transform: uppercase;
-}
-
-/* Shares .stateTagPill's base look (see its doc comment above) — see
- * STATE-TAG-STANDARDIZE-2026-08-08 and STATE-TAG-COLOR-2026-08-08.
- * Active state gets a green ring around the pill, not a recolor of
- * the pill or its content — green is reserved for that ring alone. */
-.maneuverHistoryTag.isActiveState {
-  box-shadow: 0 0 0 1px var(--green);
-}
-
-/*
  * The card's main body — every recorded finding across every Clinical
  * State this maneuver's been performed under, each tagged with which
- * state produced it (same tag as .maneuverPerformedHistory above, just
- * paired with the value here). flex: 1 so it absorbs whatever height the
- * grid row stretches this card to; scrolls internally rather than
- * growing the card past its neighbors when there are many findings.
+ * state produced it and paired with that state's actual result. flex: 1
+ * so it absorbs whatever height the grid row stretches this card to;
+ * scrolls internally rather than growing the card past its neighbors
+ * when there are many findings.
  */
 .maneuverCardFindings {
   display: flex;

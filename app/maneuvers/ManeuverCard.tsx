@@ -494,35 +494,6 @@ export default function ManeuverCard({
         >
           <div className="maneuverCardTop">
             <h3>{entry.definition.maneuverName || "Untitled maneuver"}</h3>
-
-            <div
-              className="maneuverPerformedHistory"
-              aria-label="Performed history"
-            >
-              {performedStates.length === 0 ? (
-                <span className="maneuverPerformedHistoryEmpty">
-                  Not yet performed
-                </span>
-              ) : (
-                performedStates.map(({ clinicalState }) => {
-                  const isActiveState = clinicalState.id === activeClinicalStateId;
-                  const tag = formatClinicalStateTag(clinicalState.context);
-                  return (
-                    <span
-                      className={
-                        isActiveState
-                          ? "maneuverHistoryTag stateTagPill isActiveState"
-                          : "maneuverHistoryTag stateTagPill"
-                      }
-                      key={clinicalState.id}
-                      title={`Recorded — ${tag}`}
-                    >
-                      <ClinicalStateTagText tag={tag} />
-                    </span>
-                  );
-                })
-              )}
-            </div>
           </div>
 
           <div className="maneuverCardFindings">
