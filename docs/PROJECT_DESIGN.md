@@ -342,6 +342,13 @@ section further down — this is an index, not a replacement.
   the grid as a side effect. Applies to both the editable admin site
   and the read-only public knowledge viewer, which share this exact
   shell. See `ADMIN-TABLE-STICKY-HEADER-2026-08-10`.
+- Clinical Reasoning's Operator column and Response Fields' Display
+  Operator column both gained "Yes Selected"/"No Selected" options,
+  alongside the existing "Is Checked"/"Is Unchecked" — intentional
+  aliases (identical comparison, evaluateOperator now treats them as
+  the same two cases) so the dropdown reads naturally whichever of the
+  two Yes/No-style input types the field being compared actually is.
+  See `ADMIN-OPERATOR-YES-NO-ALIASES-2026-08-10`.
 
 **Still open / intentionally deferred:**
 
@@ -3931,3 +3938,66 @@ browser window (the 240px-floor edge case above).
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS
 itself isn't type/lint-checked — this confirms no incidental JS/TS
 breakage; no `.ts`/`.tsx` files were touched by this fix at all).
+
+<!-- ADMIN-OPERATOR-YES-NO-ALIASES-2026-08-10 -->
+## "Yes Selected"/"No Selected" Operator Options (implemented 2026-08-10)
+
+When `RESPONSE-FIELD-CONDITIONAL-DISPLAY-2026-08-10` shipped, Display
+Operator (and Clinical Reasoning's existing Operator column, which it
+deliberately mirrors) offered only `Is Checked`/`Is Unchecked` for a
+Yes/No-style comparison — reasoned at the time that since Checkbox and
+Yes/No Buttons both store their answer as the literal string `"Yes"`
+or `"No"`, one pair of operator labels could honestly serve both field
+types. Murph pushed back: an admin configuring a condition against a
+Yes/No Buttons field shouldn't have to read "Is Checked" and mentally
+translate it — the field doesn't render as a checkbox at all, and the
+label should match what the clinician actually sees and clicks in the
+GUI. Also asked that this apply everywhere a column does the same kind
+of comparison, not just Display Operator.
+
+**Not a new comparison — an alias.** `"Yes Selected"`/`"No Selected"`
+were added as additional operator options, not replacements, and
+`evaluateOperator` (`app/shared/operatorEvaluation.ts`) treats them as
+exact aliases of `"Is Checked"`/`"Is Unchecked"` (`case "Is Checked":
+case "Yes Selected": return actual.toLowerCase() === "yes";` and the
+mirror for `No`/Unchecked) — same underlying check against the field's
+actual recorded response, confirmed correct the first time this came
+up by reading `ManeuverCard.tsx`'s `FieldControl`: Checkbox writes
+`"Yes"`/`"No"` on toggle, Yes/No Buttons writes `"Yes"`/`"No"` on
+click and stays blank (`""`) until clicked once — the same recorded
+value shape either way, just a different starting/blank state, which
+`evaluateOperator` already handled correctly for both (a blank actual
+value never satisfies any operator, checked or not). So "the yes/no
+distinction should draw from the actual selection of the field as
+entered in the GUI" was already true before this change; what was
+missing was purely the admin-facing label matching that GUI.
+
+**Applied to both columns that do this kind of comparison —**
+Response Fields' Display Operator (`app/admin/model.ts`,
+`maneuverResponseFields.displayOperator`) and Clinical Reasoning's
+Operator (`app/admin/model.ts`, `clinicalReasoning.operator`) both
+gained the two new options, each column's `modelUse` text updated to
+note the two pairs compare identically. `app/maneuvers/knowledge.ts`'s
+`DisplayOperator` type/`DISPLAY_OPERATORS` list grew to match.
+Clinical Reasoning's own `ReasoningRow.operator` field
+(`app/differential/engine.ts`) is typed as plain `string`, not a
+union, and was never validated against a fixed operator list at parse
+time — it passes whatever the admin picked straight through to
+`evaluateOperator`, so no code change was needed there beyond the new
+cases in `evaluateOperator` itself.
+
+**Deliberately not touched: Response Fields' Available Terms column.**
+Checked whether it's "a column that works the same way" before
+changing it — it isn't. `availableTerms` (`ManeuverResponseField
+.availableTerms`, parsed from the sheet's Available Terms column) is
+descriptive metadata about which operators a Clinical Reasoning row
+*should* use against a given field; nothing in the app currently reads
+it to filter or enforce anything at runtime (confirmed by grep — its
+only two references are its type declaration and its own parsing).
+Its own option vocabulary is also narrower and different in kind
+(`n/a`, `=`, `>`, `<` — no checked/unchecked concept at all). Left
+alone; it's a pre-existing, already-noted-elsewhere gap (see the
+"Still open" bullet on Response Options' `storedValue`), not something
+this change touches.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.

@@ -19,6 +19,17 @@
  * "unknown", not as a negative result (so, e.g., a field guarded by
  * "Is Unchecked" stays hidden until its trigger field is explicitly
  * answered "No", not merely left blank).
+ *
+ * "Yes Selected"/"No Selected" are intentional aliases of "Is
+ * Checked"/"Is Unchecked", not a distinct comparison — both Checkbox
+ * and Yes/No Buttons fields (app/maneuvers/ManeuverCard.tsx's
+ * FieldControl) write the literal recorded response as "Yes" or "No"
+ * either way, Yes/No Buttons just starts blank rather than defaulting
+ * to "No". Having both spellings lets the admin editor's Operator
+ * dropdown read naturally regardless of which of the two field types
+ * is being compared, without meaning two different things at
+ * evaluation time. See ADMIN-OPERATOR-YES-NO-ALIASES-2026-08-10 in
+ * docs/PROJECT_DESIGN.md.
  */
 export function evaluateOperator(
   operator: string,
@@ -31,8 +42,10 @@ export function evaluateOperator(
 
   switch (operator) {
     case "Is Checked":
+    case "Yes Selected":
       return actual.toLowerCase() === "yes";
     case "Is Unchecked":
+    case "No Selected":
       return actual.toLowerCase() === "no";
     case "=":
     case "≠": {

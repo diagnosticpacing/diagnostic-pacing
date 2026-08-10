@@ -506,9 +506,18 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "displayOperator",
         label: "Display Operator",
         modelUse:
-          "Defines how Display Field's recorded response is compared against Display Value to decide whether this field is shown. Only takes effect when Display When is \"If\". Same operator vocabulary as Clinical Reasoning's Operator column, for the same reason — one comparison engine, reused everywhere a response gets checked against an expected value.",
+          "Defines how Display Field's recorded response is compared against Display Value to decide whether this field is shown. Only takes effect when Display When is \"If\". Same operator vocabulary as Clinical Reasoning's Operator column, for the same reason — one comparison engine, reused everywhere a response gets checked against an expected value. \"Yes Selected\"/\"No Selected\" and \"Is Checked\"/\"Is Unchecked\" compare identically (both read the field's actual recorded Yes/No answer) — pick whichever term matches Display Field's own Input Type (Yes/No Buttons vs. Checkbox) so the row reads naturally.",
         width: "160px",
-        options: ["Is Checked", "Is Unchecked", "=", "≠", ">", "<"],
+        options: [
+          "Is Checked",
+          "Is Unchecked",
+          "Yes Selected",
+          "No Selected",
+          "=",
+          "≠",
+          ">",
+          "<",
+        ],
       },
       {
         key: "displayValue",
@@ -668,10 +677,20 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "operator",
         label: "Operator",
-        modelUse: "Defines how the recorded response is compared with the expected value.",
+        modelUse:
+          "Defines how the recorded response is compared with the expected value. \"Yes Selected\"/\"No Selected\" and \"Is Checked\"/\"Is Unchecked\" compare identically (both read the field's actual recorded Yes/No answer) — pick whichever term matches the considered field's own Input Type (Yes/No Buttons vs. Checkbox) so the row reads naturally.",
         width: "160px",
         required: true,
-        options: ["Is Checked", "Is Unchecked", "=", "≠", ">", "<"],
+        options: [
+          "Is Checked",
+          "Is Unchecked",
+          "Yes Selected",
+          "No Selected",
+          "=",
+          "≠",
+          ">",
+          "<",
+        ],
       },
       {
         key: "comparedValue",

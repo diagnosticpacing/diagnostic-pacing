@@ -41,12 +41,26 @@ export type RefractoryPeriodTag = {
  * vocabulary to Clinical Reasoning's Operator column (and evaluated by the
  * same shared evaluateOperator function), so a response field's visibility
  * is checked the same way a Clinical Reasoning row's condition is.
+ * "Yes Selected"/"No Selected" are aliases of "Is Checked"/"Is
+ * Unchecked" — same comparison, worded for a Yes/No Buttons field
+ * instead of a Checkbox field. See evaluateOperator in
+ * app/shared/operatorEvaluation.ts.
  */
-export type DisplayOperator = "Is Checked" | "Is Unchecked" | "=" | "≠" | ">" | "<";
+export type DisplayOperator =
+  | "Is Checked"
+  | "Is Unchecked"
+  | "Yes Selected"
+  | "No Selected"
+  | "="
+  | "≠"
+  | ">"
+  | "<";
 
 const DISPLAY_OPERATORS: DisplayOperator[] = [
   "Is Checked",
   "Is Unchecked",
+  "Yes Selected",
+  "No Selected",
   "=",
   "≠",
   ">",
