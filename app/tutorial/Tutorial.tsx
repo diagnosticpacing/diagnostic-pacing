@@ -38,7 +38,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: "Case Structure",
-    body: "Every Clinical State you've recorded is listed here — its Rhythm (plus cycle length, for tachycardia) and its ablation-phase / isoproterenol tag, or for a state whose Phase is Ablation, the modality and count (e.g. \"3 RF Ablation\") with location underneath instead. Click a card to switch which state you're actively recording into.",
+    body: "Every Clinical State you've recorded is listed here — its Rhythm (plus cycle length, for tachycardia) and its ablation-phase / isoproterenol tag. A state whose Phase is Ablation looks different on purpose: a shorter, dark-fuchsia card with no tag pill, headlined by modality (e.g. \"RF Ablation\") and, underneath, its location plus the entered count as \"X3\". Click a card to switch which state you're actively recording into.",
     target: ".clinicalStatesRail",
   },
   {

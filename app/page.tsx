@@ -1007,9 +1007,27 @@ export default function Home() {
             const cycleLength = tachycardiaCycleLengthMs(clinicalState);
             const stateTag = formatClinicalStateTag(clinicalState.context);
 
+            // Ablation-phase second line: location name, then the entered
+            // ablation count appended as "X<count>" (e.g. "Septum X3") —
+            // per Murph's ask, the count moved off the title line onto
+            // this one. Either half can be blank; only render the line at
+            // all if something ended up in it.
+            const ablationLocationLine = isAblationState
+              ? [
+                  clinicalState.ablation.location.trim(),
+                  clinicalState.ablation.count.trim()
+                    ? `X${clinicalState.ablation.count.trim()}`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              : "";
+
             return (
               <button
-                className={`clinicalStateCard${isActive ? " active" : ""}`}
+                className={`clinicalStateCard${isActive ? " active" : ""}${
+                  isAblationState ? " ablationPhase" : ""
+                }`}
                 key={clinicalState.id}
                 onClick={() => setActiveClinicalStateId(clinicalState.id)}
                 type="button"
@@ -1027,9 +1045,6 @@ export default function Home() {
                       className="clinicalStateCardRhythm"
                       title={summarizeAblationSession(clinicalState.ablation)}
                     >
-                      {clinicalState.ablation.count.trim()
-                        ? `${clinicalState.ablation.count.trim()} `
-                        : ""}
                       {clinicalState.ablation.modality
                         ? `${abbreviateAblationModality(clinicalState.ablation.modality)} Ablation`
                         : "Ablation"}
@@ -1054,18 +1069,20 @@ export default function Home() {
                   )}
                 </div>
 
-                {isAblationState && clinicalState.ablation.location.trim() ? (
+                {isAblationState && ablationLocationLine ? (
                   <div className="clinicalStateCardAblationLocation">
-                    {clinicalState.ablation.location.trim()}
+                    {ablationLocationLine}
                   </div>
                 ) : null}
 
-                <span
-                  className="clinicalStateCardTag stateTagPill"
-                  title={stateTag}
-                >
-                  <ClinicalStateTagText tag={stateTag} />
-                </span>
+                {isAblationState ? null : (
+                  <span
+                    className="clinicalStateCardTag stateTagPill"
+                    title={stateTag}
+                  >
+                    <ClinicalStateTagText tag={stateTag} />
+                  </span>
+                )}
 
                 <div className="clinicalStateMeta">
                   <span>

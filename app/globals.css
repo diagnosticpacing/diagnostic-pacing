@@ -14,6 +14,13 @@
   --green: #69d39e;
   --amber: #f0b96a;
   --red: #ed7f86;
+  /* Dark fuchsia — Case Structure's identity color for an Ablation-phase
+     card, see ABLATION-CARD-STYLE-2026-08-10 in PROJECT_DESIGN.md.
+     Deliberately its own hue, not reused from the Clinical State tag
+     palette (cyan/violet/red/amber), since it marks a different kind of
+     thing (a card-type identity, not a Pre/Post-ABL · Iso-On/Off tag —
+     ablation cards don't render that tag at all). */
+  --fuchsia: #d1399f;
   /* Committed to the style guide from the admin knowledge base's row-
      lock indicator — it read well enough there that it's now the
      app's accent color for major section titles too (Case structure,
@@ -2821,6 +2828,33 @@ button {
   display: none;
 }
 
+/* Ablation-phase card: shorter than a standard card (tighter padding/gap
+   — it also has one fewer row, no tag pill, see .clinicalStateCardTag
+   below) and carries its own dark-fuchsia identity instead of the
+   default border/background, so it reads as visually distinct from a
+   Rhythm-headlined card at a glance. See
+   ABLATION-CARD-STYLE-2026-08-10 in PROJECT_DESIGN.md. */
+.clinicalStateCard.ablationPhase {
+  gap: 4px;
+  padding: 7px 9px;
+  border-color: rgba(209, 57, 159, 0.4);
+  background: rgba(209, 57, 159, 0.07);
+}
+
+.clinicalStateCard.ablationPhase:hover {
+  border-color: rgba(209, 57, 159, 0.6);
+  background: rgba(209, 57, 159, 0.12);
+}
+
+/* Active + Ablation together: a brighter version of the same fuchsia
+   identity rather than falling back to the standard active cyan — the
+   card stays recognizably "an ablation card" even while selected. */
+.clinicalStateCard.ablationPhase.active {
+  border-color: rgba(225, 78, 180, 0.78);
+  background: rgba(209, 57, 159, 0.16);
+  box-shadow: none;
+}
+
 .clinicalStateCardTop {
   display: flex;
   min-width: 0;
@@ -2890,14 +2924,26 @@ button {
   white-space: nowrap;
 }
 
-/* Location text for an Ablation-phase card's ablation entry, shown under
-   the "{count} {Modality} Ablation" title in place of the cycle length —
-   see ABLATION-PER-CLINICAL-STATE-2026-08-09. Only rendered when the
-   Ablation Details location field has something in it. */
+/* Ablation-phase title text ("RF Ablation", "Ablation" if no modality is
+   picked yet) picks up the card's dark-fuchsia identity instead of the
+   default --text — see ABLATION-CARD-STYLE-2026-08-10. Scoped to
+   .ablationPhase specifically so .clinicalStateCardRhythm's plain --text
+   color is untouched on every non-ablation card. */
+.clinicalStateCard.ablationPhase .clinicalStateCardRhythm {
+  color: var(--fuchsia);
+}
+
+/* Second line on an Ablation-phase card: location, then the entered
+   ablation count as "X<count>" (e.g. "Septum X3") — replaces the
+   cycle-length line and the Pre-/Post-ABL tag pill (not rendered at all
+   for this phase, see .clinicalStateCardTag below) for this card type.
+   See ABLATION-PER-CLINICAL-STATE-2026-08-09 and
+   ABLATION-CARD-STYLE-2026-08-10. Only rendered when there's a location
+   and/or a count to show. */
 .clinicalStateCardAblationLocation {
   overflow-wrap: break-word;
   word-break: break-word;
-  color: var(--muted);
+  color: rgba(209, 57, 159, 0.75);
   font-size: 9.5px;
   line-height: 1.3;
 }

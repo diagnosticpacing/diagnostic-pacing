@@ -255,11 +255,14 @@ section further down — this is an index, not a replacement.
   cycle length for Tachycardia (shorter of the AA/VV interval
   measurements), plus the standardized Clinical State tag — replacing
   the old three-column Phase/Rhythm/Iso grid. See
-  `CASE-STRUCTURE-CARD-REWORK-2026-08-08`. **As of
-  `ABLATION-PER-CLINICAL-STATE-2026-08-09`**, a Clinical State whose
-  Phase is Ablation is the exception: the title becomes `{count}
-  {Modality} Ablation` and the location text renders underneath, in
-  place of Rhythm/cycle length.
+  `CASE-STRUCTURE-CARD-REWORK-2026-08-08`. A Clinical State whose Phase
+  is Ablation is the exception: no Rhythm/cycle length, no tag pill —
+  title is `{Modality} Ablation`, with `{location} X{count}` rendered
+  underneath. The card itself is shorter than a standard card and
+  carries its own dark-fuchsia (`--fuchsia`) identity instead of the
+  default border/background, including when it's also the active card.
+  See `ABLATION-PER-CLINICAL-STATE-2026-08-09` (the per-state data
+  model) and `ABLATION-CARD-STYLE-2026-08-10` (this restyle).
 - Guided Walkthrough tutorial: a new "Walkthrough" button beside About
   opens an 11-step spotlight tour (`app/tutorial/Tutorial.tsx`) that
   highlights one live section of the GUI at a time with an oversized
@@ -3448,5 +3451,52 @@ tied to whichever Clinical State is active.
   bucketing reads `context.phase` directly) — no changes needed there,
   and the pre-existing "ablation data isn't in the report yet" gap is
   unaffected by this change.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ABLATION-CARD-STYLE-2026-08-10 -->
+## Ablation Card Restyle: Shorter, Dark Fuchsia, No Tag Pill, Count Moved to the Location Line (implemented 2026-08-10)
+
+Follow-up to `ABLATION-PER-CLINICAL-STATE-2026-08-09`. Murph asked for
+the Ablation-phase Case Structure card to look more distinctly
+different from a standard card: shorter than the standard card, a dark
+fuchsia identity color, no Pre-/Post-ABL · Iso-On/Off tag pill, and a
+reworked text layout — modality on the title line ("RF Ablation"
+instead of "3 RF Ablation"), with location and the entered ablation
+count moved down to the second line as "`<location> X<count>`" (e.g.
+"Septum X3").
+
+- **`app/globals.css`.** New root custom property `--fuchsia: #d1399f`
+  — its own hue, deliberately not reused from the Clinical State tag
+  palette (cyan/violet/red/amber), since it marks a different kind of
+  thing (a card-type identity) and this card doesn't render that tag at
+  all anymore. New `.clinicalStateCard.ablationPhase` modifier: tighter
+  `gap`/`padding` than the base `.clinicalStateCard` (shorter card,
+  on top of already having one fewer row from the removed tag pill),
+  fuchsia border/background tint, plus its own `:hover` and
+  `.active` combinator rules so an active-and-ablation card gets a
+  brighter fuchsia rather than falling back to the standard cyan active
+  treatment — it should read as "an ablation card" first, "the active
+  one" second. `.clinicalStateCardRhythm` picks up `var(--fuchsia)`
+  when scoped under `.ablationPhase` (every other card's Rhythm title
+  keeps the plain `--text` color). `.clinicalStateCardAblationLocation`
+  recolored from `--muted` to a translucent fuchsia, since it's only
+  ever rendered inside an ablation card.
+- **`app/page.tsx`.** The Case Structure card button now adds an
+  `ablationPhase` class when the state's Phase is Ablation. Title line
+  dropped the leading count (`{modality} Ablation` / plain `"Ablation"`
+  with no modality picked, same fallback as before). A new
+  `ablationLocationLine` local combines `location` and, if the count
+  field has anything in it, `X<count>` — joined with a space, either
+  half optional, only rendered if the combined string is non-empty (so
+  a card with a count but no location yet still shows "X3" alone,
+  and vice versa). The `stateTagPill` span is no longer rendered at all
+  for an Ablation-phase card — previously always rendered regardless of
+  phase.
+- Not touched: the Ablation Details entry fields themselves (still the
+  same modality toggle / location / count / duration inputs from
+  `ABLATION-PER-CLINICAL-STATE-2026-08-09`) — this pass only restyles
+  how a Clinical State's ablation entry is *summarized* on its Case
+  Structure card, not how it's entered.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
