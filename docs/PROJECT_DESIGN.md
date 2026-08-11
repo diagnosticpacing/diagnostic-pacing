@@ -396,6 +396,13 @@ section further down — this is an index, not a replacement.
   sheet name, since AdminTabs (and, for Maneuvers, ManeuverWorkspace's
   subnav) already show that. Only the description line remains. See
   `ADMIN-SHEET-HEADING-DEDUP-2026-08-10`.
+- Admin site's topbar (`/admin` only, not the read-only `/knowledge`
+  viewer): "Diagnostic Pacing" and "Knowledge-Base Administration"
+  collapsed from a stacked eyebrow-above-`<h1>` into one `<h1>` line
+  (the eyebrow is now an inline span inside it), and the explanatory
+  sentence below ("Edit the clinical content and transparent reasoning
+  used by the application.") is removed outright. See
+  `ADMIN-TOPBAR-SINGLE-LINE-2026-08-11`.
 
 **Still open / intentionally deferred:**
 
@@ -4371,3 +4378,46 @@ Murph's request explicitly wants doing this job, so it's untouched by
 design, not an oversight.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- ADMIN-TOPBAR-SINGLE-LINE-2026-08-11 -->
+## Admin Topbar: One Header Line, Explanatory Sentence Removed (implemented 2026-08-11)
+
+Murph: remove "Edit the clinical content and transparent reasoning
+used by the application." from the admin site, and bring "Diagnostic
+Pacing" and "Knowledge-Base Administration" onto one single header
+line. Both applied to `/admin`'s topbar (`app/admin/AdminClient.tsx`)
+only — the read-only `/knowledge` viewer's near-identical topbar
+("Knowledge Base" / "Read-only view of the clinical content and
+transparent reasoning used by the application.") wasn't mentioned and
+is untouched.
+
+**Before:** three stacked lines — a small uppercase "Diagnostic
+Pacing" eyebrow `<p>`, an `<h1>Knowledge-Base Administration</h1>`
+below it, then the explanatory sentence as a second `<p>` below that.
+
+**After.** The explanatory sentence is deleted outright, not
+relocated anywhere. "Diagnostic Pacing" and "Knowledge-Base
+Administration" are now one `<h1>`, with "Diagnostic Pacing" as an
+inline `<span className="adminTopbarEyebrow">` inside it — same small
+muted/uppercase treatment as before, just inline rather than its own
+block above, so the two pieces are one line by construction (not
+merely styled to look adjacent). New CSS: `.adminTopbar h1` (the
+heading's own size/weight — previously undefined, since the removed
+`.adminEyebrow` class had no dedicated rule anywhere in the file
+either, so both lines had been relying on Tailwind's preflight
+heading/margin reset plus whatever inherited from `body`, not an
+explicit style) and `.adminTopbarEyebrow` (the inline prefix).
+
+**Not touched:** `.adminEyebrow` itself is still used elsewhere (the
+`.adminBrand`/login-card patterns, and — per
+`ADMIN-SHEET-HEADING-DEDUP-2026-08-10` earlier the same stretch — it
+no longer appears in `.adminSheetHeading` either, but that removal was
+separate and unrelated to this one). `.adminBrand`/`.adminBrand h1`
+remain unreferenced dead CSS, same as before this change — not
+addressed here since cleaning up unrelated dead code wasn't part of
+this request.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
+visually verified against the running app — the `.adminTopbar h1`/
+`.adminTopbarEyebrow` sizing was chosen to read naturally as an eyebrow-
+prefixed heading, not measured against a live render.

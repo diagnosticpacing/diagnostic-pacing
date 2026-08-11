@@ -259,14 +259,15 @@ export default function AdminPage() {
     <main className="adminShell">
       <header className="adminTopbar">
         <div>
-          <p className="adminEyebrow">
-            Diagnostic Pacing
-          </p>
-          <h1>Knowledge-Base Administration</h1>
-          <p>
-            Edit the clinical content and transparent reasoning used
-            by the application.
-          </p>
+          {/* "Diagnostic Pacing" and the page title used to be a
+              stacked eyebrow + <h1>, with an explanatory line below —
+              collapsed to one <h1> line at Murph's request; the
+              explanatory line is gone outright, not relocated. See
+              ADMIN-TOPBAR-SINGLE-LINE-2026-08-11. */}
+          <h1>
+            <span className="adminTopbarEyebrow">Diagnostic Pacing</span>
+            Knowledge-Base Administration
+          </h1>
         </div>
 
         <div className="adminTopbarActions">
