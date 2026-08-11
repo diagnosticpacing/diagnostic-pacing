@@ -39,27 +39,6 @@ type ManeuverCardProps = {
   onSave: (values: Record<string, string>) => void;
 };
 
-/** A one-line preview of whatever's currently in draftValues for one
- * field, so a picker row can show progress without being opened — the
- * live-draft equivalent of summarizePerformance's per-field piece
- * above, which reads from a saved performance instead. */
-function draftFieldPreview(
-  field: ManeuverCatalogField,
-  values: Record<string, string>,
-): string {
-  if (field.refractoryPeriod) {
-    const parts: string[] = [];
-    for (let component = 1; component <= REFRACTORY_PERIOD_COMPONENT_COUNT; component += 1) {
-      parts.push(
-        values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
-      );
-    }
-    while (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
-    return parts.join("/");
-  }
-  return (values[field.fieldId] ?? "").trim();
-}
-
 /**
  * Whether a field should currently be shown, per its Display When/Display
  * Field/Display Operator/Display Value configuration (see
@@ -320,12 +299,6 @@ export default function ManeuverCard({
     "front" | "results"
   >("front");
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
-  // null = the results side is showing the field picker (the "landing
-  // page" list of every possible finding). Any field ID = that one
-  // field's entry control is expanded. A maneuver with only one
-  // possible field skips the picker entirely — there's nothing to
-  // choose between.
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   // Tracks (as a JSON snapshot) whatever was last actually committed
   // via onSave, so leaveResults/the autosave effect below can skip
   // calling onSave — and skip logging a case-timeline entry for it —
@@ -349,30 +322,10 @@ export default function ManeuverCard({
     fieldIsVisible(field, draftValues),
   );
 
-  // Derived, not stored: if editing an earlier field's answer causes the
-  // currently-open field to no longer satisfy its own Display condition,
-  // this falls back to null (showing the picker again) on its own, the
-  // same render where draftValues changed — no effect/setState needed to
-  // "notice" the field went stale. selectedFieldId itself is left as-is
-  // when this happens; picking a field (or a future answer that makes it
-  // visible again) is what moves it forward again.
-  const rawSelectedField =
-    entry.fields.find((field) => field.fieldId === selectedFieldId) ?? null;
-  const selectedField =
-    rawSelectedField && fieldIsVisible(rawSelectedField, draftValues)
-      ? rawSelectedField
-      : null;
-
   function openEditor() {
     const initialValues = activePerformance?.values ?? {};
     setDraftValues(initialValues);
     lastCommittedValuesRef.current = JSON.stringify(initialValues);
-    const initiallyVisible = entry.fields.filter((field) =>
-      fieldIsVisible(field, initialValues),
-    );
-    setSelectedFieldId(
-      initiallyVisible.length === 1 ? initiallyVisible[0].fieldId : null,
-    );
     setFlipState("results");
   }
 
@@ -444,10 +397,13 @@ export default function ManeuverCard({
     action();
   }
 
-  /** Renders one field's entry control — the same RP-triplet-vs-plain
-   * branch summarizePerformance/the old all-at-once field list used,
-   * just for a single field at a time now that the picker only ever
-   * expands one. */
+  /** Renders one field's prompt and entry control together — the same
+   * RP-triplet-vs-plain branch summarizePerformance uses to read a
+   * saved performance back, just building the live editable form
+   * instead. Called once per visible field, all of them stacked
+   * together in .maneuverFieldList — see
+   * MANEUVER-CARD-FIELDS-INLINE-2026-08-11 for why there's no more
+   * picker/single-field-editor step in between. */
   function renderFieldControl(field: ManeuverCatalogField) {
     if (field.refractoryPeriod) {
       return (
@@ -610,95 +566,21 @@ export default function ManeuverCard({
                   none of their trigger fields have been answered yet.
                 </p>
               ) : (
-                <div className="maneuverFieldList">
-                  {selectedField ? (
-                    <div className="maneuverFieldEditor">
-                      {visibleFields.length > 1 && (
-                        <button
-                          type="button"
-                          className="maneuverFieldEditorBack"
-                          onClick={() => setSelectedFieldId(null)}
-                        >
-                          ‹ All fields
-                        </button>
-                      )}
-                      {renderFieldControl(selectedField)}
-                    </div>
-                  ) : (
-                    <div className="maneuverFieldPicker">
-                      {visibleFields.map((field) => {
-                        // Yes/No Buttons fields answer directly in this
-                        // row — see the ANSWER-YESNO-INLINE-2026-08-10
-                        // comment in globals.css above
-                        // .maneuverFieldPickerItemYesNo. Every other
-                        // input type keeps navigating into the
-                        // single-field editor below.
-                        if (field.inputType.toLowerCase() === "yes/no buttons") {
-                          const answered = Boolean(draftValues[field.fieldId]);
-                          return (
-                            <div
-                              key={field.fieldId}
-                              className={
-                                answered
-                                  ? "maneuverFieldPickerItem maneuverFieldPickerItemYesNo hasValue"
-                                  : "maneuverFieldPickerItem maneuverFieldPickerItemYesNo"
-                              }
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <span className="maneuverFieldPickerLabel">
-                                {field.prompt}
-                                {field.required && (
-                                  <span aria-hidden="true"> *</span>
-                                )}
-                              </span>
-                              <FieldControl
-                                field={field}
-                                value={draftValues[field.fieldId] ?? ""}
-                                onChange={(next) =>
-                                  setDraftValues((current) => ({
-                                    ...current,
-                                    [field.fieldId]: next,
-                                  }))
-                                }
-                              />
-                            </div>
-                          );
-                        }
-
-                        const preview = draftFieldPreview(field, draftValues);
-                        return (
-                          <button
-                            key={field.fieldId}
-                            type="button"
-                            className={
-                              preview
-                                ? "maneuverFieldPickerItem hasValue"
-                                : "maneuverFieldPickerItem"
-                            }
-                            onClick={() => setSelectedFieldId(field.fieldId)}
-                          >
-                            <span className="maneuverFieldPickerLabel">
-                              {field.prompt}
-                              {field.required && (
-                                <span aria-hidden="true"> *</span>
-                              )}
-                            </span>
-                            {preview && (
-                              <span className="maneuverFieldPickerPreview">
-                                {preview}
-                              </span>
-                            )}
-                            <span
-                              className="maneuverFieldPickerChevron"
-                              aria-hidden="true"
-                            >
-                              ›
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                // Every visible field's prompt and entry control render
+                // together immediately, all at once — no more picking a
+                // field first and entering its value on a second screen.
+                // See MANEUVER-CARD-FIELDS-INLINE-2026-08-11. Clicks
+                // inside the list stop here rather than bubbling to the
+                // face's "click anywhere to leave results" handler below
+                // (handleFaceClick) — with every field's real inputs
+                // exposed at once instead of one picker row at a time,
+                // there's now a lot more clickable empty space between
+                // fields, and a stray click there shouldn't save-and-exit.
+                <div
+                  className="maneuverFieldList"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {visibleFields.map((field) => renderFieldControl(field))}
                 </div>
               )}
 

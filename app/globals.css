@@ -4623,6 +4623,20 @@ button.adminTableHeader.isSorted {
   white-space: normal;
 }
 
+/*
+ * Every visible field's prompt + entry control, stacked and all
+ * rendered at once — see MANEUVER-CARD-FIELDS-INLINE-2026-08-11. This
+ * used to hold a field-picker "landing page" (.maneuverFieldPicker,
+ * now removed) that showed one clickable row per field and expanded
+ * into a single-field editor (.maneuverFieldEditor, also removed) on
+ * click — introduced because a maneuver like Ventricular Extrastimulus
+ * can have up to 8 distinct Refractory Period findings, and showing 8
+ * sets of number boxes at once was judged a "sea of fields." Murph
+ * asked to go back to the direct list regardless — this scrolls
+ * internally (overflow-y: auto) rather than growing the card past its
+ * neighbors, so a maneuver with many fields still degrades to a
+ * scroll, not a wall of simultaneous inputs with no way to contain it.
+ */
 .maneuverFieldList {
   display: flex;
   flex: 1;
@@ -4631,137 +4645,6 @@ button.adminTableHeader.isSorted {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-}
-
-/*
- * The results-entry "landing page" — every possible field/finding for
- * this maneuver as a single-line pick row, rather than every field's
- * entry control rendered at once. A maneuver like Ventricular
- * Extrastimulus can have up to 8 distinct Refractory Period findings;
- * showing 8 sets of number boxes simultaneously is the "sea of fields"
- * this replaces. Rows already carrying a draft value are marked
- * (.hasValue) and preview it, so progress is visible without opening
- * each one.
- */
-.maneuverFieldPicker {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.maneuverFieldPickerItem {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.018);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.maneuverFieldPickerItem:hover {
-  border-color: rgba(152, 181, 199, 0.4);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.maneuverFieldPickerItem.hasValue {
-  border-color: rgba(105, 211, 158, 0.3);
-  background: rgba(105, 211, 158, 0.06);
-}
-
-.maneuverFieldPickerLabel {
-  flex: 0 1 auto;
-  min-width: 0;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.maneuverFieldPickerItem.hasValue .maneuverFieldPickerLabel {
-  color: var(--green);
-}
-
-.maneuverFieldPickerPreview {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 10px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.maneuverFieldPickerChevron {
-  flex: 0 0 auto;
-  color: var(--quiet);
-  font-size: 11px;
-}
-
-/*
- * ANSWER-YESNO-INLINE-2026-08-10: a Yes/No Buttons field answers
- * directly in its picker row (the label plus the actual Yes/No
- * FieldControl, side by side) instead of being a clickable row that
- * navigates into .maneuverFieldEditor like every other input type —
- * see the branch in ManeuverCard.tsx's maneuverFieldPicker map. The
- * row is a <div>, not a <button> (it now contains real <button>
- * children, which can't nest inside another button), so `cursor:
- * default` replaces the inherited pointer-cursor affordance from the
- * base .maneuverFieldPickerItem rule, and the label is left free to
- * grow/wrap (no .maneuverFieldPickerPreview/.maneuverFieldPickerChevron
- * sharing the row to size against). The Yes/No buttons themselves are
- * shrunk slightly from their standalone-editor size to fit a single
- * list row's height.
- */
-.maneuverFieldPickerItemYesNo {
-  cursor: default;
-}
-
-.maneuverFieldPickerItemYesNo .maneuverFieldPickerLabel {
-  flex: 1 1 auto;
-  white-space: normal;
-}
-
-.maneuverFieldPickerItemYesNo .maneuverFieldYesNo {
-  flex: 0 0 auto;
-  width: 132px;
-}
-
-.maneuverFieldPickerItemYesNo .maneuverFieldYesNoButton {
-  height: 28px;
-  font-size: 10px;
-}
-
-/* The single-field entry view a picker row expands into. */
-.maneuverFieldEditor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.maneuverFieldEditorBack {
-  align-self: flex-start;
-  padding: 3px 0;
-  border: 0;
-  background: transparent;
-  color: var(--cyan);
-  font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-
-.maneuverFieldEditorBack:hover {
-  text-decoration: underline;
 }
 
 .maneuverField label {

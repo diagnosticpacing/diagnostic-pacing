@@ -403,6 +403,15 @@ section further down — this is an index, not a replacement.
   sentence below ("Edit the clinical content and transparent reasoning
   used by the application.") is removed outright. See
   `ADMIN-TOPBAR-SINGLE-LINE-2026-08-11`.
+- Maneuver card results side: the field-picker "landing page" +
+  single-field editor (introduced `MANEUVER-CARD-REDESIGN-2026-08-05`,
+  most recently touched by `ANSWER-YESNO-INLINE-2026-08-10`) is
+  removed. Every visible field's prompt and entry control now render
+  together immediately, all stacked in one scrolling list — no more
+  picking a field first and entering its value on a second screen.
+  Front-tile ↔ results-face flip is unchanged; only the navigation
+  *within* the results face is gone. See
+  `MANEUVER-CARD-FIELDS-INLINE-2026-08-11`.
 
 **Still open / intentionally deferred:**
 
@@ -4421,3 +4430,83 @@ Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
 visually verified against the running app — the `.adminTopbar h1`/
 `.adminTopbarEyebrow` sizing was chosen to read naturally as an eyebrow-
 prefixed heading, not measured against a live render.
+
+<!-- MANEUVER-CARD-FIELDS-INLINE-2026-08-11 -->
+## Maneuver Card Results: Field Picker Removed, All Fields Shown Directly (implemented 2026-08-11)
+
+Murph: "I'd like to try going back to having the response fields
+available immediately following the field prompts, no flip to select
+the data then enter it." Clarified via AskUserQuestion which
+navigation layer this meant: the maneuver card has two — the 3D flip
+from the front tile to a dedicated results face (unchanged, kept), and
+a picker-list-then-single-field-editor step *within* that results
+face (removed). Murph picked "just the picker step."
+
+**Context — why the picker existed at all.** `MANEUVER-CARD-REDESIGN-2026-08-05`
+introduced a field-picker "landing page": every response field as a
+one-line clickable row, expanding into a single-field editor
+(`.maneuverFieldEditor`) on click, one field visible at a time. The
+reasoning at the time: a maneuver like Ventricular Extrastimulus can
+carry up to 8 distinct Refractory Period findings, and rendering 8
+sets of number boxes simultaneously was judged a "sea of fields."
+`ANSWER-YESNO-INLINE-2026-08-10` (the prior session) had already
+started walking this back for one input type — a Yes/No Buttons field
+answered directly in its picker row instead of navigating away. This
+change generalizes that to every field, for every maneuver, and
+removes the picker entirely rather than special-casing one input type
+at a time.
+
+**Change (`app/maneuvers/ManeuverCard.tsx`).** Removed `selectedFieldId`
+state and its derived `rawSelectedField`/`selectedField` values, the
+now-pointless single-field-auto-select branch in `openEditor()`
+(previously: skip the picker if a maneuver has exactly one visible
+field), and `draftFieldPreview()` (existed only to show a value
+preview on an unopened picker row — nothing to preview once the real
+control is always on screen). The results face's field area is now
+one `.maneuverFieldList` div, `visibleFields.map(renderFieldControl)`
+— every field's label/control pair rendered together, unconditionally,
+whether there's 1 field or 8. `renderFieldControl` itself (the
+RP-triplet-vs-plain-field branch) is unchanged; it was already
+building exactly this label+control unit, previously just for
+whichever one field was selected.
+
+**Click-anywhere-to-leave, revisited.** The results face still has a
+"click the background to save and flip back to front" convenience
+(`handleFaceClick`/`leaveResults`) for clicks that don't land on a
+real `button`/`input`/`select`/`textarea`/`a`/`label`. With one field
+on screen at a time this was a small, contained risk; with every
+field's controls stacked at once there's substantially more empty
+space between rows for a stray click to fall into. `.maneuverFieldList`
+now calls `event.stopPropagation()` on its own `onClick`, so nothing
+inside the field area triggers this exit — same pattern
+`ANSWER-YESNO-INLINE-2026-08-10` already used for its inline Yes/No
+row, just scoped to the whole list instead of one row. Clicking the
+header or the space around the field list (when there are zero fields,
+or every field is currently hidden by its Display condition) still
+leaves results, as before.
+
+**CSS (`app/globals.css`).** Removed the now-dead `.maneuverFieldPicker`,
+`.maneuverFieldPickerItem` (+ `:hover`/`.hasValue`),
+`.maneuverFieldPickerLabel` (+ `.hasValue` variant),
+`.maneuverFieldPickerPreview`, `.maneuverFieldPickerChevron`,
+`.maneuverFieldPickerItemYesNo` (+ its two descendant overrides),
+`.maneuverFieldEditor`, and `.maneuverFieldEditorBack` (+ `:hover`)
+rules. `.maneuverFieldList` keeps its existing `flex: 1`/`overflow-y:
+auto` scrolling behavior unchanged — a maneuver with many fields now
+degrades to an internal scroll rather than growing the card, the same
+"contain it, don't hide it" answer to the original "sea of fields"
+concern, just via scroll instead of navigation. `.maneuverField`,
+`.maneuverFieldYesNo`/`.maneuverFieldYesNoButton`,
+`.maneuverFieldRefractoryGroup*`, and every other per-field-type
+control style are untouched — they were already sized for exactly this
+"label above, control below, full row width" presentation (that's what
+the single-field editor rendered too), so they needed no changes to
+work repeated multiple times in a stacked list.
+
+**Not done:** not visually verified against the running app — whether
+several fields stacked (especially a maneuver with multiple Refractory
+Period triplets) reads as comfortably dense or cluttered wasn't judged
+against a live render, only against the existing per-field CSS's
+sizing.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
