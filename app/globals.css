@@ -194,7 +194,15 @@ button {
   margin-right: 10px;
 }
 
-.activeCase > span,
+/*
+ * Used to be shared with a small green status dot that sat in
+ * .activeCase, next to the case title field — that dot was leftover
+ * scaffolding from an "active case" scheme that was never actually
+ * built out, and was removed outright (not relocated) per Murph's
+ * request. See ACTIVE-CASE-DOT-REMOVED-2026-08-11. .onlineDot itself
+ * (the footer status bar's "Local draft" indicator) is unrelated and
+ * still in use.
+ */
 .onlineDot {
   width: 7px;
   height: 7px;
@@ -225,10 +233,12 @@ button {
  * carried `margin-top: 3px` to sit below that label — dropped along
  * with the label (CASE-TITLE-FIELD-TIDY-2026-08-11), so the field now
  * sits as a direct, vertically-centered child of `.activeCase`
- * alongside the status dot and the New/Open/Save buttons that follow
- * it, rather than offset downward for a label that no longer exists.
- * `text-align: right` makes the title text hug the right edge — the
- * side facing those buttons — instead of sitting flush left.
+ * alongside the New/Open/Save buttons that follow it, rather than
+ * offset downward for a label that no longer exists. (The small green
+ * status dot that used to sit here too is also gone — see
+ * ACTIVE-CASE-DOT-REMOVED-2026-08-11.) `text-align: right` makes the
+ * title text hug the right edge — the side facing those buttons —
+ * instead of sitting flush left.
  */
 .activeCaseTitleInput {
   width: 150px;

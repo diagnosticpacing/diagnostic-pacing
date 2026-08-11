@@ -981,12 +981,14 @@ export default function Home() {
 
         <div className="topActions">
           <div className="activeCase">
-            <span />
             {/* No visible label — "Active case" was a GUI-draft
                 holdover, removed per Murph's request. aria-label
                 keeps this accessible without it. See
                 CASE-TITLE-FIELD-TIDY-2026-08-11 in
-                docs/PROJECT_DESIGN.md. */}
+                docs/PROJECT_DESIGN.md. The small green status dot
+                that used to sit here is gone too — leftover from an
+                "active case" scheme that was never built out. See
+                ACTIVE-CASE-DOT-REMOVED-2026-08-11. */}
             <input
               aria-label="Case title"
               className="activeCaseTitleInput"

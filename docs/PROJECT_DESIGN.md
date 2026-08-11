@@ -432,6 +432,11 @@ section further down — this is an index, not a replacement.
   Post-Ablation Measurements. See `REPORT-SECTIONS-2026-08-11`
   (supersedes the numbering described in
   `REPORT-GENERATOR-2026-08-05`).
+- The small green status dot that used to sit next to the case title
+  field (`.activeCase > span`) is removed — leftover from an "active
+  case" scheme that was never developed further. The unrelated
+  `.onlineDot` footer status-bar indicator ("Local draft") is
+  untouched. See `ACTIVE-CASE-DOT-REMOVED-2026-08-11`.
 
 **Still open / intentionally deferred:**
 
@@ -4672,3 +4677,29 @@ Performed**, Post-Ablation Measurements.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
 visually verified against a rendered report in the running app.
+
+<!-- ACTIVE-CASE-DOT-REMOVED-2026-08-11 -->
+## Case Title Field: Green Status Dot Removed (implemented 2026-08-11)
+
+Murph: "Please remove the little green indicator light placed by the
+study title field, that was part of the active case scheme which was
+never developed." The `<span />` that sat first inside `.activeCase`
+(before the case title `<input>`), styled green/round/7px via
+`.activeCase > span`, is deleted from `app/page.tsx` outright — leftover
+scaffolding from an "active case" concept (presumably some kind of
+online/connected/synced indicator) that was never actually built out.
+No replacement indicator was added; `.activeCase` now contains only the
+title input.
+
+**CSS.** `.activeCase > span` is removed from its combined selector
+with `.onlineDot` in `app/globals.css` — `.onlineDot` itself (the
+unrelated "Local draft" status dot in the footer status bar,
+`app/page.tsx`'s `<footer className="statusbar">`) is untouched and
+still shares the same visual treatment on its own. Comments referencing
+"the status dot" next to `.activeCaseTitleInput` (added
+`CASE-TITLE-FIELD-TIDY-2026-08-11`, when the field's wrapper div and
+label were removed and it became a direct sibling of that dot) are
+updated to reflect that the dot is now gone too.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
+visually verified against the running app.
