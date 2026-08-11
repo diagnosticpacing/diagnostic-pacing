@@ -412,6 +412,16 @@ section further down — this is an index, not a replacement.
   Front-tile ↔ results-face flip is unchanged; only the navigation
   *within* the results face is gone. See
   `MANEUVER-CARD-FIELDS-INLINE-2026-08-11`.
+- Maneuver grid ordering is now frozen while any card is flipped away
+  from its front (summary) face — a card's own edits, or a change on a
+  different card, can no longer reshuffle the grid mid-edit. Order
+  unfreezes once every card returns to front. See
+  `MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11`.
+- Clinical workspace header: the "Active case" label above the case
+  title field is removed (GUI-draft holdover); the title `<input>` now
+  sits inline with the status dot and New/Open/Save buttons, and its
+  text is right-aligned to hug those buttons. See
+  `CASE-TITLE-FIELD-TIDY-2026-08-11`.
 
 **Still open / intentionally deferred:**
 
@@ -4510,3 +4520,102 @@ against a live render, only against the existing per-field CSS's
 sizing.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+
+<!-- MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 -->
+## Maneuver Grid: Card Position Frozen While Any Card Is Flipped (implemented 2026-08-11)
+
+Murph: "a pacing maneuver cards should never change position on the
+tile layout until the card is turned over to the summary side of the
+card." The maneuver grid's order (`sortedManeuverCatalog` in
+`app/page.tsx`) is recomputed live on every render from
+`scoreManeuverRelevance(definition, activeDiagnosisAbbreviations)` (via
+`Base Rank` tiebreak) — and `activeDiagnosisAbbreviations` derives from
+`evaluateDifferential()`, which reacts to *any* recorded maneuver
+response anywhere in the case, not just the one currently being edited.
+Concretely: while a clinician has one card flipped open entering a
+result, answering a different field on that same card — or even just
+the differential shifting from something unrelated — could reshuffle
+every other tile underneath them mid-edit. That's the bug being fixed.
+
+**Design.** A maneuver tile now never changes grid position while it —
+or any other tile — is flipped away from its front (summary) face.
+`ManeuverCard.tsx` gained an `onFlipChange?: (isFlipped: boolean) =>
+void` prop, called every time `flipState` changes between `"front"`
+and either back face (`true` the instant it leaves front, `false` the
+instant it returns). Internally this required adding a
+`changeFlipState(next)` wrapper around the existing `setFlipState` —
+now the single place `flipState` is ever written — so all four call
+sites (`openEditor`, `openDetails`, `closeDetails`, `leaveResults`)
+report the transition consistently instead of each needing its own
+`onFlipChange` call.
+
+`app/page.tsx` tracks which maneuvers are currently flipped in
+`flippedManeuverIds` (a `Set<string>` of maneuver IDs, populated by
+each card's `onFlipChange`) and a `frozenManeuverOrder` (`string[]`)
+snapshot of the grid order at the moment the *first* card flipped away
+from front. `sortedManeuverCatalog` reorders the live-sorted catalog to
+match `frozenManeuverOrder` (via a new `reorderManeuverCatalog` helper)
+whenever `flippedManeuverIds` is non-empty, and falls straight through
+to the live sort once every card has returned to its front face. A
+maneuver present in the live catalog but absent from the frozen order
+(the knowledge base gained a maneuver while a card was flipped — a
+rare, edit-time-only case) is appended at the end in the live catalog's
+own order rather than silently dropped from the grid.
+
+**Where the snapshot is taken, and why it isn't a ref.** The first
+implementation used a `useRef<string[]>` for `frozenManeuverOrder`,
+read and written directly in the render body (read to decide whether
+to reorder; written whenever nothing was flipped, so it always tracked
+"the last order rendered while unfrozen"). This is the classic
+React-docs "memoize into a ref during render" pattern, but this
+project's ESLint config enforces `react-hooks/refs`, which forbids
+*both* reading and writing a ref's `.current` during render — even for
+that pattern — and flagged all three ref touch points as errors.
+Rather than suppress the rule, the design was changed to avoid needing
+a ref at all: `frozenManeuverOrder` is a `useState<string[]>`, and
+instead of continuously re-snapshotting on every unflipped render, it's
+snapshotted exactly once — inside the `onFlipChange` handler passed to
+`<ManeuverCard>`, at the exact moment `isFlipped` is `true` and
+`flippedManeuverIds.size` was `0` going in (i.e. this is the first card
+to flip away from front). That's a legitimate `setState` call, since
+it runs inside an event-handler callback, not render. It's also
+sufficient: the snapshot only ever matters while `flippedManeuverIds`
+is non-empty, so there's nothing to reset when the last card returns to
+front — the next card to flip away just overwrites it with a fresh
+snapshot at that later moment.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+Design traced but not click-tested against the running app: flip one
+card to results, edit a field on a second card in a way that would
+normally reorder the grid, confirm neither tile moves until flipped
+back to front.
+
+<!-- CASE-TITLE-FIELD-TIDY-2026-08-11 -->
+## Clinical Workspace Header: "Active Case" Label Removed, Case Title Field Tidied and Right-Aligned (implemented 2026-08-11)
+
+Murph: remove the "Active case" text in the clinical workspace header
+("that is a gui draft holdover"), tidy the "Untitled study" case-title
+entry field so it aligns better with the buttons in that header row,
+and right-align its text so it hugs those buttons.
+
+**Change (`app/page.tsx`).** The `.activeCase` block previously wrapped
+its title `<input>` in its own flex-column `<div>` under an "Active
+case" `<small>` label; both are removed. The input is now a direct
+child of `.activeCase`, sitting inline with the status dot and the
+New/Open/Save buttons that follow it, with `aria-label="Case title"`
+added to the input to keep it accessible without the visible label.
+
+**Change (`app/globals.css`).** `.activeCase div { display: flex;
+flex-direction: column; }` is removed (dead — no more div child).
+`.activeCase small` is dropped from its combined selector with
+`.metric span` (now `.metric span` alone). `.activeCase strong` is
+likewise dropped from its combined selector with `.metric strong` (now
+`.metric strong` alone) — confirmed dead independent of this change, no
+`<strong>` was ever rendered inside `.activeCase`. On
+`.activeCaseTitleInput`: `margin-top: 3px` (existed to sit the field
+below the now-removed label) is removed, and `text-align: right` is
+added so the title text hugs the right edge of the field — the side
+facing the New/Open/Save buttons — instead of sitting flush left.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
+Not visually verified against the running app.

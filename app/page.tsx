@@ -139,6 +139,32 @@ function formatContextChangeValue(value: string): string {
   return value.trim() || "(blank)";
 }
 
+/**
+ * Reorders `catalog` to match `order` (a remembered list of Maneuver
+ * IDs) instead of whatever order `catalog` itself is already in — see
+ * MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+ * docs/PROJECT_DESIGN.md. Any catalog entry not present in `order` —
+ * the knowledge base gained a maneuver while a card was flipped, a
+ * rare edit-time-only case — is appended at the end in `catalog`'s own
+ * (live-sorted) order, rather than silently dropped from the grid.
+ */
+function reorderManeuverCatalog(
+  catalog: ManeuverCatalogEntry[],
+  order: string[],
+): ManeuverCatalogEntry[] {
+  const byId = new Map(
+    catalog.map((entry) => [entry.definition.maneuverId, entry] as const),
+  );
+  const known = new Set(order);
+  const ordered = order
+    .map((id) => byId.get(id))
+    .filter((entry): entry is ManeuverCatalogEntry => entry !== undefined);
+  const missing = catalog.filter(
+    (entry) => !known.has(entry.definition.maneuverId),
+  );
+  return [...ordered, ...missing];
+}
+
 function Panel({
   eyebrow,
   title,
@@ -225,6 +251,26 @@ export default function Home() {
   const [maneuverCatalogStatus, setManeuverCatalogStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
+  // Maneuver IDs whose card is currently flipped away from its front
+  // (summary) face — populated by each ManeuverCard's onFlipChange
+  // callback. Non-empty means the grid order below is frozen rather
+  // than resorted live. See
+  // MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+  // docs/PROJECT_DESIGN.md.
+  const [flippedManeuverIds, setFlippedManeuverIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  // Snapshot of the maneuver order at the instant the *first* card
+  // flipped away from front — taken once, in the onFlipChange handler
+  // below (an event handler, not render), rather than continuously
+  // tracked via a ref read/written during render (React's
+  // react-hooks/refs rule disallows that). Stays untouched while more
+  // cards flip/unflip; only matters again once flippedManeuverIds is
+  // non-empty, so there's nothing to reset when the last card returns
+  // to front — the next flip just overwrites it with a fresh snapshot.
+  const [frozenManeuverOrder, setFrozenManeuverOrder] = useState<string[]>(
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -434,7 +480,7 @@ export default function Home() {
   // Clinical-Reasoning-weighted recommendation engine that isn't built
   // yet — same tiebreak role Base Rank already plays for diagnoses in the
   // differential engine.
-  const sortedManeuverCatalog = [...maneuverCatalog].sort((a, b) => {
+  const liveSortedManeuverCatalog = [...maneuverCatalog].sort((a, b) => {
     if (!caseHasRecordedManeuverResponse) {
       return a.definition.baseRank - b.definition.baseRank;
     }
@@ -444,6 +490,28 @@ export default function Home() {
     if (relevanceDelta !== 0) return relevanceDelta;
     return a.definition.baseRank - b.definition.baseRank;
   });
+
+  /**
+   * A maneuver tile should never move on the grid while it — or any
+   * other tile — is flipped away from its front (summary) face: the
+   * live sort above is recomputed from differential results that can
+   * genuinely change mid-edit (e.g. a value that excludes a diagnosis
+   * shifts every other maneuver's relevance score too, not just the
+   * one being edited), and reshuffling the grid underneath an
+   * in-progress edit is disorienting. `frozenManeuverOrder` remembers
+   * the order that was live the instant the first card flipped away
+   * from front (snapshotted from the `onFlipChange` handler below,
+   * not during render — see that handler for why); `sortedManeuverCatalog`
+   * keeps reusing that remembered order for as long as
+   * `flippedManeuverIds` is non-empty, and only lets the live sort back
+   * through once every card has returned to its summary side. See
+   * MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+   * docs/PROJECT_DESIGN.md.
+   */
+  const sortedManeuverCatalog =
+    flippedManeuverIds.size > 0 && frozenManeuverOrder.length > 0
+      ? reorderManeuverCatalog(liveSortedManeuverCatalog, frozenManeuverOrder)
+      : liveSortedManeuverCatalog;
 
   // Refractory periods are results recorded on the back of whichever
   // maneuver produces them (tagged via Refractory Period Direction on
@@ -914,28 +982,30 @@ export default function Home() {
         <div className="topActions">
           <div className="activeCase">
             <span />
-            <div>
-              <small>Active case</small>
-              <input
-                aria-label="Case title"
-                className="activeCaseTitleInput"
-                onBlur={(event) => {
-                  if (!event.target.value.trim()) {
-                    setCaseRecord((current) => ({
-                      ...current,
-                      title: "Untitled study",
-                    }));
-                  }
-                }}
-                onChange={(event) => {
-                  const nextTitle = event.target.value;
-                  setCaseRecord((current) => ({ ...current, title: nextTitle }));
-                }}
-                onFocus={(event) => event.target.select()}
-                type="text"
-                value={caseRecord.title}
-              />
-            </div>
+            {/* No visible label — "Active case" was a GUI-draft
+                holdover, removed per Murph's request. aria-label
+                keeps this accessible without it. See
+                CASE-TITLE-FIELD-TIDY-2026-08-11 in
+                docs/PROJECT_DESIGN.md. */}
+            <input
+              aria-label="Case title"
+              className="activeCaseTitleInput"
+              onBlur={(event) => {
+                if (!event.target.value.trim()) {
+                  setCaseRecord((current) => ({
+                    ...current,
+                    title: "Untitled study",
+                  }));
+                }
+              }}
+              onChange={(event) => {
+                const nextTitle = event.target.value;
+                setCaseRecord((current) => ({ ...current, title: nextTitle }));
+              }}
+              onFocus={(event) => event.target.select()}
+              type="text"
+              value={caseRecord.title}
+            />
           </div>
           <button className="secondaryButton" onClick={startNewCase} type="button">
             New case
@@ -1619,6 +1689,35 @@ export default function Home() {
                           values,
                         )
                       }
+                      onFlipChange={(isFlipped) => {
+                        // Snapshot the live order the instant the *first*
+                        // card flips away from front — from inside this
+                        // event handler, not render (React's
+                        // react-hooks/refs rule disallows mutating
+                        // ref/state-like values during render, even for a
+                        // "remember it for next render" memoization). See
+                        // MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+                        // docs/PROJECT_DESIGN.md.
+                        if (isFlipped && flippedManeuverIds.size === 0) {
+                          setFrozenManeuverOrder(
+                            liveSortedManeuverCatalog.map(
+                              (catalogEntry) =>
+                                catalogEntry.definition.maneuverId,
+                            ),
+                          );
+                        }
+
+                        setFlippedManeuverIds((current) => {
+                          const alreadyFlipped = current.has(
+                            entry.definition.maneuverId,
+                          );
+                          if (isFlipped === alreadyFlipped) return current;
+                          const next = new Set(current);
+                          if (isFlipped) next.add(entry.definition.maneuverId);
+                          else next.delete(entry.definition.maneuverId);
+                          return next;
+                        });
+                      }}
                     />
                   );
                 })}

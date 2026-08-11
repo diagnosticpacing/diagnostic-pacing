@@ -37,6 +37,17 @@ type ManeuverCardProps = {
   activeClinicalStateId: string;
   activeClinicalStateSummary: string;
   onSave: (values: Record<string, string>) => void;
+  /**
+   * Called whenever this card's flip state changes between its front
+   * (summary) face and either back face (results or details) — `true`
+   * the instant it leaves front, `false` the instant it returns to
+   * front. Lets the maneuver grid freeze every card's position while
+   * this one (or any other) is flipped away from its summary side,
+   * instead of resorting the grid underneath an in-progress edit. See
+   * MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+   * docs/PROJECT_DESIGN.md.
+   */
+  onFlipChange?: (isFlipped: boolean) => void;
 };
 
 /**
@@ -282,6 +293,7 @@ export default function ManeuverCard({
   activeClinicalStateId,
   activeClinicalStateSummary,
   onSave,
+  onFlipChange,
 }: ManeuverCardProps) {
   // "front" is the card's resting face. "results" and "details" both flip
   // to the same physical back plane (a true third geometric face isn't
@@ -322,20 +334,33 @@ export default function ManeuverCard({
     fieldIsVisible(field, draftValues),
   );
 
+  /** The one place `flipState` is actually written — so `onFlipChange`
+   * fires on every transition without duplicating that call at each of
+   * this function's four call sites below. Reports "flipped" for both
+   * back faces (results and details), not just results: the grid
+   * position should stay frozen while Maneuver Details is open too,
+   * not only while entering results. See
+   * MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11 in
+   * docs/PROJECT_DESIGN.md. */
+  function changeFlipState(next: "front" | "results" | "details") {
+    setFlipState(next);
+    onFlipChange?.(next !== "front");
+  }
+
   function openEditor() {
     const initialValues = activePerformance?.values ?? {};
     setDraftValues(initialValues);
     lastCommittedValuesRef.current = JSON.stringify(initialValues);
-    setFlipState("results");
+    changeFlipState("results");
   }
 
   function openDetails(from: "front" | "results") {
     setDetailsReturnState(from);
-    setFlipState("details");
+    changeFlipState("details");
   }
 
   function closeDetails() {
-    setFlipState(detailsReturnState);
+    changeFlipState(detailsReturnState);
   }
 
   /** Commits whatever's currently in draftValues and returns to the
@@ -351,7 +376,7 @@ export default function ManeuverCard({
       lastCommittedValuesRef.current = serialized;
       onSave(draftValues);
     }
-    setFlipState("front");
+    changeFlipState("front");
   }
 
   /**

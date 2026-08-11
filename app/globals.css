@@ -202,18 +202,11 @@ button {
   background: var(--green);
 }
 
-.activeCase div {
-  display: flex;
-  flex-direction: column;
-}
-
-.activeCase small,
 .metric span {
   color: var(--muted);
   font-size: 10px;
 }
 
-.activeCase strong,
 .metric strong {
   margin-top: 3px;
   font-size: 12px;
@@ -226,11 +219,20 @@ button {
  * Styled to sit flush as plain text until the user actually interacts
  * with it (no border/background at rest), so it doesn't read as "a form
  * field" in a toolbar that's otherwise all buttons and labels.
+ *
+ * Used to sit in its own flex-column wrapper under an "Active case"
+ * label (`.activeCase div`/`.activeCase small`, both removed) and
+ * carried `margin-top: 3px` to sit below that label — dropped along
+ * with the label (CASE-TITLE-FIELD-TIDY-2026-08-11), so the field now
+ * sits as a direct, vertically-centered child of `.activeCase`
+ * alongside the status dot and the New/Open/Save buttons that follow
+ * it, rather than offset downward for a label that no longer exists.
+ * `text-align: right` makes the title text hug the right edge — the
+ * side facing those buttons — instead of sitting flush left.
  */
 .activeCaseTitleInput {
   width: 150px;
   max-width: 220px;
-  margin-top: 3px;
   padding: 2px 5px;
   border: 1px solid transparent;
   border-radius: 5px;
@@ -239,6 +241,7 @@ button {
   font: inherit;
   font-size: 12px;
   font-weight: 750;
+  text-align: right;
 }
 
 .activeCaseTitleInput:hover {
