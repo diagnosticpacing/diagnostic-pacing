@@ -267,12 +267,16 @@ button {
 
 .primaryButton,
 .secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 35px;
   padding: 0 14px;
   border-radius: 9px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 750;
+  text-decoration: none;
 }
 
 .primaryButton {
@@ -4232,6 +4236,18 @@ button.adminTableHeader.isSorted {
   }
 }
 
+/* Add Row, moved down from the toolbar above the sheet to the bottom of
+ * the row list itself — reads as "one more row" appended after the real
+ * ones rather than a floating toolbar control. See
+ * ADMIN-ADD-ROW-TO-BOTTOM-2026-08-11 in PROJECT_DESIGN.md. */
+.adminAddRowFooter {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.012);
+}
+
 
 /* Administration maneuver workbook v1 */
 
@@ -4307,6 +4323,64 @@ button.adminTableHeader.isSorted {
   margin: 0;
 }
 
+/*
+ * Replaces .adminSheetHeading + the old Toolbar row for the editable
+ * admin site only (KnowledgeClient's read-only viewer still uses the
+ * two-bar version above, unchanged) — one consolidated line with the
+ * sheet description on the left (blank for Maneuvers, whose subnav
+ * already states it) and the live row count / save state on the right,
+ * where a separate Toolbar bar used to sit. Two stacked bars become
+ * one, freeing vertical space for the actual spreadsheet rows below.
+ * See ADMIN-CONSOLIDATE-SHEET-META-2026-08-11 in PROJECT_DESIGN.md.
+ */
+.adminSheetMeta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.adminSheetMeta p {
+  max-width: 780px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.adminSheetStatus {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/*
+ * Shared by .adminSheetStatus above and Toolbar.tsx's .adminSaveState
+ * (still used by the read-only knowledge viewer) — both render a span
+ * with exactly one of these two class names for the "Saved"/"Unsaved
+ * changes" (or Toolbar's own "Read-only") text. Previously undefined
+ * (a naming drift from an earlier, differently-named .adminSaveStatus
+ * rule block that never matched what either component actually
+ * renders), so this indicator has rendered as plain unstyled text on
+ * both the admin and knowledge-base sites up to now — fixed here for
+ * both at once, discovered while consolidating this exact region for
+ * the admin site's redesign.
+ */
+.isDirty {
+  color: var(--amber);
+}
+
+.isSaved {
+  color: var(--green);
+}
+
 @media (max-width: 900px) {
   .adminSubnav {
     grid-template-columns: 1fr;
@@ -4314,6 +4388,12 @@ button.adminTableHeader.isSorted {
 
   .adminSubnav button {
     min-height: auto;
+  }
+
+  .adminSheetMeta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
 }
 

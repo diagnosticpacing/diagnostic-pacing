@@ -437,6 +437,19 @@ section further down — this is an index, not a replacement.
   case" scheme that was never developed further. The unrelated
   `.onlineDot` footer status-bar indicator ("Local draft") is
   untouched. See `ACTIVE-CASE-DOT-REMOVED-2026-08-11`.
+- Admin site (`/admin` only, not `/knowledge`): header now reuses the
+  clinical workspace's own `.topbar`/`.brandArea`/`.brand`/`.brandMark`
+  classes (admin gets the cyan logo mark for the first time); Save and
+  Download Workbook moved into `.topActions` alongside Return-to-
+  clinical-workspace/Sign-out; Add Row moved from the toolbar down to a
+  persistent row at the bottom of the spreadsheet grid; and the sheet
+  description + row-count/save-state bars merged into one
+  `.adminSheetMeta` line, with the Maneuvers-tab description dropped
+  outright (redundant with `ManeuverWorkspace`'s subnav, which already
+  shows it). Also fixed in passing: the row-count/save-state text
+  (`isDirty`/`isSaved`) had no matching CSS on either `/admin` or
+  `/knowledge` and rendered unstyled; now styled (amber/green) on both.
+  See `ADMIN-SITE-HEADER-AND-CONSOLIDATION-2026-08-11`.
 
 **Still open / intentionally deferred:**
 
@@ -4703,3 +4716,114 @@ updated to reflect that the dot is now gone too.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
 visually verified against the running app.
+
+<!-- ADMIN-SITE-HEADER-AND-CONSOLIDATION-2026-08-11 -->
+## Admin Site: Clinical-Matching Header, Relocated Buttons, De-duplicated Sheet Meta (implemented 2026-08-11)
+
+Murph, four related requests for the editable `/admin` knowledge-base
+site (not the read-only `/knowledge` public viewer, which is untouched
+by all four — see the note at the end): (1) use the same logo and top
+menu format as the clinical site; (2) move Save and Download Workbook
+to the top right with the other buttons; (3) move Add Row to the
+bottom of the spreadsheet; (4) visually consolidate sub-categories to
+remove redundancy — his example: Maneuvers > Response Fields showed the
+same description text twice, once as the subnav button's own caption
+and once again in the heading below it — with the overall aim of
+minimizing vertical space so more actual knowledge-base rows are
+visible without scrolling.
+
+**(1) + (2) Header (`app/admin/AdminClient.tsx`).** The admin site's
+own bespoke `.adminTopbar` (a plain `<h1>` on the left, an unstyled
+`Return to clinical workspace` link + `Sign out` button on the right)
+is replaced with the exact same `.topbar`/`.brandArea`/`.brand`/
+`.brandMark`/`.topActions` structure and CSS classes the clinical
+workspace's own header (`app/page.tsx`) uses — not a lookalike copy,
+the literal same classes, so a change to the clinical header's styling
+in the future carries over here automatically. The admin site gets the
+cyan `brandMark` logo for the first time (it previously had none at
+all); the eyebrow-in-`<h1>` treatment
+(`ADMIN-TOPBAR-SINGLE-LINE-2026-08-11`) is preserved inside the new
+structure. **Save** and **Download Workbook** — previously their own
+button row further down the page, alongside Add Row — now live in
+`.topActions` on the top right, joined with the `Return to clinical
+workspace` / `Sign out` buttons that already lived there. Order,
+left to right: Save (`.primaryButton`), Download Workbook, Return to
+clinical workspace, Sign out (all three `.secondaryButton`). Save is
+disabled while the workbook hasn't finished loading or a save is
+already in flight, and reads "Saving…" mid-request, mirroring the
+clinical site's own autosave button's "Autosaving…" state. The
+`Return to clinical workspace` `<Link>` needed `.primaryButton`/
+`.secondaryButton` extended with `display: inline-flex; align-items:
+center; justify-content: center; text-decoration: none;` so an `<a>`
+rendered with the class looks identical to a `<button>` — the property
+addition is inert for every existing button use of those classes (a
+`<button>`'s own box model already centers single-line text the same
+way), so this is safe project-wide, not admin-only.
+
+**(3) Add Row (`app/admin/components/SpreadsheetTable.tsx`).** A new
+persistent `.adminAddRowFooter` row — a real grid child, `gridColumn:
+'1 / span N'` spanning every column exactly like the existing "No rows
+yet" empty-state row already does — is appended after the last data
+row whenever `!readOnly && rows.length > 0`, so it reads as "one more
+row" at the true bottom of the row list rather than a floating toolbar
+button. The pre-existing `rows.length === 0` empty state (its own "Add
+First Row" button, unchanged) still covers the zero-rows case, so the
+two never render at once.
+
+**(4) Sheet meta consolidation (`app/admin/AdminClient.tsx`,
+`app/globals.css`).** The old stack — `.adminSheetHeading` (sheet
+description) directly above a separate `Toolbar` component row (row
+count, save state, and the now-relocated Add Row/Save/Download
+buttons) — collapses into one `.adminSheetMeta` bar: description on
+the left, row count + save state on the right. Two bars become one,
+and for the Maneuvers tab specifically the description is left blank
+rather than restated, since `ManeuverWorkspace`'s subnav directly above
+already shows the active sheet's label *and* description together on
+its own button (`app/admin/components/ManeuverWorkspace.tsx`,
+unchanged) — that was the exact literal duplicate Murph flagged: the
+Response Fields subnav button and the heading below it showing the
+identical sentence twice. Every other tab has no subnav, so its
+description still needs to be stated somewhere, and `.adminSheetMeta`
+is that somewhere. AdminClient no longer imports or renders `Toolbar`
+at all — it remains used solely by `KnowledgeClient.tsx` (see below).
+
+**Bonus fix, discovered in passing.** Toolbar's row-count/save-state
+line (`<span className={isDirty ? "isDirty" : "isSaved"}>`) has
+apparently rendered as plain unstyled text since it was built — the
+CSS block that was clearly meant to style it, `.adminSaveStatus`
+(`.saved`/`.unsaved`/`.saving` modifier classes), doesn't match either
+the class name (`.adminSaveState`, singular "State" not "Status") or
+the modifier pattern the component actually emits (`isDirty`/`isSaved`
+as complete class names on the inner span, not suffixes on the outer
+container), so it never matched anything and the indicator has always
+been unstyled on both `/admin` and `/knowledge`. Since the new
+`.adminSheetMeta` bar's own status indicator uses those same literal
+`isDirty`/`isSaved` class names (deliberately, to match Toolbar's
+existing pattern rather than invent a third), defining real CSS for
+them (`.isDirty { color: var(--amber); }`, `.isSaved { color:
+var(--green); }`) fixes both call sites at once — the new admin bar,
+and Toolbar's original, still-standing usage on the knowledge-base
+viewer. The old, still-dead `.adminSaveStatus` block is left alone
+(harmless, matches nothing) rather than deleted, since cleaning up
+unrelated dead CSS wasn't part of this request.
+
+**Left untouched: `/knowledge` (`app/knowledge/KnowledgeClient.tsx`).**
+None of the four requests were about the public read-only viewer, so
+its header, `Toolbar` usage, and `.adminSheetHeading` remain exactly
+as they were — it still uses the older two-bar layout and the
+never-updated stacked-eyebrow header
+(`ADMIN-TOPBAR-SINGLE-LINE-2026-08-11` was only ever applied to
+`/admin`, not `/knowledge` — a pre-existing inconsistency, noted here,
+not fixed). `SpreadsheetTable`'s new bottom-of-grid Add Row footer is
+gated on `!readOnly`, so it does not appear there either — no visual
+change to `/knowledge` from any of this.
+
+(Comment anchors in the code above point at
+`ADMIN-CONSOLIDATE-SHEET-META-2026-08-11` and
+`ADMIN-ADD-ROW-TO-BOTTOM-2026-08-11` specifically; this single section
+covers both, along with `ADMIN-TOPBAR-CLINICAL-MATCH-2026-08-11`.)
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean
+(the session's device connection dropped mid-task and briefly delayed
+this check — see the note at the top of this section's Status Summary
+bullet). Not visually verified against the running app.

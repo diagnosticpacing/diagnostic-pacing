@@ -760,6 +760,30 @@ export default function SpreadsheetTable({
             )}
           </div>
         )}
+
+        {/* Add Row used to live in the toolbar above the sheet, alongside
+         * Save/Download — moved down here, at the bottom of the actual
+         * row list, per Murph's request. A direct grid child (like the
+         * empty-state row above), spanning every column so it reads as
+         * "one more row" appended after the real ones rather than a
+         * floating control. Only shown once there's already at least one
+         * row — the `rows.length === 0` case above already offers this
+         * same action as "Add First Row". See
+         * ADMIN-ADD-ROW-TO-BOTTOM-2026-08-11 in PROJECT_DESIGN.md. */}
+        {!readOnly && rows.length > 0 && (
+          <div
+            className="adminAddRowFooter"
+            style={{ gridColumn: `1 / span ${definition.columns.length + 2}` }}
+          >
+            <button
+              className="adminPrimaryButton"
+              type="button"
+              onClick={onAddRow}
+            >
+              Add Row
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

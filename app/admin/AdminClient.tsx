@@ -5,11 +5,9 @@ import Link from "next/link";
 import AdminTabs from "./components/AdminTabs";
 import ManeuverWorkspace from "./components/ManeuverWorkspace";
 import SpreadsheetTable from "./components/SpreadsheetTable";
-import Toolbar from "./components/Toolbar";
 import { exportKnowledgeWorkbook } from "./workbookExport";
 import {
   initialData,
-  maneuverSheets,
   sheetDefinitions,
   type ManeuverSheetId,
   type SheetId,
@@ -250,29 +248,50 @@ export default function AdminPage() {
     }
   };
 
-  const activeManeuverDescription =
-    maneuverSheets.find(
-      (sheet) => sheet.id === activeManeuverSheet,
-    )?.description ?? "";
-
   return (
     <main className="adminShell">
-      <header className="adminTopbar">
-        <div>
-          {/* "Diagnostic Pacing" and the page title used to be a
-              stacked eyebrow + <h1>, with an explanatory line below —
-              collapsed to one <h1> line at Murph's request; the
-              explanatory line is gone outright, not relocated. See
-              ADMIN-TOPBAR-SINGLE-LINE-2026-08-11. */}
-          <h1>
-            <span className="adminTopbarEyebrow">Diagnostic Pacing</span>
-            Knowledge-Base Administration
-          </h1>
+      {/* Same brand mark + eyebrow-in-h1 header format, and the same
+          .topbar/.brandArea/.brand/.topActions classes, as the clinical
+          workspace's own header — reused wholesale here instead of the
+          admin site's previous bespoke .adminTopbar treatment, per
+          Murph's request to match "the same logo and top menu format as
+          the clinical site." Save and Download Workbook — previously
+          their own row further down, alongside Add Row — now live here
+          too, grouped with the Return/Sign-out buttons that already
+          lived in the top-right. See
+          ADMIN-TOPBAR-CLINICAL-MATCH-2026-08-11. */}
+      <header className="topbar">
+        <div className="brandArea">
+          <div className="brand">
+            <span className="brandMark" role="img" aria-label="DiagnosticPacing.org" />
+            <h1>
+              <span className="adminTopbarEyebrow">Diagnostic Pacing</span>
+              Knowledge-Base Administration
+            </h1>
+          </div>
         </div>
 
-        <div className="adminTopbarActions">
-          <Link href="/">Return to clinical workspace</Link>
+        <div className="topActions">
           <button
+            className="primaryButton"
+            disabled={revision === null || isSaving}
+            onClick={() => void handleSave()}
+            type="button"
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+          <button
+            className="secondaryButton"
+            onClick={handleDownload}
+            type="button"
+          >
+            Download Workbook
+          </button>
+          <Link className="secondaryButton" href="/">
+            Return to clinical workspace
+          </Link>
+          <button
+            className="secondaryButton"
             type="button"
             onClick={async () => {
               await fetch("/api/admin/logout", { method: "POST" });
@@ -297,28 +316,31 @@ export default function AdminPage() {
           />
         )}
 
-        {/* Sheet identity (name) is expressed by the selectable menus
-            alone now — AdminTabs above, and ManeuverWorkspace's subnav
-            for the Maneuvers tab — rather than restated again here. See
-            ADMIN-SHEET-HEADING-DEDUP-2026-08-10. Only the one line of
-            further explanation (the sheet's description) remains. */}
-        <div className="adminSheetHeading">
-          <div>
-            <p>
-              {activeTab === "maneuvers"
-                ? activeManeuverDescription
-                : activeDefinition.description}
-            </p>
+        {/* One consolidated line where there used to be two separate
+            bars: a sheet-description heading, and a Toolbar row below it
+            for row count / save state (plus the Add Row/Save/Download
+            buttons now relocated to the header above and to the bottom
+            of the spreadsheet). For the Maneuvers tab specifically, the
+            description is left blank on purpose — ManeuverWorkspace's
+            subnav above already shows the active sheet's label and
+            description together on its own button, so repeating that
+            same sentence here would be the exact duplicate description
+            Murph flagged ("Response Fields" showing the same text
+            twice). Every other tab has no subnav, so its description
+            still needs to be stated somewhere, and this is that
+            somewhere. See ADMIN-CONSOLIDATE-SHEET-META-2026-08-11. */}
+        <div className="adminSheetMeta">
+          <p>{activeTab === "maneuvers" ? "" : activeDefinition.description}</p>
+
+          <div className="adminSheetStatus" aria-live="polite">
+            <span>
+              {activeRows.length} {activeRows.length === 1 ? "row" : "rows"}
+            </span>
+            <span className={isDirty ? "isDirty" : "isSaved"}>
+              {isDirty ? "Unsaved changes" : "Saved"}
+            </span>
           </div>
         </div>
-
-        <Toolbar
-          rowCount={activeRows.length}
-          isDirty={isDirty}
-          onAddRow={handleAddRow}
-          onSave={() => void handleSave()}
-          onDownload={handleDownload}
-        />
 
         {hasLoaded && (
           <SpreadsheetTable
