@@ -422,6 +422,16 @@ section further down — this is an index, not a replacement.
   sits inline with the status dot and New/Open/Save buttons, and its
   text is right-aligned to hug those buttons. See
   `CASE-TITLE-FIELD-TIDY-2026-08-11`.
+- Case report: the discussion-only `1.`/`2.a.`/`2.a.1.`-style outline
+  numbering is removed from every section heading (plain text now);
+  Clinical-State-identifying numbers like "Clinical State 3" are
+  unaffected. A new **Ablation Performed** section was added,
+  following Rhythms Induced, listing every Clinical State with a
+  recorded ablation entry. Report order: Baseline State,
+  Pre-Ablation Measurements, Rhythms Induced, Ablation Performed,
+  Post-Ablation Measurements. See `REPORT-SECTIONS-2026-08-11`
+  (supersedes the numbering described in
+  `REPORT-GENERATOR-2026-08-05`).
 
 **Still open / intentionally deferred:**
 
@@ -1917,6 +1927,12 @@ questions Murph resolved directly:
 
 <!-- REPORT-GENERATOR-2026-08-05 -->
 ## Case Report Generator (implemented 2026-08-05)
+
+**The section numbering described below (1./2.a./2.a.1./etc.) was
+removed 2026-08-11** — see `REPORT-SECTIONS-2026-08-11` further down,
+which also adds a new Ablation Performed section after Rhythms
+Induced. Everything else about the generator's shape and behavior
+described here is still accurate.
 
 Wired the topbar's previously-dead "Report" button to a plain-text,
 copy/print-friendly case summary — the first version of a reporting
@@ -4619,3 +4635,40 @@ facing the New/Open/Save buttons — instead of sitting flush left.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean.
 Not visually verified against the running app.
+
+<!-- REPORT-SECTIONS-2026-08-11 -->
+## Case Report: Outline Numbers Removed, "Ablation Performed" Section Added (implemented 2026-08-11)
+
+Murph: "please remove the numbers in the outline format, that was just
+intended to help us discus the report format." The `1.` / `2.a.` /
+`2.a.1.` style section numbering `REPORT-GENERATOR-2026-08-05` shipped
+with was scaffolding for discussing the report's shape, not something
+meant to ship in the actual generated report — removed outright, not
+replaced with any other numbering scheme. Section headings are now
+plain text: "Baseline State", "Pre-Ablation Measurements", "Off
+Isoproterenol"/"On Isoproterenol", "Antegrade"/"Retrograde", "Rhythms
+Induced", "Post-Ablation Measurements". Indentation levels are
+unchanged — only the numeric/lettered prefixes are gone.
+`ablationMeasurementsSection()`'s `sectionNumber: "2" | "4"` parameter
+is removed entirely along with them (the two call sites no longer pass
+it). Left untouched: the "Clinical State {N}" labels inside Rhythms
+Induced (and the new Ablation Performed section below) — those numbers
+identify *which Clinical State*, matching the numbering already shown
+on the rail cards, not an outline position, so they stay.
+
+Also added, per Murph's request: a new **Ablation Performed** section,
+directly following Rhythms Induced. Every Clinical State carrying a
+recorded ablation entry (`hasAblationSessionData(state.ablation)` —
+see `ABLATION-PER-CLINICAL-STATE-2026-08-09`, which moved ablation data
+onto the Clinical State itself, one entry per state) is listed as
+"Clinical State {N}: {phase}" followed by its indented Modality/
+Location/Ablations/Duration fields (whichever are actually filled in —
+same field/value line shape `intervalLines`/`refractoryPeriodLines`
+already use, via a new `ablationSessionLines()` helper). Prints "None
+recorded" when no state has ablation detail, matching every other
+section's empty-state convention. Report section order is now:
+Baseline State, Pre-Ablation Measurements, Rhythms Induced, **Ablation
+Performed**, Post-Ablation Measurements.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
+visually verified against a rendered report in the running app.

@@ -1,5 +1,12 @@
-import type { CaseRecord, ClinicalState } from "@/app/clinical/model";
-import { workspaceConfigurations } from "@/app/clinical/model";
+import type {
+  AblationSession,
+  CaseRecord,
+  ClinicalState,
+} from "@/app/clinical/model";
+import {
+  hasAblationSessionData,
+  workspaceConfigurations,
+} from "@/app/clinical/model";
 import type { ManeuverCatalogEntry } from "@/app/maneuvers/knowledge";
 import {
   buildRefractoryPeriodCatalog,
@@ -68,26 +75,38 @@ function indent(lines: string[], levels: number): string[] {
     : [`${prefix}None recorded`];
 }
 
-/** Renders one Pre-/Post-Ablation Measurements section (2 or 4): Off/On
+/** Every recorded field on an ablation entry, labeled — same field/value
+ * line shape as intervalLines/refractoryPeriodLines. */
+function ablationSessionLines(session: AblationSession): string[] {
+  const lines: string[] = [];
+  if (session.modality) lines.push(`Modality: ${session.modality}`);
+  if (session.location.trim()) lines.push(`Location: ${session.location.trim()}`);
+  if (session.count.trim()) lines.push(`Ablations: ${session.count.trim()}`);
+  if (session.durationSeconds.trim()) {
+    lines.push(`Duration: ${session.durationSeconds.trim()} s`);
+  }
+  return lines;
+}
+
+/** Renders one Pre-/Post-Ablation Measurements section: Off/On
  * Isoproterenol, each split into Antegrade/Retrograde findings. */
 function ablationMeasurementsSection(
-  sectionNumber: "2" | "4",
   catalog: RefractoryPeriodDefinition[],
   offIsoStates: ClinicalState[],
   onIsoStates: ClinicalState[],
 ): string[] {
   const lines: string[] = [];
 
-  lines.push(`  ${sectionNumber}.a. Off Isoproterenol`, "");
-  lines.push(`    ${sectionNumber}.a.1. Antegrade`);
+  lines.push(`  Off Isoproterenol`, "");
+  lines.push(`    Antegrade`);
   lines.push(...indent(refractoryPeriodLines(catalog, "Antegrade", offIsoStates), 3), "");
-  lines.push(`    ${sectionNumber}.a.2. Retrograde`);
+  lines.push(`    Retrograde`);
   lines.push(...indent(refractoryPeriodLines(catalog, "Retrograde", offIsoStates), 3), "");
 
-  lines.push(`  ${sectionNumber}.b. On Isoproterenol`, "");
-  lines.push(`    ${sectionNumber}.b.1. Antegrade`);
+  lines.push(`  On Isoproterenol`, "");
+  lines.push(`    Antegrade`);
   lines.push(...indent(refractoryPeriodLines(catalog, "Antegrade", onIsoStates), 3), "");
-  lines.push(`    ${sectionNumber}.b.2. Retrograde`);
+  lines.push(`    Retrograde`);
   lines.push(...indent(refractoryPeriodLines(catalog, "Retrograde", onIsoStates), 3), "");
 
   return lines;
@@ -113,10 +132,10 @@ export function generateCaseReport(
   lines.push(`Generated ${new Date().toLocaleString()}`);
   lines.push("");
 
-  // 1. Baseline State — the first Clinical State recorded, whatever its
+  // Baseline State — the first Clinical State recorded, whatever its
   // Rhythm happens to be (in practice this is where a study starts, before
   // anything has been induced or ablated).
-  lines.push("1. Baseline State", "");
+  lines.push("Baseline State", "");
   if (baseline) {
     lines.push(`Rhythm: ${baseline.context.rhythm}`);
     lines.push(...indent(intervalLines(baseline), 0));
@@ -125,23 +144,23 @@ export function generateCaseReport(
   }
   lines.push("");
 
-  // 2. Pre-Ablation Measurements — every Clinical State tagged
-  // Pre-ablation, including the baseline state itself if it qualifies
-  // (which it does by default), not just states after it.
+  // Pre-Ablation Measurements — every Clinical State tagged Pre-ablation,
+  // including the baseline state itself if it qualifies (which it does by
+  // default), not just states after it.
   const preOff = caseRecord.clinicalStates.filter(
     (state) => isPreAblation(state) && !isIsoOn(state),
   );
   const preOn = caseRecord.clinicalStates.filter(
     (state) => isPreAblation(state) && isIsoOn(state),
   );
-  lines.push("2. Pre-Ablation Measurements", "");
-  lines.push(...ablationMeasurementsSection("2", catalog, preOff, preOn));
+  lines.push("Pre-Ablation Measurements", "");
+  lines.push(...ablationMeasurementsSection(catalog, preOff, preOn));
 
-  // 3. Rhythms Induced — Tachycardia states other than the baseline state,
+  // Rhythms Induced — Tachycardia states other than the baseline state,
   // labeled by their position in the Clinical States list (matching the
   // numbering already visible on the rail cards) plus when they were
   // recorded, since there's no other name to give an induced rhythm.
-  lines.push("3. Rhythms Induced", "");
+  lines.push("Rhythms Induced", "");
   const induced = rest
     .map((state, index) => ({ state, number: index + 2 }))
     .filter(({ state }) => state.context.rhythm === "Tachycardia");
@@ -159,17 +178,38 @@ export function generateCaseReport(
   }
   lines.push("");
 
-  // 4. Post-Ablation Measurements — every Clinical State tagged
-  // Post-ablation or Post-ablation 2 (collapsed together, same as
-  // section 2's Pre-ablation bucket).
+  // Ablation Performed — every Clinical State (baseline included, in the
+  // unlikely event it's tagged Ablation) carrying a recorded ablation
+  // entry, labeled by the same rail-card-matching position number as
+  // Rhythms Induced above. See ABLATION-PER-CLINICAL-STATE-2026-08-09 —
+  // ablation detail lives on the Clinical State itself, one entry per
+  // state, rather than a shared case-level list.
+  lines.push("Ablation Performed", "");
+  const ablationsPerformed = caseRecord.clinicalStates
+    .map((state, index) => ({ state, number: index + 1 }))
+    .filter(({ state }) => hasAblationSessionData(state.ablation));
+
+  if (ablationsPerformed.length === 0) {
+    lines.push("None recorded");
+  } else {
+    for (const { state, number } of ablationsPerformed) {
+      lines.push(`Clinical State ${number}: ${state.context.phase}`);
+      lines.push(...indent(ablationSessionLines(state.ablation), 1), "");
+    }
+  }
+  lines.push("");
+
+  // Post-Ablation Measurements — every Clinical State tagged Post-ablation
+  // or Post-ablation 2 (collapsed together, same as the Pre-ablation
+  // bucket above).
   const postOff = caseRecord.clinicalStates.filter(
     (state) => !isPreAblation(state) && !isIsoOn(state),
   );
   const postOn = caseRecord.clinicalStates.filter(
     (state) => !isPreAblation(state) && isIsoOn(state),
   );
-  lines.push("4. Post-Ablation Measurements", "");
-  lines.push(...ablationMeasurementsSection("4", catalog, postOff, postOn));
+  lines.push("Post-Ablation Measurements", "");
+  lines.push(...ablationMeasurementsSection(catalog, postOff, postOn));
 
   return lines.join("\n").trimEnd();
 }
