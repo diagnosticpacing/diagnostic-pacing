@@ -4767,12 +4767,29 @@ button.adminTableHeader.isSorted {
  * second line — within roughly the same total row height a single
  * 11px line used to take — rather than needing to either truncate or
  * push the control onto its own line. min-width keeps a short prompt
- * from being squeezed to nothing by a wide neighboring control; flex:
- * 1 1 auto lets it use whatever space the control (fixed-width, see
+ * from being squeezed to nothing by a wide neighboring control; flex-
+ * grow: 1 lets it use whatever space the control (fixed-width, see
  * below) doesn't need.
+ *
+ * flex-basis is 0, not auto — this looked right for a short prompt
+ * ("AP ERP") but broke for a longer one ("Slow Pathway ERP"): with
+ * flex-basis: auto, the browser decides whether the label + its
+ * sibling control fit on one line using the label's *unwrapped*
+ * natural width (its max-content size, i.e. the width it would need
+ * to render as a single line) — not the smaller, already-wrapped
+ * width it actually ends up rendering at. A long prompt's unwrapped
+ * width alone was often already wider than the space available next
+ * to a Refractory Period triplet's three input boxes, so the whole
+ * control got pushed onto its own line below, even though the prompt
+ * would have fit fine once allowed to wrap. flex-basis: 0 (clamped up
+ * to min-width) makes that line-fit decision based on the small
+ * min-width instead, so the row only wraps when it genuinely can't
+ * fit — matching the single-row layout every field is meant to have.
+ * See MANEUVER-CARD-FIELD-ROW-WRAP-FIX-2026-08-12 in
+ * docs/PROJECT_DESIGN.md.
  */
 .maneuverField label {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-width: 64px;
   margin: 0;
   color: var(--text);

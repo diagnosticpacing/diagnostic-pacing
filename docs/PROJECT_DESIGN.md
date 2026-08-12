@@ -459,7 +459,12 @@ section further down — this is an index, not a replacement.
   Select Dropdown's checkbox inputs were inheriting the generic field
   input's box styling (rendering as bordered rectangles); reset to
   normal checkbox sizing. See
-  `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12`.
+  `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12`. **Follow-up fix, same
+  day:** longer prompts (e.g. "Slow Pathway ERP") were still falling
+  back to the old stacked layout while short ones (e.g. "AP ERP")
+  correctly rendered inline — a flexbox wrap-decision bug, not a
+  partial rollout. See
+  `MANEUVER-CARD-FIELD-ROW-WRAP-FIX-2026-08-12`.
 
 **Still open / intentionally deferred:**
 
@@ -4922,3 +4927,14 @@ particular, whether 10px prompt text wrapped to two lines reads as
 comfortably legible, and whether every prompt in the current knowledge
 base actually fits within a single row's height at that size, wasn't
 checked against a live render.
+
+<!-- MANEUVER-CARD-FIELD-ROW-WRAP-FIX-2026-08-12 -->
+## Maneuver Card Field Rows: Fixed a Wrap Bug the Previous Change Introduced (fixed 2026-08-12)
+
+Murph sent screenshots right after `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12` shipped: on the Atrial Programmed Extrastimulus card, "AP ERP" rendered correctly — prompt beside its three Refractory Period input boxes, one row — but "Slow Pathway ERP" (a longer prompt, same field type, same card) had fallen back to the old stacked layout, prompt on its own line above the boxes. Not a partial rollout — every field on the card was running the new CSS; the layout itself broke differently depending on prompt length.
+
+**Root cause.** `.maneuverField label` was `flex: 1 1 auto`. With `flex-basis: auto`, CSS flexbox decides whether an item fits on the current line using that item's *unwrapped* natural width (its max-content size — the width the text would need on a single line) — not the smaller width it will actually render at once wrapping is allowed. "AP ERP" is short enough that its unwrapped width already fit next to a triplet row's three boxes, so it never had to test the wrap fallback. "Slow Pathway ERP" is longer; its unwrapped width alone exceeded the space left over next to the triplet row, so the *entire triplet-row flex item* (not just the label) got pushed to a second line — even though the label would have comfortably fit in two lines of 10px text at its actual rendered width.
+
+**Fix.** Changed `flex: 1 1 auto` to `flex: 1 1 0%` (`min-width: 64px` unchanged). A `flex-basis` of `0`, clamped up to `min-width`, makes the line-fit test use that small 64px figure instead of the label's full unwrapped text width — so the row only wraps to two lines when it genuinely can't fit at all, not whenever the prompt happens to be longer than roughly one line's worth of unwrapped text. Once on the same line, `flex-grow: 1` still lets the label claim whatever width the fixed-width control doesn't need, same as before — this only changes the *wrap decision*, not the final rendered width in the case that was already working.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS-only change, no `.tsx` edits). Not re-verified against a live render of the specific "Slow Pathway ERP" case Murph screenshotted — the fix is understood and targeted at the exact mechanism that produced the bad screenshot, but hasn't been visually confirmed fixed.
