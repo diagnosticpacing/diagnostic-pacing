@@ -465,6 +465,14 @@ section further down — this is an index, not a replacement.
   correctly rendered inline — a flexbox wrap-decision bug, not a
   partial rollout. See
   `MANEUVER-CARD-FIELD-ROW-WRAP-FIX-2026-08-12`.
+- Maneuver Response Fields gained a **Number of Fields** column
+  (optional, 1-4, Number Field Input Type only) controlling how many
+  number boxes a response renders — e.g. 2 for a paired
+  baseline/post value. The existing Refractory Period triplet
+  mechanism was generalized into a shared, count-parameterized
+  multi-value control/key convention reused by both cases (RP fields
+  unaffected — identical storage keys as before). See
+  `MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12`.
 
 **Still open / intentionally deferred:**
 
@@ -4938,3 +4946,23 @@ Murph sent screenshots right after `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12` 
 **Fix.** Changed `flex: 1 1 auto` to `flex: 1 1 0%` (`min-width: 64px` unchanged). A `flex-basis` of `0`, clamped up to `min-width`, makes the line-fit test use that small 64px figure instead of the label's full unwrapped text width — so the row only wraps to two lines when it genuinely can't fit at all, not whenever the prompt happens to be longer than roughly one line's worth of unwrapped text. Once on the same line, `flex-grow: 1` still lets the label claim whatever width the fixed-width control doesn't need, same as before — this only changes the *wrap decision*, not the final rendered width in the case that was already working.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (CSS-only change, no `.tsx` edits). Not re-verified against a live render of the specific "Slow Pathway ERP" case Murph screenshotted — the fix is understood and targeted at the exact mechanism that produced the bad screenshot, but hasn't been visually confirmed fixed.
+
+<!-- MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 -->
+## Maneuver Response Fields: Configurable Number of Number-Field Boxes (implemented 2026-08-12)
+
+Murph: "I'd like to control how many number fields are provided for a given response. please add that to the admin knowledge base spreadsheets." Previously a Maneuver Response Field with Input Type = "Number Field" always rendered exactly one number box, with no way to configure more (e.g. a paired baseline/post value, or a triplet like Refractory Periods already gets).
+
+**Schema change.** Added a new **Number of Fields** column to the Maneuver Response Fields sheet in `app/admin/model.ts`, positioned right after Units and before Refractory Period Direction. Options are `["1", "2", "3", "4"]`. It's read only when Input Type is "Number Field" and ignored for every other Input Type; blank means 1.
+
+**Left optional, not required — deliberately.** `knowledge/validation.ts`'s generic required-column check (`validateWorkbook`/`validateRow`) rejects any row with a blank value in a `required: true` column, including every pre-existing row already in the live, populated workbook, and there's no bulk-backfill mechanism. Marking Number of Fields `required: true` would have immediately blocked Murph from saving the workbook until he manually visited every existing Maneuver Response Fields row to fill it in. Left optional instead, with blank parsed as 1 — the pre-existing single-box behavior — so every already-saved row keeps working unchanged. (Noted for context, not copied as a working precedent: the existing "Number of Fields" column on the Intervals/Clinical Terms sheet is `required: true`, but it's dead code — never read anywhere outside its own column definition — so it wasn't a safe pattern to follow here.)
+
+**Rendering — generalized the existing Refractory Period triplet mechanism instead of duplicating it.** Refractory Period fields already rendered as up to three optional boxes via a fixed `REFRACTORY_PERIOD_COMPONENT_COUNT` (3) and a `component <= 1 ? fieldId : "${fieldId}.${component}"` storage-key convention (`refractoryPeriodComponentKey`, `RefractoryPeriodTripletControl`, both in/around `app/refractoryPeriods/knowledge.ts` and `ManeuverCard.tsx`). Rather than write a second, near-duplicate multi-box mechanism for the new generic case:
+
+- Added `numericComponentKey(fieldId, component)` to `app/maneuvers/knowledge.ts` — byte-identical logic to `refractoryPeriodComponentKey`, so Refractory Period fields produce exactly the same storage keys as before (zero backward-compatibility risk for already-saved case data). `refractoryPeriodComponentKey` itself is untouched and still exported from `app/refractoryPeriods/knowledge.ts` for its own module's use (`formatRefractoryPeriodValue`, `app/report/generate.ts`'s `refractoryPeriodLines()`).
+- Added `numberOfFields: number` to the `ManeuverResponseField` type and a `toNumberOfFields()` parser (blank/unparseable/less-than-1 all default to 1) wired into `parseResponseField`.
+- In `ManeuverCard.tsx`, renamed `RefractoryPeriodTripletControl` to `MultiValueControl`, generalized to take a `count` prop instead of hardcoding 3. A new `multiValueCount(field)` helper resolves that count for any field: `REFRACTORY_PERIOD_COMPONENT_COUNT` for Refractory Period fields, `field.numberOfFields` for a Number Field response with `numberOfFields > 1`, else 1. `renderFieldControl` and `summarizePerformance` both branch on `multiValueCount(field) > 1` now (a single shared code path) instead of the old RP-only special case.
+- Renamed the CSS classes `.maneuverFieldRefractoryGroup*` (Row/Item/Units) to `.maneuverFieldMultiValueGroup*` in `app/globals.css`, since they now serve both use cases — no new width/spacing values were needed, since the 46px/4-digit input sizing from `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12` already applies generically.
+
+The ordinary single-box Number Field case (the overwhelming majority of fields) is untouched — `FieldControl`'s existing "number field" branch still handles it exactly as before; the new multi-box path only engages when Number of Fields is set above 1.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields to 2+ on a real row and confirming two boxes render/save/restore correctly) — the change is understood and traced through the full read/render/save path, but hasn't been visually confirmed.

@@ -6,18 +6,37 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import type { ManeuverCatalogEntry, ManeuverCatalogField } from "./knowledge";
+import {
+  numericComponentKey,
+  type ManeuverCatalogEntry,
+  type ManeuverCatalogField,
+} from "./knowledge";
 import {
   formatClinicalStateTag,
   type ClinicalState,
   type ManeuverPerformance,
 } from "../clinical/model";
 import ClinicalStateTagText from "../clinical/ClinicalStateTagText";
-import {
-  REFRACTORY_PERIOD_COMPONENT_COUNT,
-  refractoryPeriodComponentKey,
-} from "../refractoryPeriods/knowledge";
+import { REFRACTORY_PERIOD_COMPONENT_COUNT } from "../refractoryPeriods/knowledge";
 import { evaluateOperator } from "../shared/operatorEvaluation";
+
+/**
+ * How many value boxes a field renders/stores as, for both of the two
+ * cases that use more than one: a Refractory Period field always uses
+ * the fixed REFRACTORY_PERIOD_COMPONENT_COUNT (3), and a plain Number
+ * Field response uses its own configured numberOfFields when greater
+ * than 1. Every other field is a single box. Centralized here so
+ * summarizePerformance and the rendered controls agree on exactly the
+ * same rule. See MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 in
+ * docs/PROJECT_DESIGN.md.
+ */
+function multiValueCount(field: ManeuverCatalogField): number {
+  if (field.refractoryPeriod) return REFRACTORY_PERIOD_COMPONENT_COUNT;
+  if (field.inputType.toLowerCase() === "number field" && field.numberOfFields > 1) {
+    return field.numberOfFields;
+  }
+  return 1;
+}
 
 /** One Clinical State this maneuver has actually been performed under,
  * paired with the recorded values — not just "it happened," the full
@@ -80,15 +99,12 @@ function summarizePerformance(
 ): string {
   const parts = entry.fields
     .map((field) => {
-      if (field.refractoryPeriod) {
+      const count = multiValueCount(field);
+      if (count > 1) {
         const values: string[] = [];
-        for (
-          let component = 1;
-          component <= REFRACTORY_PERIOD_COMPONENT_COUNT;
-          component += 1
-        ) {
+        for (let component = 1; component <= count; component += 1) {
           values.push(
-            performance.values[refractoryPeriodComponentKey(field.fieldId, component)]?.trim() ?? "",
+            performance.values[numericComponentKey(field.fieldId, component)]?.trim() ?? "",
           );
         }
         while (values.length > 0 && values[values.length - 1] === "") values.pop();
@@ -237,38 +253,40 @@ function FieldControl({
 }
 
 /**
- * Renders one Refractory Period field as a compact row of up to three
- * boxes (matching how the original ERP card presented a 600/400/300
- * result) instead of a single input — the field is still one Field ID
- * / one row in the knowledge base; only the GUI presentation and the
- * underlying storage keys are split. The label is the field's own
- * Maneuver Response Prompt, not a composed string (see
- * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06). The second and third boxes
- * are always optional (a second/third extrastimulus isn't always
- * performed), left blank if unused.
+ * Renders a field as a compact row of more than one box instead of a
+ * single input — the field is still one Field ID / one row in the
+ * knowledge base; only the GUI presentation and the underlying storage
+ * keys are split. Shared by two cases: a Refractory Period field
+ * (matching how the original ERP card presented a 600/400/300 result;
+ * label is the field's own Maneuver Response Prompt, not a composed
+ * string — see REFRACTORY-PERIODS-SIMPLIFY-2026-08-06), and a plain
+ * Number Field response configured with Number of Fields > 1 (e.g. a
+ * paired baseline/post value — see
+ * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12). In both cases every
+ * box beyond the first is optional, left blank if unused. `count` is
+ * resolved by the caller via multiValueCount above.
  */
-function RefractoryPeriodTripletControl({
+function MultiValueControl({
   field,
+  count,
   values,
   onChange,
 }: {
   field: ManeuverCatalogField;
+  count: number;
   values: Record<string, string>;
   onChange: (key: string, next: string) => void;
 }) {
-  if (!field.refractoryPeriod) return null;
-
-  const keys = Array.from(
-    { length: REFRACTORY_PERIOD_COMPONENT_COUNT },
-    (_, index) => refractoryPeriodComponentKey(field.fieldId, index + 1),
+  const keys = Array.from({ length: count }, (_, index) =>
+    numericComponentKey(field.fieldId, index + 1),
   );
 
   return (
-    <div className="maneuverField maneuverFieldRefractoryGroup">
+    <div className="maneuverField maneuverFieldMultiValueGroup">
       <label>{field.prompt}</label>
-      <div className="maneuverFieldRefractoryGroupRow">
+      <div className="maneuverFieldMultiValueGroupRow">
         {keys.map((key, index) => (
-          <div key={key} className="maneuverFieldRefractoryGroupItem">
+          <div key={key} className="maneuverFieldMultiValueGroupItem">
             {index > 0 && <span aria-hidden="true">/</span>}
             <input
               aria-label={`${field.prompt} — value ${index + 1}`}
@@ -280,7 +298,7 @@ function RefractoryPeriodTripletControl({
           </div>
         ))}
         {field.units && field.units !== "n/a" && (
-          <span className="maneuverFieldRefractoryGroupUnits">{field.units}</span>
+          <span className="maneuverFieldMultiValueGroupUnits">{field.units}</span>
         )}
       </div>
     </div>
@@ -430,11 +448,13 @@ export default function ManeuverCard({
    * MANEUVER-CARD-FIELDS-INLINE-2026-08-11 for why there's no more
    * picker/single-field-editor step in between. */
   function renderFieldControl(field: ManeuverCatalogField) {
-    if (field.refractoryPeriod) {
+    const count = multiValueCount(field);
+    if (count > 1) {
       return (
-        <RefractoryPeriodTripletControl
+        <MultiValueControl
           key={field.fieldId}
           field={field}
+          count={count}
           values={draftValues}
           onChange={(key, next) =>
             setDraftValues((current) => ({ ...current, [key]: next }))

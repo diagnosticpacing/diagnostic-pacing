@@ -444,6 +444,14 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         options: ["n/a", "ms", "mV", "mA"],
       },
       {
+        key: "numberOfFields",
+        label: "Number of Fields",
+        modelUse:
+          "How many number boxes render for this response, when Input Type is Number Field (e.g. 2 for a paired value like baseline/post). Blank or 1 means a single box; ignored for every other Input Type. Left optional (not required) so existing rows don't need backfilling.",
+        width: "150px",
+        options: ["1", "2", "3", "4"],
+      },
+      {
         key: "refractoryPeriodDirection",
         label: "Refractory Period Direction",
         modelUse:

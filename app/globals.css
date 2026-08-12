@@ -4944,7 +4944,7 @@ button.adminTableHeader.isSorted {
  * 4 digits is the most that's ever entered into a numeric response
  * field (per Murph) — 46px comfortably fits that at this font size
  * without extra slack, matching the same "as wide as it needs to be
- * and no wider" sizing .maneuverFieldRefractoryGroupItem input already
+ * and no wider" sizing .maneuverFieldMultiValueGroupItem input already
  * uses below. flex: 0 0 auto replaces the old flex: 1 (which used to
  * stretch to fill whatever width .maneuverFieldUnitInput's full-width
  * parent gave it).
@@ -4969,19 +4969,25 @@ button.adminTableHeader.isSorted {
 }
 
 /*
- * A refractory period's 2-3 components render as one compact row rather
- * than as separate full-width fields — echoes the original ERP card's
- * "value / value / value" presentation, just sourced from tagged
- * maneuver response fields instead of direct entry.
+ * A field with more than one value box renders as one compact row
+ * rather than as separate full-width fields — echoes the original ERP
+ * card's "value / value / value" presentation. Shared by two cases: a
+ * refractory period's 2-3 components (sourced from tagged maneuver
+ * response fields instead of direct entry), and a plain Number Field
+ * response configured with Number of Fields > 1 (e.g. a paired
+ * baseline/post value) — see
+ * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 in
+ * docs/PROJECT_DESIGN.md. Renamed from the RP-specific
+ * .maneuverFieldRefractoryGroup* names now that both cases share it.
  */
-.maneuverFieldRefractoryGroupRow {
+.maneuverFieldMultiValueGroupRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
 
-.maneuverFieldRefractoryGroupItem {
+.maneuverFieldMultiValueGroupItem {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4990,9 +4996,9 @@ button.adminTableHeader.isSorted {
 }
 
 /* Width matches .maneuverFieldUnitInput input's 46px — 4 digits is the
- * most that's ever entered into any numeric response field, RP triplet
+ * most that's ever entered into any numeric response field, multi-box
  * values included, per Murph. */
-.maneuverFieldRefractoryGroupItem input {
+.maneuverFieldMultiValueGroupItem input {
   width: 46px;
   padding: 8px 7px;
   border: 1px solid var(--border);
@@ -5004,12 +5010,12 @@ button.adminTableHeader.isSorted {
   text-align: center;
 }
 
-.maneuverFieldRefractoryGroupItem input:focus {
+.maneuverFieldMultiValueGroupItem input:focus {
   outline: none;
   border-color: rgba(91, 214, 220, 0.6);
 }
 
-.maneuverFieldRefractoryGroupUnits {
+.maneuverFieldMultiValueGroupUnits {
   flex: 0 0 auto;
   color: var(--quiet);
   font-size: 10px;

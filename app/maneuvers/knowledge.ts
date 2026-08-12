@@ -98,6 +98,15 @@ export type ManeuverResponseField = {
   availableTerms: string[];
   inputType: string;
   units: string;
+  /**
+   * How many value boxes this field renders/stores, when inputType is
+   * "Number Field" (ignored otherwise). Defaults to 1 — see the Number
+   * of Fields column on Maneuver Response Fields in admin/model.ts,
+   * left optional there so existing rows don't need backfilling. See
+   * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 in
+   * docs/PROJECT_DESIGN.md.
+   */
+  numberOfFields: number;
   required: boolean;
   helpText: string;
   refractoryPeriod: RefractoryPeriodTag | null;
@@ -142,6 +151,33 @@ const toBaseRank = (value?: string) => {
   const parsed = Number.parseFloat(trimmed(value));
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
 };
+
+// A blank/unset/unparseable Number of Fields always defaults to a single
+// box (the overwhelmingly common case, and the only behavior every
+// pre-existing row had before this column existed) rather than 0 or a
+// negative count, which would leave a Number Field response with nothing
+// to render.
+const toNumberOfFields = (value?: string) => {
+  const parsed = Number.parseInt(trimmed(value), 10);
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+};
+
+/**
+ * The storage key for one value slot of a multi-box field within a
+ * ManeuverPerformance's `values` map. The first slot always uses the
+ * field's own fieldId with no suffix, so a naive lookup by fieldId alone
+ * always finds the first box; only later slots get a suffix, e.g.
+ * `FID-042.2`, `FID-042.3`. Identical logic to (and safe to use
+ * interchangeably with) refractoryPeriodComponentKey in
+ * app/refractoryPeriods/knowledge.ts — kept as a separate, neutrally
+ * named export here so ManeuverCard.tsx's shared multi-value rendering
+ * isn't stuck importing a Refractory-Period-specific name for a plain
+ * multi-field Number Field response. refractoryPeriodComponentKey stays
+ * in place, unchanged, for its own module's use.
+ */
+export function numericComponentKey(fieldId: string, component: number): string {
+  return component <= 1 ? fieldId : `${fieldId}.${component}`;
+}
 
 function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null {
   const maneuverId = trimmed(row.maneuverId);
@@ -212,6 +248,7 @@ function parseResponseField(row: SpreadsheetRow): ManeuverResponseField | null {
     availableTerms: splitList(row.availableTerms),
     inputType: trimmed(row.inputType),
     units: trimmed(row.units),
+    numberOfFields: toNumberOfFields(row.numberOfFields),
     required: trimmed(row.required).toLowerCase() === "yes",
     helpText: trimmed(row.helpText),
     refractoryPeriod: parseRefractoryPeriodTag(row),
