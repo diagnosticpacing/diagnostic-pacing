@@ -450,6 +450,16 @@ section further down — this is an index, not a replacement.
   (`isDirty`/`isSaved`) had no matching CSS on either `/admin` or
   `/knowledge` and rendered unstyled; now styled (amber/green) on both.
   See `ADMIN-SITE-HEADER-AND-CONSOLIDATION-2026-08-11`.
+- Maneuver card results side: each field's prompt + entry control now
+  sits in one compact row (prompt text at 10px, wraps to a second line
+  rather than pushing the control below it) instead of the prompt
+  stacked above a full-width control. Every numeric input (Number
+  Field, Refractory Period triplet values) is capped at a fixed 46px —
+  4 digits is the most ever entered into one. Bonus fix: Checkbox/Multi
+  Select Dropdown's checkbox inputs were inheriting the generic field
+  input's box styling (rendering as bordered rectangles); reset to
+  normal checkbox sizing. See
+  `MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12`.
 
 **Still open / intentionally deferred:**
 
@@ -4823,7 +4833,92 @@ change to `/knowledge` from any of this.
 `ADMIN-ADD-ROW-TO-BOTTOM-2026-08-11` specifically; this single section
 covers both, along with `ADMIN-TOPBAR-CLINICAL-MATCH-2026-08-11`.)
 
-Verification: `npx tsc --noEmit` and `npx eslint app/` both clean
-(the session's device connection dropped mid-task and briefly delayed
-this check — see the note at the top of this section's Status Summary
-bullet). Not visually verified against the running app.
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not
+visually verified against the running app.
+
+<!-- MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12 -->
+## Maneuver Card Results: Each Field Compacted to a Single Row, Numeric Inputs Capped to 4 Digits (implemented 2026-08-12)
+
+Murph, on the results face's field list (every visible field's prompt
+and control shown together at once, per
+`MANEUVER-CARD-FIELDS-INLINE-2026-08-11`): each prompt/control grouping
+should take no more than a single row on the card, with the prompt
+text shrunk (and allowed to wrap to a second line) rather than pushing
+the control below it; and numeric response fields should never be
+wider than 4 digits, since that's the most that's ever entered into
+one.
+
+**Row layout (`app/globals.css`).** `.maneuverField` — the wrapper
+`renderFieldControl` puts around every field's `<label>` + control —
+changes from a stacked column (label on its own line, `margin-bottom:
+5px`, control at `width: 100%` below it) to a `display: flex;
+flex-wrap: wrap; align-items: center;` row: label and control side by
+side, vertically centered. The label's font drops from 11px to 10px
+and gains `line-height: 1.25` with no line-clamp — it wraps onto a
+second line rather than truncating or being pushed to its own row, per
+Murph's ask, and `flex: 1 1 auto` lets it claim whatever width the
+(now fixed-width) control doesn't need. `flex-wrap` on the row is a
+safety valve, not the normal case — every ordinary control is sized to
+fit next to the label on one line; only Multi Select Dropdown's
+checkbox list (`.maneuverFieldMultiSelect`) and the optional help
+paragraph (`.maneuverFieldHelp`) are deliberately forced onto their
+own full-width line below (`flex: 1 1 100%`), since a multi-item
+checkbox list can't reasonably be squeezed into a fixed-width column
+next to its prompt the way every other control type can.
+
+**Numeric field widths.** Three input types hold numeric values, all
+now capped at a fixed 46px (fits 4 digits at this font size with no
+extra slack):
+
+- Number Field's `<input>` inside `.maneuverFieldUnitInput` — was
+  `flex: 1` (stretched to fill whatever width its parent, previously
+  full-card-width, gave it); now `flex: 0 0 auto; width: 46px`. The
+  `.maneuverFieldUnitInput` wrapper itself gets no explicit width, so
+  it now sizes to its own content (the 46px input, the units span, and
+  padding) instead of stretching — a number-with-units control ends up
+  exactly as wide as it needs to be.
+- Refractory Period triplet inputs
+  (`.maneuverFieldRefractoryGroupItem input`) — were already fixed-
+  width (56px, from the original `MANEUVER-CARD-GRID-2026-08-03`-era
+  design), reduced to the same 46px for consistency with every other
+  numeric field now that "4 digits max" is an explicit, stated rule
+  rather than an approximate legacy number.
+- Yes/No Buttons (`.maneuverFieldYesNo`, not numeric text but still a
+  fixed-choice control that shouldn't stretch) — was `flex: 1` per
+  button with no container width, so the pair stretched to fill the
+  old full-width column; now the container is a fixed 104px, split
+  evenly between the two buttons.
+
+Text Field(s) and Single Select Dropdown (`.maneuverField input`,
+`.maneuverField select` generically) keep a wider fixed width, 128px —
+these can hold arbitrary text or option labels, not just a handful of
+digits, so they weren't part of the 4-digit request and stayed
+noticeably wider than the numeric controls on purpose.
+
+**Bug fixed in passing.** Checkbox and Multi Select Dropdown both
+render `<input type="checkbox">` elements as descendants of
+`.maneuverField`, which the generic `.maneuverField input` rule was
+already matching before this change too (its `width: 100%` era) — a
+checkbox was rendering as a full-width bordered rectangle instead of
+an actual checkbox, apparently unnoticed since it shipped. Now
+excluded via a `.maneuverFieldCheckbox input,
+.maneuverFieldMultiSelect input` reset back to natural checkbox
+sizing. Not something Murph flagged directly; found while auditing
+which selectors the width change would touch.
+
+**Not touched.** `.maneuverFieldList`'s row gap tightened slightly (12px
+→ 8px) as a incidental extra bit of compactness now that each row is
+shorter, but the overall list/scroll behavior is unchanged. The
+Checkbox field type's own single-row layout (prompt text inline with
+the checkbox, inside `.maneuverFieldCheckbox`) was already compact and
+needed no structural change.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean (no
+`.tsx` changes were needed — `ManeuverCard.tsx` already rendered each
+field's label and control as siblings inside `.maneuverField`, which
+is exactly the structure the new CSS needs; this was a CSS-only
+change). Not visually verified against the running app — in
+particular, whether 10px prompt text wrapped to two lines reads as
+comfortably legible, and whether every prompt in the current knowledge
+base actually fits within a single row's height at that size, wasn't
+checked against a live render.

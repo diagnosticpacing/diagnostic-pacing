@@ -4734,24 +4734,68 @@ button.adminTableHeader.isSorted {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.maneuverField label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 700;
+/*
+ * Each field's prompt and entry control sit side by side in one row
+ * now, instead of the prompt stacked above the control — Murph asked
+ * for every prompt/response grouping to take no more than a single row
+ * on the card. flex-wrap is a safety valve, not the normal case: two
+ * children (label + control) are sized so they fit on one line for
+ * every ordinary field, and only fall to a second line for the small
+ * number of controls that can't reasonably be squeezed into a fixed
+ * width — Multi Select Dropdown's checkbox list
+ * (.maneuverFieldMultiSelect) and the optional help paragraph
+ * (.maneuverFieldHelp) force that wrap deliberately, via
+ * flex-basis: 100%, rather than relying on overflow. See
+ * MANEUVER-CARD-FIELD-ROW-COMPACT-2026-08-12 in
+ * docs/PROJECT_DESIGN.md.
+ */
+.maneuverField {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
 }
 
+/*
+ * Reduced from 11px to 10px so a long prompt has room to wrap onto a
+ * second line — within roughly the same total row height a single
+ * 11px line used to take — rather than needing to either truncate or
+ * push the control onto its own line. min-width keeps a short prompt
+ * from being squeezed to nothing by a wide neighboring control; flex:
+ * 1 1 auto lets it use whatever space the control (fixed-width, see
+ * below) doesn't need.
+ */
+.maneuverField label {
+  flex: 1 1 auto;
+  min-width: 64px;
+  margin: 0;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/*
+ * Fixed, compact widths rather than the old width: 100% (which
+ * stretched every control the full card width regardless of what it
+ * actually needed to hold). Text Field(s) and Single Select Dropdown
+ * are the two input types this generic rule still covers — Number
+ * Field, Yes/No Buttons, and Refractory Period triplets each have
+ * their own narrower width below, and Checkbox/Multi Select
+ * Dropdown's checkbox inputs are reset back to their natural size
+ * further down so this rule doesn't stretch them too.
+ */
 .maneuverField input,
 .maneuverField select {
-  width: 100%;
-  padding: 8px 9px;
+  flex: 0 0 auto;
+  width: 128px;
+  padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.03);
@@ -4780,15 +4824,36 @@ button.adminTableHeader.isSorted {
   font-weight: 700;
 }
 
+/* .maneuverField input above (width: 128px, bordered, padded) is meant
+ * for Text Field(s)/Single Select Dropdown, but Checkbox and Multi
+ * Select Dropdown's option list also render <input type="checkbox">
+ * elements inside a .maneuverField — without this reset they'd
+ * inherit that same box styling and render as 128px-wide bordered
+ * rectangles instead of an actual checkbox. Discovered and fixed in
+ * passing while compacting this region; not something Murph flagged
+ * directly. */
+.maneuverFieldCheckbox input,
+.maneuverFieldMultiSelect input {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
 /*
  * Yes/No Buttons input type — see the doc comment on its FieldControl
  * branch in ManeuverCard.tsx. Same segmented-toggle visual language as
- * .ablationModalityToggle, sized to match the other maneuver field
- * controls (.maneuverField input/select) rather than the more compact
- * ablation toggles.
+ * .ablationModalityToggle. Fixed width (rather than the old flex: 1
+ * stretch-to-fill, back when .maneuverField was a full-width column)
+ * so the two buttons stay a compact, fixed-size pair next to the
+ * prompt instead of stretching across the row.
  */
 .maneuverFieldYesNo {
   display: flex;
+  flex: 0 0 auto;
+  width: 104px;
   gap: 6px;
 }
 
@@ -4817,8 +4882,14 @@ button.adminTableHeader.isSorted {
   font-weight: 800;
 }
 
+/* The one field type that can't reasonably fit next to its prompt on a
+ * single row — a checkbox list, potentially several options long.
+ * flex-basis: 100% forces it onto its own line below the label inside
+ * .maneuverField's flex-wrap row, deliberately, rather than leaving it
+ * to overflow-driven wrapping. */
 .maneuverFieldMultiSelect {
   display: flex;
+  flex: 1 1 100%;
   flex-direction: column;
   gap: 6px;
   padding: 8px;
@@ -4837,6 +4908,11 @@ button.adminTableHeader.isSorted {
   font-weight: 500;
 }
 
+/* No explicit width/flex here — as a flex item of the now-row-laid-out
+ * .maneuverField, this sizes to its own content (the fixed-width input
+ * below, plus the units span and padding) instead of stretching, so it
+ * ends up exactly as wide as a number-with-units control actually
+ * needs to be. */
 .maneuverFieldUnitInput {
   display: flex;
   align-items: center;
@@ -4847,11 +4923,22 @@ button.adminTableHeader.isSorted {
   background: rgba(255, 255, 255, 0.03);
 }
 
+/*
+ * 4 digits is the most that's ever entered into a numeric response
+ * field (per Murph) — 46px comfortably fits that at this font size
+ * without extra slack, matching the same "as wide as it needs to be
+ * and no wider" sizing .maneuverFieldRefractoryGroupItem input already
+ * uses below. flex: 0 0 auto replaces the old flex: 1 (which used to
+ * stretch to fill whatever width .maneuverFieldUnitInput's full-width
+ * parent gave it).
+ */
 .maneuverFieldUnitInput input {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 46px;
   border: 0;
   background: transparent;
   padding: 8px 0;
+  text-align: center;
 }
 
 .maneuverFieldUnitInput input:focus {
@@ -4885,8 +4972,11 @@ button.adminTableHeader.isSorted {
   font-size: 12px;
 }
 
+/* Width matches .maneuverFieldUnitInput input's 46px — 4 digits is the
+ * most that's ever entered into any numeric response field, RP triplet
+ * values included, per Murph. */
 .maneuverFieldRefractoryGroupItem input {
-  width: 56px;
+  width: 46px;
   padding: 8px 7px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -4908,8 +4998,13 @@ button.adminTableHeader.isSorted {
   font-size: 10px;
 }
 
+/* Like .maneuverFieldMultiSelect above, forced onto its own full-width
+ * line below the prompt/control row via flex-basis rather than left to
+ * overflow-driven wrapping — help text is supplementary and optional,
+ * not part of the compact prompt/control pairing itself. */
 .maneuverFieldHelp {
-  margin: 4px 0 0;
+  flex: 1 1 100%;
+  margin: 0;
   color: var(--quiet);
   font-size: 10px;
   line-height: 1.45;
