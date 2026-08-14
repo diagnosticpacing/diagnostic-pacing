@@ -523,23 +523,48 @@ export default function Home() {
       ),
   );
 
+  // The four lowest-Base-Rank maneuvers are pinned to the front of the
+  // grid permanently, in Base Rank order — they never participate in the
+  // relevance-score reordering below, before or after a response has
+  // been recorded. Per Murph's request: the first four card positions
+  // never move; which maneuvers occupy them (and in what order) is
+  // driven entirely by Base Rank in the Maneuver Definitions knowledge
+  // base. See MANEUVER-GRID-PIN-FIRST-FOUR-2026-08-14 in
+  // docs/PROJECT_DESIGN.md.
+  const pinnedManeuverIds = [...maneuverCatalog]
+    .sort((a, b) => a.definition.baseRank - b.definition.baseRank)
+    .slice(0, 4)
+    .map((entry) => entry.definition.maneuverId);
+  const pinnedManeuverIdSet = new Set(pinnedManeuverIds);
+
   // Base Rank only (lowest first) until something's actually been
   // recorded — the grid's real default layout. Once a response field has
   // been filled in anywhere, the relevance-score fallback (highest first,
   // Base Rank tiebreak) takes over, standing in for the fuller
   // Clinical-Reasoning-weighted recommendation engine that isn't built
   // yet — same tiebreak role Base Rank already plays for diagnoses in the
-  // differential engine.
-  const liveSortedManeuverCatalog = [...maneuverCatalog].sort((a, b) => {
-    if (!caseHasRecordedManeuverResponse) {
-      return a.definition.baseRank - b.definition.baseRank;
-    }
-    const relevanceDelta =
-      scoreManeuverRelevance(b.definition, activeDiagnosisAbbreviations) -
-      scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations);
-    if (relevanceDelta !== 0) return relevanceDelta;
-    return a.definition.baseRank - b.definition.baseRank;
-  });
+  // differential engine. Only ever applied to the maneuvers *not* pinned
+  // above; the pinned four are appended in front, in Base Rank order,
+  // regardless of relevance score.
+  const liveSortedManeuverCatalog = [
+    ...pinnedManeuverIds
+      .map((id) =>
+        maneuverCatalog.find((entry) => entry.definition.maneuverId === id),
+      )
+      .filter((entry): entry is ManeuverCatalogEntry => entry !== undefined),
+    ...maneuverCatalog
+      .filter((entry) => !pinnedManeuverIdSet.has(entry.definition.maneuverId))
+      .sort((a, b) => {
+        if (!caseHasRecordedManeuverResponse) {
+          return a.definition.baseRank - b.definition.baseRank;
+        }
+        const relevanceDelta =
+          scoreManeuverRelevance(b.definition, activeDiagnosisAbbreviations) -
+          scoreManeuverRelevance(a.definition, activeDiagnosisAbbreviations);
+        if (relevanceDelta !== 0) return relevanceDelta;
+        return a.definition.baseRank - b.definition.baseRank;
+      }),
+  ];
 
   /**
    * A maneuver tile should never move on the grid while it — or any

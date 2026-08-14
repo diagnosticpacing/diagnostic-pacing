@@ -517,6 +517,12 @@ section further down — this is an index, not a replacement.
   Not yet consumed anywhere in the clinical engine or report generator;
   purely a knowledge-base sourcing structure for now. See
   `REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14`.
+- **Maneuver grid's first four card positions are permanently pinned.**
+  The four lowest-Base-Rank maneuvers always occupy the front of the
+  grid, in Base Rank order, and never participate in the relevance-score
+  reordering the rest of the grid uses once a maneuver response has been
+  recorded. Which maneuvers those are is recomputed from live Base Rank
+  values, not hardcoded. See `MANEUVER-GRID-PIN-FIRST-FOUR-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -5156,3 +5162,14 @@ Murph asked for References to gain sub-sheets the same way Maneuvers and Clinica
 **Not wired into the clinical engine's reasoning display yet:** Citations exist as a knowledge-base sheet, cross-referenceable from Publications, but nothing in Clinical Reasoning or the report generator reads from `referenceCitations` yet — it's purely an editorial/sourcing structure for now, the same way Diagnoses or Intervals can exist without every row being consumed by every feature. If Murph wants a Citation surfaced somewhere in the clinical workspace or case report (e.g. alongside a Clinical Reasoning row's existing Reference Title), that's a separate follow-up.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/ knowledge/` both clean. Not yet manually exercised end-to-end in a live browser (confirming both References sub-sheets render and save correctly in the admin editor and the public `/knowledge` viewer, confirming Citations' Reference Title dropdown pulls from Publications and auto-fills Reference ID, confirming Excel export produces two separate References tabs, confirming Clinical Reasoning's own Reference Title/Reference ID lookup still resolves correctly against the renamed `referencePublications` sheet).
+
+<!-- MANEUVER-GRID-PIN-FIRST-FOUR-2026-08-14 -->
+## Maneuver Grid: First Four Card Positions Permanently Pinned by Base Rank (implemented 2026-08-14)
+
+Murph's request: "fix the position of the first four pacing maneuvers permanently, they will not ever move around the card array area. the permanent order is the rank in the maneuver id knowledge base." Until now the grid's only reordering mechanism was `liveSortedManeuverCatalog` in `app/page.tsx` (see `MANEUVER-GRID-BASE-RANK-FIX-2026-08-10`) — Base Rank order until a maneuver response is recorded anywhere in the case, then a relevance-score sort (highest first, Base Rank tiebreak) takes over for every maneuver. That relevance sort is exactly what could shuffle a maneuver away from its Base Rank position, including the first few — there's no drag-and-drop or other manual reorder mechanism in the grid, so this sort was the only thing capable of moving a card at all.
+
+Fix: `app/page.tsx` now computes `pinnedManeuverIds` — the four lowest-Base-Rank maneuvers in the current catalog, in Base Rank order — ahead of building `liveSortedManeuverCatalog`. Those four are placed first, always in that Base Rank order, and are excluded from the relevance-score sort entirely; every other maneuver is sorted among itself exactly as before (Base-Rank-only pre-response, relevance-score-with-Base-Rank-tiebreak post-response) and appended after the pinned four. Which four maneuvers are pinned isn't hardcoded — it's recomputed from live Base Rank values on every render, so re-ranking a maneuver in the Maneuver Definitions knowledge-base sheet (including swapping which maneuvers occupy the bottom of that four) takes effect automatically, matching "the permanent order is the rank in the maneuver id knowledge base."
+
+The existing `MANEUVER-GRID-FREEZE-WHILE-FLIPPED-2026-08-11` freeze-while-any-card-is-flipped mechanism needed no changes — it operates on whatever `liveSortedManeuverCatalog` produces, so it's naturally compatible with the pinned four sitting at the front of that list.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually confirmed in the browser (recording a maneuver response and confirming the first four cards stay put while the rest reorder by relevance; re-ranking a maneuver in the admin Maneuver Definitions sheet and confirming the pinned four update to match).
