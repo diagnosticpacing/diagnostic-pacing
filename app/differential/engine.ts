@@ -1,7 +1,7 @@
 import type { SheetId, SpreadsheetRow } from "@/app/admin/model";
 import {
   findPerformance,
-  workspaceConfigurations,
+  resolveWorkspaceConfiguration,
   type CaseRecord,
   type MeasurementField,
   type Rhythm,
@@ -148,7 +148,7 @@ function findMatchingMeasurementField(
   const target = normalizeIntervalTerm(intervalName);
   if (!target) return null;
 
-  const fields = workspaceConfigurations[rhythm].sections.flatMap(
+  const fields = resolveWorkspaceConfiguration(rhythm).sections.flatMap(
     (section) => section.fields,
   );
 

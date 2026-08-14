@@ -1,3 +1,13 @@
+// These are the app's built-in fallback option lists for the Phase/Rhythm/
+// Sedation dropdowns — used only when the admin Clinical States knowledge
+// base sheet has no categorized entries yet for that field (see
+// resolveDropdownOptions in app/clinical/requiredStates.ts and
+// MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md). Once
+// Murph categorizes rows on that sheet, those admin-entered Abbreviated
+// Names drive the dropdown instead. Phase/Rhythm/Sedation are plain
+// strings now (not closed literal unions) because the admin sheet can add
+// entries the app doesn't know about ahead of time; these arrays are also
+// still used as createClinicalState()'s literal defaults below.
 export const phaseOptions = [
   "Pre-ablation",
   "Ablation",
@@ -19,9 +29,9 @@ export const sedationOptions = [
   "General Anesthesia",
 ] as const;
 
-export type Phase = (typeof phaseOptions)[number];
-export type Rhythm = (typeof rhythmOptions)[number];
-export type Sedation = (typeof sedationOptions)[number];
+export type Phase = string;
+export type Rhythm = string;
+export type Sedation = string;
 
 export type MeasurementField = {
   id: string;
@@ -243,6 +253,25 @@ export const workspaceConfigurations: Record<
   },
 };
 
+/**
+ * Safe accessor for workspaceConfigurations — Rhythm is a plain string now
+ * (an admin can add new Rhythm entries via the Clinical States knowledge
+ * base sheet), so a direct `workspaceConfigurations[rhythm]` index can miss.
+ * Falls back to the shared comprehensivePacingSections field set (the same
+ * one Atrial/Ventricular Pacing already use) for any rhythm without a
+ * hardcoded entry above, rather than throwing or silently rendering an
+ * empty workspace. Use this everywhere instead of indexing
+ * workspaceConfigurations directly. See
+ * MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.
+ */
+export function resolveWorkspaceConfiguration(rhythm: Rhythm): WorkspaceConfiguration {
+  return (
+    workspaceConfigurations[rhythm] ?? {
+      sections: comprehensivePacingSections,
+    }
+  );
+}
+
 export function createClinicalState(
   id: string,
   overrides: Partial<ClinicalStateContext> = {},
@@ -367,20 +396,6 @@ export function medicationSummary(value: string): string {
   return value.trim() ? `Iso ${value.trim()}` : "Iso off";
 }
 
-/** Short form of a Sedation level, for space-constrained displays. */
-export function sedationAbbreviation(sedation: Sedation): string {
-  switch (sedation) {
-    case "Awake":
-      return "Awake";
-    case "Conscious sedation":
-      return "Sedated";
-    case "General Anesthesia":
-      return "GA";
-    default:
-      return sedation;
-  }
-}
-
 /**
  * A Clinical State's identity, compactly: Phase, isoproterenol status, and
  * sedation level — the three things that actually distinguish one
@@ -391,18 +406,22 @@ export function sedationAbbreviation(sedation: Sedation): string {
  * chip needs to say *what* the state was, not which number it happened to
  * be created in. Phase is used verbatim (Pre-ablation/Post-ablation/
  * Post-ablation 2) rather than abbreviated — "Pre"/"Post" alone were
- * tried and rejected as insufficiently specific. Sedation is still
- * abbreviated (Awake/Sedated/GA), which reads unambiguously even short.
- * Rhythm and the other drug fields (adenosine, epinephrine) are
- * deliberately left out of this compact form — already visible on the
- * Clinical States rail card, and not what this project's users have
- * asked to see repeated on every maneuver card.
+ * tried and rejected as insufficiently specific. Sedation is used
+ * verbatim too, as whatever Abbreviated Name the admin Clinical States
+ * sheet gives that Sedation entry — sedationAbbreviation()'s old
+ * hardcoded Awake/Sedated/GA switch is gone as of
+ * MANEUVER-REQUIRED-STATE-CHECK-2026-08-14, since the admin sheet is now
+ * the source of the abbreviated form and Murph is expected to enter it
+ * short to begin with. Rhythm and the other drug fields (adenosine,
+ * epinephrine) are deliberately left out of this compact form — already
+ * visible on the Clinical States rail card, and not what this project's
+ * users have asked to see repeated on every maneuver card.
  */
 export function clinicalStateSummary(context: ClinicalStateContext): string {
   return [
     context.phase,
     medicationSummary(context.isoproterenol),
-    sedationAbbreviation(context.sedation),
+    context.sedation,
   ].join(" · ");
 }
 

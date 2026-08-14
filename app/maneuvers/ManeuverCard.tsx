@@ -130,6 +130,28 @@ type ManeuverCardProps = {
    * docs/PROJECT_DESIGN.md.
    */
   onFlipChange?: (isFlipped: boolean) => void;
+  /**
+   * Gate checked before flipping to the results side — return `false` to
+   * block the flip (page.tsx uses this to enforce a maneuver's Required
+   * States, showing its own prompt instead). Omitted/undefined means
+   * "always allowed," so every existing call site that doesn't pass this
+   * prop keeps opening immediately, same as before. Not consulted by
+   * autoOpen below — that path is for page.tsx re-opening the card itself
+   * once the user has already resolved a blocked requirement. See
+   * MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in docs/PROJECT_DESIGN.md.
+   */
+  onBeforeOpenEditor?: () => boolean;
+  /**
+   * Bumping this to a new (non-null) number re-opens the results side
+   * immediately, bypassing onBeforeOpenEditor — page.tsx sets it right
+   * after the user resolves a blocked Required States prompt (by
+   * switching to or creating a matching Clinical State), so the card
+   * finishes what the original click started instead of leaving the user
+   * to click Enter a second time. Compared by value, not just truthiness,
+   * so setting the *same* candidate maneuver's autoOpen twice in a row
+   * (unlikely, but possible) still fires each time.
+   */
+  autoOpen?: number | null;
 };
 
 /**
@@ -416,6 +438,8 @@ export default function ManeuverCard({
   activeClinicalStateSummary,
   onSave,
   onFlipChange,
+  onBeforeOpenEditor,
+  autoOpen,
 }: ManeuverCardProps) {
   // "front" is the card's resting face. "results" and "details" both flip
   // to the same physical back plane (a true third geometric face isn't
@@ -469,12 +493,38 @@ export default function ManeuverCard({
     onFlipChange?.(next !== "front");
   }
 
-  function openEditor() {
+  function doOpenEditor() {
     const initialValues = activePerformance?.values ?? {};
     setDraftValues(initialValues);
     lastCommittedValuesRef.current = JSON.stringify(initialValues);
     changeFlipState("results");
   }
+
+  /** The gate every normal path to the results side goes through (front-
+   * face click, the Enter/Edit button) — checks onBeforeOpenEditor first
+   * and only actually flips the card if it returns true (or is absent).
+   * See the autoOpen effect below for the one path that bypasses this
+   * gate on purpose. */
+  function openEditor() {
+    if (onBeforeOpenEditor && !onBeforeOpenEditor()) return;
+    doOpenEditor();
+  }
+
+  // Last-seen autoOpen token, so this only fires on a genuine change (a
+  // new, higher token page.tsx set after the user resolved a blocked
+  // Required States prompt) — not on every render, and not on mount just
+  // because a non-null autoOpen happened to already be set.
+  const lastAutoOpenTokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (autoOpen == null) return;
+    if (lastAutoOpenTokenRef.current === autoOpen) return;
+    lastAutoOpenTokenRef.current = autoOpen;
+    doOpenEditor();
+    // doOpenEditor is intentionally omitted — it's redefined every render
+    // (reads activePerformance) but doesn't need to retrigger this effect;
+    // only a genuine autoOpen token change should.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   function openDetails(from: "front" | "results") {
     setDetailsReturnState(from);

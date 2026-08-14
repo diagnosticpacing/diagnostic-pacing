@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ChangeEvent,
   CSSProperties,
@@ -17,18 +17,21 @@ import {
   createInitialCase,
   findPerformance,
   formatClinicalStateTag,
-  phaseOptions,
-  rhythmOptions,
-  sedationOptions,
+  resolveWorkspaceConfiguration,
   summarizeAblationSession,
   tachycardiaCycleLengthMs,
   upsertPerformance,
-  workspaceConfigurations,
   type AblationModality,
   type AblationSession,
   type ClinicalStateContext,
 } from "./clinical/model";
 import ClinicalStateTagText from "./clinical/ClinicalStateTagText";
+import {
+  buildClinicalStateVocabulary,
+  buildNewStateContextForRequirements,
+  maneuverRequirementsSatisfied,
+  resolveDropdownOptions,
+} from "./clinical/requiredStates";
 import {
   buildManeuverCatalog,
   scoreManeuverRelevance,
@@ -98,6 +101,33 @@ type PendingContextChange = {
   previousValue: string;
   nextValue: string;
   alreadyApplied: boolean;
+};
+
+// A maneuver blocked by attemptOpenManeuver because the active Clinical
+// State doesn't satisfy its Required States — waiting on the "switch to
+// an existing matching state, or create a new one?" prompt. See
+// attemptOpenManeuver/resolvePendingManeuverRequirement below and
+// MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.
+type PendingManeuverRequirement = {
+  maneuverId: string;
+  maneuverName: string;
+  requirements: string[];
+  /** Other (inactive) Clinical States that already satisfy every
+   * requirement, if any — each offered as a one-click "switch to this
+   * state" option in the prompt. */
+  candidateStateIds: string[];
+};
+
+// Tells a specific ManeuverCard to re-open its results side immediately,
+// bypassing its onBeforeOpenEditor gate — set right after the user
+// resolves a PendingManeuverRequirement (switches to or creates a
+// matching state), so the flip the original click asked for actually
+// completes instead of leaving the user to click Enter a second time.
+// `token` is bumped on every use so setting it to the same maneuverId
+// twice in a row still re-fires the card's autoOpen effect.
+type AutoOpenManeuver = {
+  maneuverId: string;
+  token: number;
 };
 
 // Nudged up from 190 per Murph's request — a little more prominent on
@@ -232,6 +262,15 @@ export default function Home() {
   // below and CONTEXT-CHANGE-PROMPT-2026-08-08 in PROJECT_DESIGN.md.
   const [pendingContextChange, setPendingContextChange] =
     useState<PendingContextChange | null>(null);
+
+  // A maneuver card blocked from flipping to results by its Required
+  // States, and the auto-reopen token fired once the user resolves it —
+  // see attemptOpenManeuver/resolvePendingManeuverRequirement below.
+  const [pendingManeuverRequirement, setPendingManeuverRequirement] =
+    useState<PendingManeuverRequirement | null>(null);
+  const [autoOpenManeuver, setAutoOpenManeuver] =
+    useState<AutoOpenManeuver | null>(null);
+  const autoOpenManeuverTokenRef = useRef(0);
 
   // What Isoproterenol/Adenosine/Epinephrin read the moment they were
   // focused, captured so their onBlur handler can tell whether the user
@@ -441,6 +480,16 @@ export default function Home() {
   // app/clinical/model.ts).
   const activeClinicalStateSummary = clinicalStateSummary(
     activeClinicalState.context,
+  );
+
+  // Parsed once per knowledgeSheets.clinicalStates fetch/update — the
+  // categorized Phase/Rhythm/Sedation/Medication vocabulary that drives
+  // the dropdowns below and the maneuver Required States check. See
+  // app/clinical/requiredStates.ts and
+  // MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.
+  const clinicalStateVocabulary = useMemo(
+    () => buildClinicalStateVocabulary(knowledgeSheets.clinicalStates),
+    [knowledgeSheets.clinicalStates],
   );
 
   const differentialResults: DifferentialResult[] = evaluateDifferential(
@@ -677,8 +726,9 @@ export default function Home() {
     logStateChange("Maneuver result", maneuverId);
   }
 
-  const activeWorkspace =
-    workspaceConfigurations[activeClinicalState.context.rhythm];
+  const activeWorkspace = resolveWorkspaceConfiguration(
+    activeClinicalState.context.rhythm,
+  );
 
   // While the Ablation phase is active, the Intervals section is replaced
   // by Ablation Details (see the ablationRow JSX below) — a case's
@@ -696,7 +746,7 @@ export default function Home() {
   const enteredMeasurementCount = (
     clinicalState: (typeof caseRecord.clinicalStates)[number],
   ) => {
-    const workspace = workspaceConfigurations[clinicalState.context.rhythm];
+    const workspace = resolveWorkspaceConfiguration(clinicalState.context.rhythm);
 
     return workspace.sections.reduce(
       (count, section) =>
@@ -939,6 +989,107 @@ export default function Home() {
     }));
     setActiveClinicalStateId(id);
     logStateChange("Clinical state", `Added state ${nextNumber}`);
+  }
+
+  /** Re-opens the given maneuver's card immediately, bypassing its gate —
+   * used once a blocked PendingManeuverRequirement has just been
+   * resolved. */
+  function triggerManeuverAutoOpen(maneuverId: string) {
+    autoOpenManeuverTokenRef.current += 1;
+    setAutoOpenManeuver({ maneuverId, token: autoOpenManeuverTokenRef.current });
+  }
+
+  /**
+   * The gate passed to every ManeuverCard as onBeforeOpenEditor — checks
+   * the maneuver's Required States (Maneuver Definitions sheet) against
+   * the active Clinical State's context. A maneuver with no Required
+   * States is always allowed (vacuously satisfied). Otherwise, if the
+   * active state doesn't satisfy every requirement (AND semantics — see
+   * maneuverRequirementsSatisfied), this blocks the flip and opens the
+   * PendingManeuverRequirement prompt instead, first checking every
+   * other Clinical State for one that already qualifies so it can be
+   * offered as a one-click "switch to this state" option. See
+   * MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.
+   */
+  function attemptOpenManeuver(entry: ManeuverCatalogEntry): boolean {
+    const requirements = entry.definition.requiredStates;
+    if (requirements.length === 0) return true;
+
+    if (
+      maneuverRequirementsSatisfied(
+        requirements,
+        activeClinicalState.context,
+        clinicalStateVocabulary,
+      )
+    ) {
+      return true;
+    }
+
+    const candidateStateIds = caseRecord.clinicalStates
+      .filter((clinicalState) => clinicalState.id !== activeClinicalState.id)
+      .filter((clinicalState) =>
+        maneuverRequirementsSatisfied(
+          requirements,
+          clinicalState.context,
+          clinicalStateVocabulary,
+        ),
+      )
+      .map((clinicalState) => clinicalState.id);
+
+    setPendingManeuverRequirement({
+      maneuverId: entry.definition.maneuverId,
+      maneuverName: entry.definition.maneuverName || "This maneuver",
+      requirements,
+      candidateStateIds,
+    });
+    return false;
+  }
+
+  /** Resolves the PendingManeuverRequirement prompt — "switch" activates
+   * an existing candidate state, "create" spins off a new one configured
+   * to satisfy every requirement (see buildNewStateContextForRequirements),
+   * and "cancel" just dismisses the prompt. Both "switch" and "create"
+   * finish by re-opening the maneuver's card automatically, since the
+   * user's original click is what started this in the first place. */
+  function resolvePendingManeuverRequirement(
+    action:
+      | { type: "switch"; stateId: string }
+      | { type: "create" }
+      | { type: "cancel" },
+  ) {
+    const pending = pendingManeuverRequirement;
+    if (!pending) return;
+    setPendingManeuverRequirement(null);
+
+    if (action.type === "cancel") return;
+
+    if (action.type === "switch") {
+      setActiveClinicalStateId(action.stateId);
+      logStateChange(
+        "Clinical state",
+        `Switched to satisfy ${pending.maneuverName} requirement`,
+      );
+      triggerManeuverAutoOpen(pending.maneuverId);
+      return;
+    }
+
+    const nextNumber = caseRecord.clinicalStates.length + 1;
+    clinicalStateCounterRef.current += 1;
+    const id = `clinical-state-${clinicalStateCounterRef.current}`;
+    const nextContext = buildNewStateContextForRequirements(
+      pending.requirements,
+      activeClinicalState.context,
+      clinicalStateVocabulary,
+    );
+    const nextState = createClinicalState(id, nextContext);
+
+    setCaseRecord((current) => ({
+      ...current,
+      clinicalStates: [...current.clinicalStates, nextState],
+    }));
+    setActiveClinicalStateId(id);
+    logStateChange("Clinical state", `Added state ${nextNumber}`);
+    triggerManeuverAutoOpen(pending.maneuverId);
   }
 
   return (
@@ -1291,9 +1442,13 @@ export default function Home() {
                 )
               }
             >
-              {phaseOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
+              {resolveDropdownOptions("Phase", clinicalStateVocabulary).map(
+                (option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ),
+              )}
             </select>
           </div>
 
@@ -1310,9 +1465,13 @@ export default function Home() {
                 )
               }
             >
-              {rhythmOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
+              {resolveDropdownOptions("Rhythm", clinicalStateVocabulary).map(
+                (option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ),
+              )}
             </select>
           </div>
 
@@ -1329,9 +1488,13 @@ export default function Home() {
                 )
               }
             >
-              {sedationOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
+              {resolveDropdownOptions("Sedation", clinicalStateVocabulary).map(
+                (option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ),
+              )}
             </select>
           </div>
 
@@ -1690,6 +1853,13 @@ export default function Home() {
                           entry.definition.maneuverId,
                           values,
                         )
+                      }
+                      onBeforeOpenEditor={() => attemptOpenManeuver(entry)}
+                      autoOpen={
+                        autoOpenManeuver?.maneuverId ===
+                        entry.definition.maneuverId
+                          ? autoOpenManeuver.token
+                          : null
                       }
                       onFlipChange={(isFlipped) => {
                         // Snapshot the live order the instant the *first*
@@ -2054,6 +2224,88 @@ export default function Home() {
               <button
                 className="modalGhostButton"
                 onClick={() => resolvePendingContextChange("cancel")}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pendingManeuverRequirement ? (
+        <div
+          className="modalBackdrop"
+          role="presentation"
+          onMouseDown={() => resolvePendingManeuverRequirement({ type: "cancel" })}
+        >
+          <section
+            aria-labelledby="maneuver-requirement-title"
+            aria-modal="true"
+            className="contextChangeModal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modalHeader">
+              <div>
+                <h2 id="maneuver-requirement-title">
+                  {pendingManeuverRequirement.maneuverName} requires a
+                  different state
+                </h2>
+              </div>
+            </header>
+
+            <div className="modalBody">
+              <p>
+                {pendingManeuverRequirement.maneuverName} can only be
+                performed in:{" "}
+                {pendingManeuverRequirement.requirements.join(", ")}. The
+                active Clinical State doesn&rsquo;t currently satisfy that.
+              </p>
+              <p>
+                {pendingManeuverRequirement.candidateStateIds.length > 0
+                  ? "Switch to a Clinical State that already qualifies, or create a new one configured to match."
+                  : "Create a new Clinical State configured to match, or cancel."}
+              </p>
+            </div>
+
+            <div className="modalFooter contextChangeModalFooter">
+              {pendingManeuverRequirement.candidateStateIds.map((stateId) => {
+                const candidate = caseRecord.clinicalStates.find(
+                  (clinicalState) => clinicalState.id === stateId,
+                );
+                if (!candidate) return null;
+                return (
+                  <button
+                    key={stateId}
+                    className="modalSecondaryButton"
+                    onClick={() =>
+                      resolvePendingManeuverRequirement({
+                        type: "switch",
+                        stateId,
+                      })
+                    }
+                    type="button"
+                  >
+                    Switch to &ldquo;{clinicalStateSummary(candidate.context)}
+                    &rdquo;
+                  </button>
+                );
+              })}
+              <button
+                className="modalOkButton"
+                onClick={() =>
+                  resolvePendingManeuverRequirement({ type: "create" })
+                }
+                type="button"
+              >
+                Create new state
+              </button>
+              <button
+                className="modalGhostButton"
+                onClick={() =>
+                  resolvePendingManeuverRequirement({ type: "cancel" })
+                }
                 type="button"
               >
                 Cancel

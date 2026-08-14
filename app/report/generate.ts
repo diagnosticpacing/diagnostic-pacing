@@ -5,7 +5,7 @@ import type {
 } from "@/app/clinical/model";
 import {
   hasAblationSessionData,
-  workspaceConfigurations,
+  resolveWorkspaceConfiguration,
 } from "@/app/clinical/model";
 import type { ManeuverCatalogEntry } from "@/app/maneuvers/knowledge";
 import {
@@ -29,7 +29,7 @@ const isPreAblation = (state: ClinicalState) =>
 /** Every non-blank measurement recorded for a Clinical State, labeled
  * against whichever Rhythm's field set it was recorded under. */
 function intervalLines(state: ClinicalState): string[] {
-  const workspace = workspaceConfigurations[state.context.rhythm];
+  const workspace = resolveWorkspaceConfiguration(state.context.rhythm);
   const lines: string[] = [];
 
   for (const section of workspace.sections) {

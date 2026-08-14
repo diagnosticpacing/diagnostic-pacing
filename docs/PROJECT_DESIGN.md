@@ -489,11 +489,26 @@ section further down — this is an index, not a replacement.
   hardcoded-3 behavior need Number of Fields set explicitly (e.g. to
   3) to keep showing multiple boxes — it no longer defaults to 3 on
   its own. See `MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14`.
+- **Maneuver Definitions' Required States are now enforced.** Flipping
+  a maneuver card to its results side checks the active Clinical
+  State against the maneuver's Required States (AND — every listed
+  requirement must match); if it doesn't, a prompt blocks the flip and
+  offers to switch to an already-qualifying (inactive) Clinical State
+  or create a new one configured to match. This required restructuring
+  the Clinical States knowledge-base sheet into four categorized
+  subsections — Phase/Rhythm/Sedation/Medication — which now also
+  drive the clinical workspace's Phase/Rhythm/Sedation dropdowns
+  directly, replacing the old hardcoded option lists (still kept as a
+  transition-safety fallback). See
+  `MANEUVER-REQUIRED-STATE-CHECK-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
-- Differential engine: Required Clinical State is not enforced yet (checked
-  existentially across all recorded states); interval-to-measurement
+- Differential engine: Clinical Reasoning's own, separate Required
+  Clinical State column is still not enforced (checked existentially
+  across all recorded states) — distinct from Maneuver Definitions'
+  Required States, which is enforced as of
+  `MANEUVER-REQUIRED-STATE-CHECK-2026-08-14`; interval-to-measurement
   matching is a name heuristic, not a formal ID join.
 - Maneuver relevance scoring still uses the documented fallback (count of
   a maneuver's own Relevant Diagnoses still active) rather than the fuller
@@ -5021,5 +5036,30 @@ Murph's fix direction: "remove the assumption that a direction entered implies a
 - **`app/refractoryPeriods/knowledge.ts`**: `RefractoryPeriodDefinition.componentCount` changed from the literal type `3` to `number`, and `toDefinition()` now sets it from `field.numberOfFields` instead of the removed `REFRACTORY_PERIOD_COMPONENT_COUNT` constant (deleted — no longer referenced anywhere). This keeps the Refractory Periods panel and case report (both downstream of `componentCount` via `formatRefractoryPeriodValue`) in sync with whatever `ManeuverCard.tsx` actually rendered and saved.
 
 **Migration note, called out explicitly rather than silently absorbed:** every existing Refractory Period-tagged row that relied on the old hardcoded 3-box behavior needs its Number of Fields column set explicitly now (to 3, to keep the familiar triplet) — it no longer defaults to 3 on its own. A row left blank now renders and stores as a single box. This is the direct, intended consequence of removing the "Direction implies a count" rule; Murph will need to visit existing Refractory Period rows in the admin Maneuver Response Fields sheet and set Number of Fields explicitly wherever more than one box is still wanted.
+
+<!-- MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 -->
+## Maneuver Required-State Gating + Clinical States Categorization (implemented 2026-08-14)
+
+Murph's request: when a pacing maneuver card is flipped to its results side, the app should check the active Clinical State against the maneuver's Required States (Maneuver Definitions sheet). If it doesn't match, show a prompt explaining the maneuver can only be performed in that state, offering either to switch to an existing (inactive) Clinical State that already qualifies, or to create a new one configured to match.
+
+**The gap this surfaced.** The admin `clinicalStates` knowledge-base sheet was a flat vocabulary (State ID/Full Name/Abbreviated Name/Notes) with no link at all to the runtime `ClinicalStateContext` (`phase`/`rhythm`/`sedation`/isoproterenol/adenosine/epinephrin) — `app/differential/engine.ts` already had a doc comment acknowledging this exact same gap for Clinical Reasoning's separate Required Clinical State column, which remains unenforced (a distinct, still out-of-scope concern — see the Status Summary above). A Required States check against Maneuver Definitions needed that link to mean anything at all.
+
+**Resolution, directed by Murph across two rounds of clarification:** restructure the `clinicalStates` sheet into four categorized subsections — **Phase**, **Rhythm**, **Sedation**, **Medication** — each entry still just an ID/Abbreviated Name/Full Display Name row, but now tagged with which category it belongs to via a new optional `category` column (`app/admin/model.ts`). Phase/Rhythm/Sedation entries are now the authoritative source for the clinical workspace's matching dropdown; Medication entries (Iso On/Off, Adenosine Administered, and similar) don't drive a dropdown at all — they're only ever selectable as a Maneuver Definitions Required State, matched against the existing free-text Isoproterenol/Adenosine dose fields via a non-blank-means-administered heuristic. Confirmed semantics: a maneuver listing more than one Required State needs **all** of them satisfied simultaneously (AND), not any one of them.
+
+**`category` had to be optional, not required.** `knowledge/validation.ts`'s `validateWorkbook`/`validateRow` reject any row with a blank value in a `required: true` column, including every pre-existing row already in the live, populated workbook (stored in Vercel Blob) — there's no bulk-backfill mechanism. An uncategorized row just doesn't drive any dropdown and can never satisfy a Required State (fails safe) until Murph goes back and categorizes it. `fullName` was also relabeled "Full Display Name" and its old fixed `options` list (NSR/Brady/Tachy/CRM Paced/Iso On/Iso Off/Adenosine) removed — it's free text now, since the category system replaces that closed vocabulary.
+
+**`app/clinical/model.ts`.** `Phase`/`Rhythm`/`Sedation` are now plain `string` type aliases, not closed literal unions — the admin sheet can introduce values the app doesn't know about ahead of time. `phaseOptions`/`rhythmOptions`/`sedationOptions` (the old hardcoded arrays) stay in the file as a transition-safety fallback — used whenever a category has no admin-categorized entries yet — and as `createClinicalState()`'s literal defaults. New `resolveWorkspaceConfiguration(rhythm)` replaces every direct `workspaceConfigurations[rhythm]` index (this file, `app/differential/engine.ts`, `app/report/generate.ts`, `app/page.tsx`) with a safe accessor that falls back to the shared `comprehensivePacingSections` field set for any Rhythm without a hardcoded workspace entry. `sedationAbbreviation()` (the old Awake/Sedated/GA switch) is deleted — `clinicalStateSummary` now uses `context.sedation` verbatim, on the assumption Murph enters short Abbreviated Names on the admin sheet directly. `clinicalStateAblationTag` (`phase === "Post-ablation" || "Post-ablation 2"`) and `tachycardiaCycleLengthMs` (`rhythm !== "Tachycardia"`) are unchanged, but now load-bearing against free-text admin data instead of a closed enum — **Murph's admin-entered Abbreviated Names for the Post-ablation/Post-ablation 2 Phase entries and the Tachycardia Rhythm entry must exactly match these literal strings**, or those two features silently stop working.
+
+**New file `app/clinical/requiredStates.ts`.** Parses `knowledgeSheets.clinicalStates` into a `ClinicalStateVocabulary` (entries, an Abbreviated-Name lookup map, and a by-category grouping). `resolveDropdownOptions(category, vocabulary)` returns the categorized list, or the hardcoded fallback when empty. `maneuverRequirementSatisfied`/`maneuverRequirementsSatisfied` check a Required States value against a context: Phase/Rhythm/Sedation via direct equality, Medication via a heuristic text match on "adenosine"/"iso" plus an "off" word-boundary check against the existing dose fields (modeled on `engine.ts`'s existing `normalizeIntervalTerm` heuristic-matching precedent for Interval Considered) — an unrecognized or uncategorized requirement fails safe (never satisfied), so a misconfigured row blocks rather than silently passing. `buildNewStateContextForRequirements` builds the context for the "create new state" resolution: Phase/Rhythm/Sedation requirements set their field outright; an "off"-flavored Medication requirement clears the matching dose field; an "on"-flavored one is left alone — **a real dose can't be invented**, so the user still has to enter it by hand after the state is created.
+
+**`app/page.tsx`.** `knowledgeSheets.clinicalStates` (already fetched, previously unused) is now parsed once via `useMemo` into `clinicalStateVocabulary`. The three Phase/Rhythm/Sedation `<select>` blocks now render `resolveDropdownOptions(...)` instead of the old hardcoded arrays. New `pendingManeuverRequirement`/`autoOpenManeuver` state, `attemptOpenManeuver(entry)` (the gate — checks the active state, and if it fails, scans every other Clinical State for a qualifying candidate before opening the prompt), and `resolvePendingManeuverRequirement(action)` (switch / create / cancel — both switch and create finish by auto-reopening the card). A new modal, styled with the same `.modalBackdrop`/`.contextChangeModal`/`.modalHeader`/`.modalBody`/`.modalFooter`/button classes as the existing context-change prompt, offers one "Switch to…" button per qualifying candidate plus an always-present "Create new state" button.
+
+**`app/maneuvers/ManeuverCard.tsx`.** New `onBeforeOpenEditor?: () => boolean` and `autoOpen?: number | null` props. `openEditor()` is now a gate wrapper — calls `onBeforeOpenEditor` first and only proceeds if it returns `true` (or is absent) — around a renamed `doOpenEditor()`, which both the front-face click and the Enter/Edit button still call via `openEditor()`. A new `autoOpen` effect (tracking the last-seen token in a ref) calls `doOpenEditor()` directly, bypassing the gate — this is how page.tsx re-opens a card automatically once the user has resolved a blocked requirement, without making the user click Enter twice.
+
+**Case persistence.** No changes needed — `app/case/persistence.ts`'s `isValidClinicalState` already validates `context` structurally (object shape), not against a fixed Phase/Rhythm/Sedation union, so loosening those types to plain strings doesn't affect Save/Open.
+
+**Out of scope, explicitly:** Clinical Reasoning's own Required Clinical State column (separate from Maneuver Definitions' Required States) is still not enforced — the pre-existing gap `engine.ts`'s `rowConditionSatisfied` doc comment already flagged, and a natural follow-up, not addressed here.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (categorizing real admin rows including the load-bearing Post-ablation/Post-ablation 2/Tachycardia names, confirming the dropdowns populate, confirming a gated maneuver blocks and both prompt resolutions correctly auto-reopen the card, confirming an ungated maneuver still opens immediately, confirming Save/Open still round-trips) — the change is understood and traced through the full read/render/gate/resolve path, but hasn't been visually confirmed.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields on a Refractory-Period-tagged row and confirming the maneuver card renders exactly that many boxes, and that a row left blank now renders as one box instead of three) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.

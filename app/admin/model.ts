@@ -214,7 +214,7 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     id: "clinicalStates",
     label: "Clinical States",
     description:
-      "Fixed vocabulary of pharmacologic and rhythm conditions a maneuver result can be recorded under.",
+      "Vocabulary of Phase, Rhythm, Sedation, and Medication conditions a maneuver result can be recorded under. Phase, Rhythm, and Sedation entries populate the clinical workspace's dropdowns directly; Medication entries (e.g. Iso On/Off, Adenosine) are only used as Maneuver Definitions Required States. See MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.",
     columns: [
       {
         key: "stateId",
@@ -225,25 +225,25 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         idPrefix: "SID-",
       },
       {
+        key: "category",
+        label: "Category",
+        modelUse:
+          "Which part of the clinical workspace this entry belongs to. Phase/Rhythm/Sedation entries populate the matching dropdown; Medication entries are only selectable as a Maneuver Definitions Required State. Left blank on older rows — those fall back to the app's built-in default list for their field until categorized.",
+        width: "140px",
+        options: ["Phase", "Rhythm", "Sedation", "Medication"],
+      },
+      {
         key: "fullName",
-        label: "Full Name",
-        modelUse: "Full name shown in reports and explanations.",
+        label: "Full Display Name",
+        modelUse: "Full name shown in reports, explanations, and dropdown labels.",
         width: "240px",
         required: true,
-        options: [
-          "Normal Sinus Rhythm",
-          "Bradycardia",
-          "Tachycardia",
-          "Implanted CRM Pacing",
-          "Isoproterenol On",
-          "Isoproterenol Off",
-          "Adenosine Administered",
-        ],
       },
       {
         key: "abbreviatedName",
         label: "Abbreviated Name",
-        modelUse: "Compact label used in place of the full name, and referenced elsewhere.",
+        modelUse:
+          "Compact label used in place of the full name, referenced elsewhere, and stored as the actual value when this entry is selected in the clinical workspace.",
         width: "170px",
         required: true,
       },
