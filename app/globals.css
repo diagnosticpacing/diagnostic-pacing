@@ -3869,6 +3869,19 @@ button.adminTableHeader.isSorted {
   font-style: italic;
 }
 
+.adminMultiSelectStaleHeading {
+  margin: 6px 0 0;
+  padding: 6px 6px 2px;
+  border-top: 1px solid var(--strong-border);
+  color: var(--amber);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.adminMultiSelectOptionStale {
+  color: var(--amber);
+}
+
 .adminReferenceChips {
   display: flex;
   flex-wrap: wrap;

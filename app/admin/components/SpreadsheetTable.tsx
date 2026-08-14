@@ -270,6 +270,20 @@ function MultiSelectCell({
     onChange(Array.from(next).join(", "));
   };
 
+  // A selected value that no longer appears in `options` — e.g. free text
+  // saved before this column was tethered to a lookup list, or a Required
+  // States entry whose source row on the Clinical States sheet was since
+  // renamed or deleted. `options.map` below only ever renders a checkbox
+  // for currently-valid values, so without this, a stale selection had no
+  // checkbox to uncheck — visible in the summary line, but stuck there
+  // permanently with no way to remove it short of deleting the whole row.
+  // Rendered separately, below the valid options, so it's clearly flagged
+  // rather than blending in as though it were still a real choice. See
+  // ADMIN-MULTISELECT-STALE-VALUE-CLEANUP-2026-08-14.
+  const staleSelected = Array.from(selected).filter(
+    (item) => !options.includes(item),
+  );
+
   return (
     <details
       className={`adminMultiSelect${disabled ? " isDisabled" : ""}`}
@@ -279,7 +293,7 @@ function MultiSelectCell({
         {selected.size > 0 ? Array.from(selected).join(", ") : "Select…"}
       </summary>
       <div className="adminMultiSelectPanel">
-        {options.length === 0 && (
+        {options.length === 0 && staleSelected.length === 0 && (
           <p className="adminMultiSelectEmpty">
             No options yet — add rows to the source sheet first.
           </p>
@@ -295,6 +309,27 @@ function MultiSelectCell({
             {option}
           </label>
         ))}
+        {staleSelected.length > 0 && (
+          <>
+            <p className="adminMultiSelectStaleHeading">
+              No longer a valid option — uncheck to remove:
+            </p>
+            {staleSelected.map((option) => (
+              <label
+                className="adminMultiSelectOption adminMultiSelectOptionStale"
+                key={option}
+              >
+                <input
+                  type="checkbox"
+                  checked
+                  disabled={disabled}
+                  onChange={() => toggle(option)}
+                />
+                {option}
+              </label>
+            ))}
+          </>
+        )}
       </div>
     </details>
   );
