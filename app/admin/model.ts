@@ -271,11 +271,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     columns: [
       {
         key: "stateId",
-        label: "State ID",
-        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        label: "Phase ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. PID-001.",
         width: "170px",
         required: true,
-        idPrefix: "SID-",
+        idPrefix: "PID-",
       },
       {
         key: "fullName",
@@ -310,11 +310,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     columns: [
       {
         key: "stateId",
-        label: "State ID",
-        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        label: "Rhythm ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. RID-001.",
         width: "170px",
         required: true,
-        idPrefix: "SID-",
+        idPrefix: "RID-",
       },
       {
         key: "fullName",
@@ -349,8 +349,8 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     columns: [
       {
         key: "stateId",
-        label: "State ID",
-        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        label: "Sedation ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. SID-001.",
         width: "170px",
         required: true,
         idPrefix: "SID-",
@@ -388,11 +388,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     columns: [
       {
         key: "stateId",
-        label: "State ID",
-        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        label: "Medication ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. MID-001.",
         width: "170px",
         required: true,
-        idPrefix: "SID-",
+        idPrefix: "MID-",
       },
       {
         key: "fullName",
