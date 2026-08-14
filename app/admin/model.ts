@@ -389,10 +389,10 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "stateId",
         label: "Medication ID",
-        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. MID-001.",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions, e.g. MEDID-001.",
         width: "170px",
         required: true,
-        idPrefix: "MID-",
+        idPrefix: "MEDID-",
       },
       {
         key: "fullName",
