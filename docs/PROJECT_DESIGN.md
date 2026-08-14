@@ -494,13 +494,15 @@ section further down — this is an index, not a replacement.
   State against the maneuver's Required States (AND — every listed
   requirement must match); if it doesn't, a prompt blocks the flip and
   offers to switch to an already-qualifying (inactive) Clinical State
-  or create a new one configured to match. This required restructuring
-  the Clinical States knowledge-base sheet into four categorized
-  subsections — Phase/Rhythm/Sedation/Medication — which now also
-  drive the clinical workspace's Phase/Rhythm/Sedation dropdowns
-  directly, replacing the old hardcoded option lists (still kept as a
-  transition-safety fallback). See
-  `MANEUVER-REQUIRED-STATE-CHECK-2026-08-14`.
+  or create a new one configured to match. This required splitting the
+  Clinical States knowledge-base tab into four real sub-sheets — Phase/
+  Rhythm/Sedation/Medication, the same grouped-tab pattern Maneuvers
+  already uses — which now also drive the clinical workspace's Phase/
+  Rhythm/Sedation dropdowns directly, replacing the old hardcoded
+  option lists (still kept as a transition-safety fallback). See
+  `MANEUVER-REQUIRED-STATE-CHECK-2026-08-14` and, superseding its
+  original single-sheet-plus-Category-column approach,
+  `CLINICAL-STATES-SUB-SHEETS-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -5037,6 +5039,8 @@ Murph's fix direction: "remove the assumption that a direction entered implies a
 
 **Migration note, called out explicitly rather than silently absorbed:** every existing Refractory Period-tagged row that relied on the old hardcoded 3-box behavior needs its Number of Fields column set explicitly now (to 3, to keep the familiar triplet) — it no longer defaults to 3 on its own. A row left blank now renders and stores as a single box. This is the direct, intended consequence of removing the "Direction implies a count" rule; Murph will need to visit existing Refractory Period rows in the admin Maneuver Response Fields sheet and set Number of Fields explicitly wherever more than one box is still wanted.
 
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields on a Refractory-Period-tagged row and confirming the maneuver card renders exactly that many boxes, and that a row left blank now renders as one box instead of three) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.
+
 <!-- MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 -->
 ## Maneuver Required-State Gating + Clinical States Categorization (implemented 2026-08-14)
 
@@ -5062,4 +5066,25 @@ Murph's request: when a pacing maneuver card is flipped to its results side, the
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (categorizing real admin rows including the load-bearing Post-ablation/Post-ablation 2/Tachycardia names, confirming the dropdowns populate, confirming a gated maneuver blocks and both prompt resolutions correctly auto-reopen the card, confirming an ungated maneuver still opens immediately, confirming Save/Open still round-trips) — the change is understood and traced through the full read/render/gate/resolve path, but hasn't been visually confirmed.
 
-Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields on a Refractory-Period-tagged row and confirming the maneuver card renders exactly that many boxes, and that a row left blank now renders as one box instead of three) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.
+**Superseded same day — see `CLINICAL-STATES-SUB-SHEETS-2026-08-14` immediately below.** The "restructure into categories" part of this section shipped as a single `clinicalStates` sheet with an added optional `category` column, filtered client-side into four logical groups. Murph's actual intent, clarified after this shipped and deployed, was four *real* separate sub-sheets — the same structural pattern Maneuvers already uses (one grouped tab, several independently-editable sheets) — not one sheet wearing four hats. The Required-States gating logic, the modal, and the gate/auto-reopen mechanism on `ManeuverCard.tsx` described above are unaffected and did not need to change; only the admin-editing/data-shape layer did. Left in place below rather than deleted, per this doc's convention for superseded sections.
+
+<!-- CLINICAL-STATES-SUB-SHEETS-2026-08-14 -->
+## Clinical States Sheet Split Into Four Real Sub-Sheets (implemented 2026-08-14)
+
+The category-column approach above shipped, deployed, and Murph immediately flagged it as not what was meant: "the clinical states tab in the admin knowledgebase needs sub categories (in the same way that the maneuvers tab has three sub spreadsheets under it. under clinical state there are three sheets, discussed previously, 'Phase' 'Rhythm' 'Sedation' 'Medication'." The fix isn't a data-modeling nuance — it's a different admin UI shape entirely: Clinical States needed to become a *grouped tab* with real, independently-editable sub-sheets, exactly mirroring how the Maneuvers tab already groups Maneuver Definitions/Response Fields/Response Options.
+
+**`app/admin/model.ts`.** `clinicalStates` is no longer a `SheetId` at all — it stays a `TopLevelTabId` (the group tab), same as `"maneuvers"` already was. Four new sheets take its place: `clinicalStatePhases`, `clinicalStateRhythms`, `clinicalStateSedations`, `clinicalStateMedications`, each with the same four columns the single sheet had (State ID, Full Display Name, Abbreviated Name, Notes) minus the now-unnecessary Category column — category is implicit in which sheet a row lives on. New `ClinicalStateSheetId` type and `clinicalStateSheets` array (label + description per sub-sheet, for the sub-nav), directly mirroring `ManeuverSheetId`/`maneuverSheets`. `emptyData()` updated to the four new keys.
+
+**Multi-sheet lookups — the one genuinely new mechanism this required.** Maneuver Definitions' Required States and Clinical Reasoning's Required Clinical State both need their option list and reference-chip resolution to draw from *all four* Clinical State sheets at once, not one. `ColumnDefinition.lookup.sheet` (`app/admin/model.ts`) now accepts `SheetId | SheetId[]`; both columns set it to the array of all four. `app/admin/components/SpreadsheetTable.tsx` gained `lookupSheetIds`/`rowsForLookup` helpers that normalize a lookup's sheet(s) into a flat, sheet-tagged row list — `resolveReference` now returns `{row, sheetId}` (not just the row) so reference-chip navigation and `populatesColumn`'s ID-column lookup both know exactly which of the several possible sheets a match actually came from, rather than assuming the lookup's (now possibly plural) declared sheet. `getLookupOptions` iterates the same flattened list. Every existing *single*-sheet lookup in the app keeps working unchanged — `sheet` is still allowed to be a bare `SheetId`, just also allowed to be an array now.
+
+**New `app/admin/components/ClinicalStateWorkspace.tsx`**, a direct copy of `ManeuverWorkspace.tsx`'s shape (a sub-nav of label+description buttons) against `clinicalStateSheets` instead of `maneuverSheets`. Wired into both `app/admin/AdminClient.tsx` and the public `app/knowledge/KnowledgeClient.tsx` (which duplicates the admin editor's tab-routing logic independently, same as it already did for Maneuvers): an `activeClinicalStateSheet` state, a `clinicalStateSheetIds` set for `handleNavigateToReference`'s routing, and the `activeTab === "clinicalStates"` branch added everywhere `"maneuvers"` was already special-cased (the `activeSheetId` computation, the sheet-description blanking so the sub-nav's own descriptions aren't repeated, the KnowledgeClient read-only viewer's equivalent description line).
+
+**`app/admin/workbookExport.ts`.** `sheetOrder` and `worksheetNames` updated to the four new sheet ids, exported as four separate Excel tabs ("Clinical States - Phase", "- Rhythm", "- Sedation", "- Medication") instead of one.
+
+**`knowledge/validation.ts`.** `idColumn` gained an entry per new sheet (all `"stateId"`, checked independently per sheet — a Phase row and a Rhythm row could in principle reuse the same State ID without tripping the duplicate check, since duplicate detection has always been per-sheet; accepted as-is, matching how every other sheet's ID uniqueness already works). `clinicalStateAbbreviations` (used by both `validateWorkbook` and `validateRow` to check Required States/Required Clinical State references) is now the union of all four sheets' Abbreviated Name columns instead of one sheet's.
+
+**`app/clinical/requiredStates.ts`.** `buildClinicalStateVocabulary` now takes the whole `knowledgeSheets` map and reads each of the four sheets directly, tagging every entry with its category from *which sheet it came from* rather than parsing a Category column value. `maneuverRequirementSatisfied`/`buildNewStateContextForRequirements` simplified slightly since `entry.category` is now always known for anything in the vocabulary (no more null-category "not yet categorized" case) — an unrecognized Abbreviated Name (not present on any of the four sheets) is still the only "fails safe" case. Everything downstream — `resolveDropdownOptions`, the AND-semantics Required States check, the Medication heuristic-matching, the gating modal in `app/page.tsx`, the gate/auto-reopen mechanism in `ManeuverCard.tsx` — is unchanged; only how the vocabulary gets built differs.
+
+**Migration note for Murph:** the four sub-sheets start empty — nothing carries over automatically from whatever was entered on the old single `clinicalStates` sheet (that data still exists in past knowledge-base revisions if it's needed for reference, but this app has no cross-sheet "move rows" tool). Each old row needs to be re-entered once, by hand, on whichever of the four new sheets matches its intended category. The same load-bearing-exact-string caveat from the section above still applies: the Post-ablation/Post-ablation 2 Phase entries and the Tachycardia Rhythm entry must use Abbreviated Names that exactly match those literal strings, since `clinicalStateAblationTag`/`tachycardiaCycleLengthMs` in `app/clinical/model.ts` still compare against them directly.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/ knowledge/` both clean. Not yet manually exercised end-to-end in a live browser (confirming all four Clinical States sub-sheets render and save correctly in both the admin editor and the public `/knowledge` viewer, confirming Required States/Required Clinical State dropdowns pull options from all four sheets and their reference chips jump to the right sub-sheet, confirming Excel export produces four separate Clinical States tabs, confirming the dropdown/gating behavior described in the section above still works end-to-end against the new sheet shape) — the change is understood and traced through the full schema/lookup/UI path, but hasn't been visually confirmed.

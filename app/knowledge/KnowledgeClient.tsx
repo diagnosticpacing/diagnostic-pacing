@@ -3,14 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AdminTabs from "../admin/components/AdminTabs";
+import ClinicalStateWorkspace from "../admin/components/ClinicalStateWorkspace";
 import ManeuverWorkspace from "../admin/components/ManeuverWorkspace";
 import SpreadsheetTable from "../admin/components/SpreadsheetTable";
 import Toolbar from "../admin/components/Toolbar";
 import { exportKnowledgeWorkbook } from "../admin/workbookExport";
 import {
+  clinicalStateSheets,
   initialData,
   maneuverSheets,
   sheetDefinitions,
+  type ClinicalStateSheetId,
   type ManeuverSheetId,
   type SheetId,
   type SpreadsheetRow,
@@ -19,6 +22,10 @@ import {
 
 const maneuverSheetIds = new Set<SheetId>(
   maneuverSheets.map((sheet) => sheet.id),
+);
+
+const clinicalStateSheetIds = new Set<SheetId>(
+  clinicalStateSheets.map((sheet) => sheet.id),
 );
 
 const copyInitialData = () =>
@@ -38,6 +45,9 @@ export default function KnowledgeClient() {
 
   const [activeManeuverSheet, setActiveManeuverSheet] =
     useState<ManeuverSheetId>("maneuverDefinitions");
+
+  const [activeClinicalStateSheet, setActiveClinicalStateSheet] =
+    useState<ClinicalStateSheetId>("clinicalStatePhases");
 
   const [data, setData] =
     useState<Record<SheetId, SpreadsheetRow[]>>(copyInitialData);
@@ -87,9 +97,12 @@ export default function KnowledgeClient() {
     if (activeTab === "maneuvers") {
       return activeManeuverSheet;
     }
+    if (activeTab === "clinicalStates") {
+      return activeClinicalStateSheet;
+    }
 
     return activeTab;
-  }, [activeManeuverSheet, activeTab]);
+  }, [activeClinicalStateSheet, activeManeuverSheet, activeTab]);
 
   const activeDefinition = sheetDefinitions[activeSheetId];
   const activeRows = data[activeSheetId];
@@ -98,6 +111,9 @@ export default function KnowledgeClient() {
     if (maneuverSheetIds.has(sheetId)) {
       setActiveTab("maneuvers");
       setActiveManeuverSheet(sheetId as ManeuverSheetId);
+    } else if (clinicalStateSheetIds.has(sheetId)) {
+      setActiveTab("clinicalStates");
+      setActiveClinicalStateSheet(sheetId as ClinicalStateSheetId);
     } else {
       setActiveTab(sheetId as TopLevelTabId);
     }
@@ -135,6 +151,10 @@ export default function KnowledgeClient() {
     maneuverSheets.find((sheet) => sheet.id === activeManeuverSheet)
       ?.description ?? "";
 
+  const activeClinicalStateDescription =
+    clinicalStateSheets.find((sheet) => sheet.id === activeClinicalStateSheet)
+      ?.description ?? "";
+
   return (
     <main className="adminShell">
       <header className="adminTopbar">
@@ -162,17 +182,28 @@ export default function KnowledgeClient() {
           />
         )}
 
+        {activeTab === "clinicalStates" && (
+          <ClinicalStateWorkspace
+            activeSheet={activeClinicalStateSheet}
+            onChange={setActiveClinicalStateSheet}
+          />
+        )}
+
         {/* Sheet identity (name) is expressed by the selectable menus
-            alone now — AdminTabs above, and ManeuverWorkspace's subnav
-            for the Maneuvers tab — rather than restated again here. See
-            ADMIN-SHEET-HEADING-DEDUP-2026-08-10. Only the one line of
+            alone now — AdminTabs above, and ManeuverWorkspace's/
+            ClinicalStateWorkspace's subnav for their respective grouped
+            tabs — rather than restated again here. See
+            ADMIN-SHEET-HEADING-DEDUP-2026-08-10 and
+            CLINICAL-STATES-SUB-SHEETS-2026-08-14. Only the one line of
             further explanation (the sheet's description) remains. */}
         <div className="adminSheetHeading">
           <div>
             <p>
               {activeTab === "maneuvers"
                 ? activeManeuverDescription
-                : activeDefinition.description}
+                : activeTab === "clinicalStates"
+                  ? activeClinicalStateDescription
+                  : activeDefinition.description}
             </p>
           </div>
         </div>

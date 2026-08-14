@@ -482,14 +482,15 @@ export default function Home() {
     activeClinicalState.context,
   );
 
-  // Parsed once per knowledgeSheets.clinicalStates fetch/update — the
-  // categorized Phase/Rhythm/Sedation/Medication vocabulary that drives
+  // Parsed once per knowledgeSheets fetch/update — the Phase/Rhythm/
+  // Sedation/Medication vocabulary (drawn from the four Clinical State
+  // sub-sheets, see CLINICAL-STATES-SUB-SHEETS-2026-08-14) that drives
   // the dropdowns below and the maneuver Required States check. See
   // app/clinical/requiredStates.ts and
   // MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.
   const clinicalStateVocabulary = useMemo(
-    () => buildClinicalStateVocabulary(knowledgeSheets.clinicalStates),
-    [knowledgeSheets.clinicalStates],
+    () => buildClinicalStateVocabulary(knowledgeSheets),
+    [knowledgeSheets],
   );
 
   const differentialResults: DifferentialResult[] = evaluateDifferential(

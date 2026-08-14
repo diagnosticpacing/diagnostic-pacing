@@ -27,9 +27,14 @@ export type ColumnDefinition = {
   /**
    * When set, this column's values are picked from another sheet's column
    * rather than typed freely. Rendered as a live dropdown, populated from
-   * the current data in that sheet.
+   * the current data in that sheet. `sheet` may be a list of sheets — the
+   * option list (and cross-sheet reference-chip resolution) is the union
+   * of all of them — for a vocabulary that's split across multiple real
+   * sheets rather than living in one (e.g. Required States pulling from
+   * the four Clinical States sub-sheets: Phase/Rhythm/Sedation/
+   * Medication). See CLINICAL-STATES-SUB-SHEETS-2026-08-14.
    */
-  lookup?: { sheet: SheetId; column: string };
+  lookup?: { sheet: SheetId | SheetId[]; column: string };
   /**
    * When set alongside `lookup`, selecting a value also auto-fills the
    * named column (in the same row) with the matched row's primary ID —
@@ -108,9 +113,26 @@ export type ManeuverSheetId =
   | "maneuverResponseFields"
   | "maneuverResponseOptions";
 
+// The Clinical States tab is a group of four real sub-sheets — same
+// pattern as Maneuvers above — rather than one sheet with a Category
+// column. Phase/Rhythm/Sedation entries populate the clinical workspace's
+// matching dropdown directly; Medication entries (Iso On/Off, Adenosine
+// Administered, and similar) are only ever selectable as a Required
+// States/Required Clinical State value, matched heuristically against the
+// workspace's free-text dose fields. See
+// CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.
+export type ClinicalStateSheetId =
+  | "clinicalStatePhases"
+  | "clinicalStateRhythms"
+  | "clinicalStateSedations"
+  | "clinicalStateMedications";
+
 export type SheetId =
   | "clinicalTerms"
-  | "clinicalStates"
+  | "clinicalStatePhases"
+  | "clinicalStateRhythms"
+  | "clinicalStateSedations"
+  | "clinicalStateMedications"
   | "diagnoses"
   | "maneuverDefinitions"
   | "maneuverResponseFields"
@@ -152,6 +174,37 @@ export const maneuverSheets: {
     label: "Response Options",
     description:
       "Defines the selectable answers available to single-select and multi-select response fields.",
+  },
+];
+
+export const clinicalStateSheets: {
+  id: ClinicalStateSheetId;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "clinicalStatePhases",
+    label: "Phase",
+    description:
+      "Phases of the case (Pre-ablation, Ablation, Post-ablation, and similar) — populates the clinical workspace's Phase dropdown directly.",
+  },
+  {
+    id: "clinicalStateRhythms",
+    label: "Rhythm",
+    description:
+      "Rhythms a Clinical State can be recorded under (Normal Sinus Rhythm, Tachycardia, and similar) — populates the clinical workspace's Rhythm dropdown directly.",
+  },
+  {
+    id: "clinicalStateSedations",
+    label: "Sedation",
+    description:
+      "Sedation levels (Awake, Conscious sedation, General Anesthesia, and similar) — populates the clinical workspace's Sedation dropdown directly.",
+  },
+  {
+    id: "clinicalStateMedications",
+    label: "Medication",
+    description:
+      "Medication states (Iso On, Iso Off, Adenosine Administered, and similar) — not a workspace dropdown; only selectable as a Required States/Required Clinical State value, matched against the workspace's free-text Isoproterenol/Adenosine dose fields.",
   },
 ];
 
@@ -210,11 +263,11 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     ],
   },
 
-  clinicalStates: {
-    id: "clinicalStates",
-    label: "Clinical States",
+  clinicalStatePhases: {
+    id: "clinicalStatePhases",
+    label: "Phase",
     description:
-      "Vocabulary of Phase, Rhythm, Sedation, and Medication conditions a maneuver result can be recorded under. Phase, Rhythm, and Sedation entries populate the clinical workspace's dropdowns directly; Medication entries (e.g. Iso On/Off, Adenosine) are only used as Maneuver Definitions Required States. See MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md.",
+      "Phases of the case (Pre-ablation, Ablation, Post-ablation, and similar). Populates the clinical workspace's Phase dropdown directly, and is selectable as a Required States/Required Clinical State value. See CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
     columns: [
       {
         key: "stateId",
@@ -225,17 +278,9 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         idPrefix: "SID-",
       },
       {
-        key: "category",
-        label: "Category",
-        modelUse:
-          "Which part of the clinical workspace this entry belongs to. Phase/Rhythm/Sedation entries populate the matching dropdown; Medication entries are only selectable as a Maneuver Definitions Required State. Left blank on older rows — those fall back to the app's built-in default list for their field until categorized.",
-        width: "140px",
-        options: ["Phase", "Rhythm", "Sedation", "Medication"],
-      },
-      {
         key: "fullName",
         label: "Full Display Name",
-        modelUse: "Full name shown in reports, explanations, and dropdown labels.",
+        modelUse: "Full name shown in reports, explanations, and as this Phase's dropdown label.",
         width: "240px",
         required: true,
       },
@@ -243,7 +288,124 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         key: "abbreviatedName",
         label: "Abbreviated Name",
         modelUse:
-          "Compact label used in place of the full name, referenced elsewhere, and stored as the actual value when this entry is selected in the clinical workspace.",
+          "Compact label referenced elsewhere, and stored as the actual value when this Phase is selected in the clinical workspace.",
+        width: "170px",
+        required: true,
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        modelUse: "Optional caveats, variants, or terminology notes.",
+        width: "minmax(280px, 0.8fr)",
+        multiline: true,
+      },
+    ],
+  },
+
+  clinicalStateRhythms: {
+    id: "clinicalStateRhythms",
+    label: "Rhythm",
+    description:
+      "Rhythms a Clinical State can be recorded under (Normal Sinus Rhythm, Tachycardia, and similar). Populates the clinical workspace's Rhythm dropdown directly, and is selectable as a Required States/Required Clinical State value. See CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
+    columns: [
+      {
+        key: "stateId",
+        label: "State ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        width: "170px",
+        required: true,
+        idPrefix: "SID-",
+      },
+      {
+        key: "fullName",
+        label: "Full Display Name",
+        modelUse: "Full name shown in reports, explanations, and as this Rhythm's dropdown label.",
+        width: "240px",
+        required: true,
+      },
+      {
+        key: "abbreviatedName",
+        label: "Abbreviated Name",
+        modelUse:
+          "Compact label referenced elsewhere, and stored as the actual value when this Rhythm is selected in the clinical workspace.",
+        width: "170px",
+        required: true,
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        modelUse: "Optional caveats, variants, or terminology notes.",
+        width: "minmax(280px, 0.8fr)",
+        multiline: true,
+      },
+    ],
+  },
+
+  clinicalStateSedations: {
+    id: "clinicalStateSedations",
+    label: "Sedation",
+    description:
+      "Sedation levels (Awake, Conscious sedation, General Anesthesia, and similar). Populates the clinical workspace's Sedation dropdown directly, and is selectable as a Required States/Required Clinical State value. See CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
+    columns: [
+      {
+        key: "stateId",
+        label: "State ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        width: "170px",
+        required: true,
+        idPrefix: "SID-",
+      },
+      {
+        key: "fullName",
+        label: "Full Display Name",
+        modelUse: "Full name shown in reports, explanations, and as this Sedation level's dropdown label.",
+        width: "240px",
+        required: true,
+      },
+      {
+        key: "abbreviatedName",
+        label: "Abbreviated Name",
+        modelUse:
+          "Compact label referenced elsewhere, and stored as the actual value when this Sedation level is selected in the clinical workspace.",
+        width: "170px",
+        required: true,
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        modelUse: "Optional caveats, variants, or terminology notes.",
+        width: "minmax(280px, 0.8fr)",
+        multiline: true,
+      },
+    ],
+  },
+
+  clinicalStateMedications: {
+    id: "clinicalStateMedications",
+    label: "Medication",
+    description:
+      "Medication states (Iso On, Iso Off, Adenosine Administered, and similar). Not a clinical workspace dropdown — only selectable as a Required States/Required Clinical State value, matched against the workspace's free-text Isoproterenol/Adenosine dose fields (any non-blank dose counts as administered). See CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
+    columns: [
+      {
+        key: "stateId",
+        label: "State ID",
+        modelUse: "Stable ID referenced by Clinical Reasoning and Maneuver Definitions.",
+        width: "170px",
+        required: true,
+        idPrefix: "SID-",
+      },
+      {
+        key: "fullName",
+        label: "Full Display Name",
+        modelUse: "Full name shown in reports and explanations.",
+        width: "240px",
+        required: true,
+      },
+      {
+        key: "abbreviatedName",
+        label: "Abbreviated Name",
+        modelUse:
+          "Compact label referenced elsewhere as a Required States/Required Clinical State value. Include the word \"Off\" for an entry that should match a blank dose field, or \"On\"/the drug name alone for a non-blank one — see the sheet description above.",
         width: "170px",
         required: true,
       },
@@ -353,7 +515,15 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse: "Clinical states necessary to perform this maneuver.",
         width: "minmax(220px, 0.8fr)",
         multiSelect: true,
-        lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
+        lookup: {
+          sheet: [
+            "clinicalStatePhases",
+            "clinicalStateRhythms",
+            "clinicalStateSedations",
+            "clinicalStateMedications",
+          ],
+          column: "abbreviatedName",
+        },
       },
       {
         key: "technique",
@@ -747,7 +917,15 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
         modelUse:
           "Restricts this rule to the specified Clinical State. Combine with Rule Group ID to require it across multiple states.",
         width: "220px",
-        lookup: { sheet: "clinicalStates", column: "abbreviatedName" },
+        lookup: {
+          sheet: [
+            "clinicalStatePhases",
+            "clinicalStateRhythms",
+            "clinicalStateSedations",
+            "clinicalStateMedications",
+          ],
+          column: "abbreviatedName",
+        },
         filterBy: {
           ownColumn: "maneuverId",
           matchColumn: "maneuverId",
@@ -828,7 +1006,10 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
 
 export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
   clinicalTerms: [],
-  clinicalStates: [],
+  clinicalStatePhases: [],
+  clinicalStateRhythms: [],
+  clinicalStateSedations: [],
+  clinicalStateMedications: [],
   diagnoses: [],
   maneuverDefinitions: [],
   maneuverResponseFields: [],

@@ -93,19 +93,43 @@ const splitList = (value?: string) =>
     .map((v) => v.trim())
     .filter(Boolean);
 
-/** Finds the row in another sheet whose lookup column matches this value. */
+/** Normalizes a lookup's `sheet` (a single SheetId or a list of them) into
+ * a plain array — most lookups still target exactly one sheet, but a
+ * vocabulary split across several real sheets (e.g. Required States
+ * pulling from the four Clinical States sub-sheets) needs the union of
+ * all of them. */
+function lookupSheetIds(sheet: SheetId | SheetId[]): SheetId[] {
+  return Array.isArray(sheet) ? sheet : [sheet];
+}
+
+/** Every row across every sheet a lookup targets, each tagged with which
+ * sheet it actually came from — needed once a lookup can span more than
+ * one sheet, since callers (reference-chip navigation, populatesColumn's
+ * source-sheet id column) need to know exactly which sheet a matched row
+ * lives in, not just which sheets were searched. */
+function rowsForLookup(
+  allData: Record<SheetId, SpreadsheetRow[]>,
+  sheet: SheetId | SheetId[],
+): { row: SpreadsheetRow; sheetId: SheetId }[] {
+  return lookupSheetIds(sheet).flatMap((sheetId) =>
+    (allData[sheetId] ?? []).map((row) => ({ row, sheetId })),
+  );
+}
+
+/** Finds the row (in whichever of the lookup's sheets holds it) whose
+ * lookup column matches this value. */
 function resolveReference(
   allData: Record<SheetId, SpreadsheetRow[]>,
   lookup: NonNullable<ColumnDefinition["lookup"]>,
   rawValue: string,
-): SpreadsheetRow | null {
+): { row: SpreadsheetRow; sheetId: SheetId } | null {
   const target = norm(rawValue);
   if (!target) return null;
 
-  const targetRows = allData[lookup.sheet] ?? [];
   return (
-    targetRows.find((row) => norm(row[lookup.column] ?? "") === target) ??
-    null
+    rowsForLookup(allData, lookup.sheet).find(
+      ({ row }) => norm(row[lookup.column] ?? "") === target,
+    ) ?? null
   );
 }
 
@@ -161,7 +185,7 @@ function getLookupOptions(
   }
 
   const values = new Set<string>();
-  for (const row of allData[lookup.sheet] ?? []) {
+  for (const { row } of rowsForLookup(allData, lookup.sheet)) {
     if (effectiveFilterBy && !allowedTokens) {
       if (norm(row[effectiveFilterBy.matchColumn] ?? "") !== requiredMatch) continue;
     }
@@ -395,10 +419,15 @@ export default function SpreadsheetTable({
 
     if (column.lookup && column.populatesColumn) {
       const match = resolveReference(allData, column.lookup, newValue);
+      // Falls back to whichever sheet the match actually came from, not
+      // the lookup's (possibly multi-sheet) declared target — correct
+      // either way, since a single-sheet lookup's match always came from
+      // that one sheet anyway.
       const sourceColumn =
-        column.populatesColumnFrom ?? getPrimaryIdColumn(column.lookup.sheet);
+        column.populatesColumnFrom ??
+        (match ? getPrimaryIdColumn(match.sheetId) : null);
       const populatedValue =
-        match && sourceColumn ? match[sourceColumn] ?? "" : "";
+        match && sourceColumn ? match.row[sourceColumn] ?? "" : "";
       onCellChange(rowId, column.populatesColumn, populatedValue);
     }
   };
@@ -691,8 +720,8 @@ export default function SpreadsheetTable({
                               label={token}
                               onClick={() =>
                                 onNavigateToReference(
-                                  column.lookup!.sheet,
-                                  target.__rowId,
+                                  target.sheetId,
+                                  target.row.__rowId,
                                 )
                               }
                             />

@@ -1,4 +1,4 @@
-import type { SpreadsheetRow } from "@/app/admin/model";
+import type { SheetId, SpreadsheetRow } from "@/app/admin/model";
 import {
   phaseOptions,
   rhythmOptions,
@@ -7,19 +7,28 @@ import {
 } from "@/app/clinical/model";
 
 /**
- * The Clinical States knowledge-base sheet's four subsections — see
- * MANEUVER-REQUIRED-STATE-CHECK-2026-08-14 in PROJECT_DESIGN.md. Phase,
+ * The Clinical States knowledge-base tab's four real sub-sheets — see
+ * CLINICAL-STATES-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md. Phase,
  * Rhythm, and Sedation entries populate the matching clinical workspace
  * dropdown directly; Medication entries (Iso On/Off, Adenosine
- * Administered, and similar) are only ever selectable as a Maneuver
- * Definitions Required State — they don't drive a dropdown of their own,
- * they're matched heuristically against the existing free-text
- * Isoproterenol/Adenosine dose fields instead (see
+ * Administered, and similar) don't drive a dropdown of their own — they're
+ * only ever selectable as a Maneuver Definitions Required States or
+ * Clinical Reasoning Required Clinical State value, matched heuristically
+ * against the existing free-text Isoproterenol/Adenosine dose fields (see
  * medicationRequirementSatisfied below).
  */
 export type ClinicalStateCategory = "Phase" | "Rhythm" | "Sedation" | "Medication";
 
-const CATEGORIES: ClinicalStateCategory[] = ["Phase", "Rhythm", "Sedation", "Medication"];
+/** Which admin sheet backs each category — a row's category is implicit
+ * in which of these four sheets it lives on, not a column value. */
+const CATEGORY_SHEET_ID: Record<ClinicalStateCategory, SheetId> = {
+  Phase: "clinicalStatePhases",
+  Rhythm: "clinicalStateRhythms",
+  Sedation: "clinicalStateSedations",
+  Medication: "clinicalStateMedications",
+};
+
+const CATEGORIES = Object.keys(CATEGORY_SHEET_ID) as ClinicalStateCategory[];
 const DROPDOWN_CATEGORIES: Extract<ClinicalStateCategory, "Phase" | "Rhythm" | "Sedation">[] = [
   "Phase",
   "Rhythm",
@@ -28,13 +37,7 @@ const DROPDOWN_CATEGORIES: Extract<ClinicalStateCategory, "Phase" | "Rhythm" | "
 
 export type ClinicalStateVocabularyEntry = {
   stateId: string;
-  /** null when the row's Category column is blank/unrecognized — an
-   * older, not-yet-categorized row. Such a row doesn't drive any dropdown
-   * and can never satisfy a Required State (see maneuverRequirementSatisfied
-   * below), but it isn't dropped from `entries` — it can still be
-   * referenced elsewhere (e.g. Clinical Reasoning's separate, still
-   * unenforced Required Clinical State column). */
-  category: ClinicalStateCategory | null;
+  category: ClinicalStateCategory;
   fullName: string;
   abbreviatedName: string;
 };
@@ -49,32 +52,21 @@ export type DropdownOption = { value: string; label: string };
 
 const trimmed = (value?: string) => (value ?? "").trim();
 
-function parseCategory(value?: string): ClinicalStateCategory | null {
-  const raw = trimmed(value);
-  return (CATEGORIES as string[]).includes(raw) ? (raw as ClinicalStateCategory) : null;
-}
-
 /**
- * Parses the admin Clinical States sheet's raw rows into a lookup-ready
- * vocabulary. Rows with a blank State ID or Abbreviated Name are dropped
+ * Parses the four admin Clinical State sub-sheets' raw rows into a
+ * lookup-ready vocabulary. Takes the whole knowledgeSheets map (rather
+ * than one sheet's rows) since the four category sheets are read
+ * together. Rows with a blank State ID or Abbreviated Name are dropped
  * (both are required columns, so this only ever happens for a stray
- * incomplete row mid-edit in the admin UI). Safe to call with an empty or
- * missing sheet — every category list and the lookup map just come back
+ * incomplete row mid-edit in the admin UI). Safe to call with missing/
+ * empty sheets — every category list and the lookup map just come back
  * empty, and resolveDropdownOptions below falls back to the app's
  * built-in option lists in that case.
  */
 export function buildClinicalStateVocabulary(
-  rows: SpreadsheetRow[] | undefined,
+  sheets: Partial<Record<SheetId, SpreadsheetRow[]>> | undefined,
 ): ClinicalStateVocabulary {
-  const entries: ClinicalStateVocabularyEntry[] = (rows ?? [])
-    .map((row) => ({
-      stateId: trimmed(row.stateId),
-      category: parseCategory(row.category),
-      fullName: trimmed(row.fullName),
-      abbreviatedName: trimmed(row.abbreviatedName),
-    }))
-    .filter((entry) => entry.stateId !== "" && entry.abbreviatedName !== "");
-
+  const entries: ClinicalStateVocabularyEntry[] = [];
   const byAbbreviatedName = new Map<string, ClinicalStateVocabularyEntry>();
   const byCategory: Record<ClinicalStateCategory, ClinicalStateVocabularyEntry[]> = {
     Phase: [],
@@ -83,12 +75,29 @@ export function buildClinicalStateVocabulary(
     Medication: [],
   };
 
-  for (const entry of entries) {
-    // Later rows win on an Abbreviated Name collision — same
-    // last-one-wins precedent every other admin lookup-by-name column in
-    // this app already follows, not a new rule invented here.
-    byAbbreviatedName.set(entry.abbreviatedName, entry);
-    if (entry.category) byCategory[entry.category].push(entry);
+  for (const category of CATEGORIES) {
+    const rows = sheets?.[CATEGORY_SHEET_ID[category]] ?? [];
+
+    for (const row of rows) {
+      const stateId = trimmed(row.stateId);
+      const abbreviatedName = trimmed(row.abbreviatedName);
+      if (!stateId || !abbreviatedName) continue;
+
+      const entry: ClinicalStateVocabularyEntry = {
+        stateId,
+        category,
+        fullName: trimmed(row.fullName),
+        abbreviatedName,
+      };
+
+      entries.push(entry);
+      // Later rows win on an Abbreviated Name collision (including
+      // across categories, in the unlikely event two sub-sheets reuse
+      // the same abbreviation) — same last-one-wins precedent every
+      // other admin lookup-by-name column in this app already follows.
+      byAbbreviatedName.set(abbreviatedName, entry);
+      byCategory[category].push(entry);
+    }
   }
 
   return { entries, byAbbreviatedName, byCategory };
@@ -105,13 +114,11 @@ const FALLBACK_OPTIONS: Record<
 
 /**
  * The dropdown options for one of the Phase/Rhythm/Sedation clinical
- * workspace selects — drawn from the admin Clinical States sheet's
- * categorized entries for that category when any exist, falling back to
- * the app's built-in default list (see clinical/model.ts) when the admin
- * hasn't categorized anything for that field yet. This transition-safety
+ * workspace selects — drawn from that category's admin sub-sheet when it
+ * has any rows, falling back to the app's built-in default list (see
+ * clinical/model.ts) when it's still empty. This transition-safety
  * fallback is what keeps the workspace usable the moment this feature
- * ships, before Murph has gone through and categorized the existing
- * sheet.
+ * ships, before Murph has entered anything on the new sheets.
  */
 export function resolveDropdownOptions(
   category: Extract<ClinicalStateCategory, "Phase" | "Rhythm" | "Sedation">,
@@ -128,10 +135,10 @@ export function resolveDropdownOptions(
 }
 
 /** True if every DROPDOWN_CATEGORIES field is still running on the
- * built-in fallback list (i.e. nothing has been categorized on the admin
- * sheet yet) — not currently used outside this module, kept here as the
- * single place that would need updating if a "still on defaults" banner
- * is ever added to the clinical workspace. */
+ * built-in fallback list (i.e. nothing has been entered on the admin
+ * sub-sheets yet) — not currently used outside this module, kept here as
+ * the single place that would need updating if a "still on defaults"
+ * banner is ever added to the clinical workspace. */
 export function anyCategoryStillOnFallback(vocabulary: ClinicalStateVocabulary): boolean {
   return DROPDOWN_CATEGORIES.some((category) => vocabulary.byCategory[category].length === 0);
 }
@@ -170,13 +177,12 @@ function medicationRequirementSatisfied(
 }
 
 /**
- * Whether a single Required States value (an Abbreviated Name from the
- * Clinical States sheet) is satisfied by a Clinical State's current
- * context. An unrecognized Abbreviated Name (deleted/renamed on the
- * admin sheet since the maneuver was configured) or one with a blank/
- * unrecognized Category fails safe — treated as unsatisfied rather than
- * silently ignored, so a misconfigured requirement blocks the maneuver
- * instead of quietly letting it through.
+ * Whether a single Required States value (an Abbreviated Name from one
+ * of the Clinical State sub-sheets) is satisfied by a Clinical State's
+ * current context. An unrecognized Abbreviated Name (deleted/renamed on
+ * the admin sheet since the maneuver was configured) fails safe — treated
+ * as unsatisfied rather than silently ignored, so a misconfigured
+ * requirement blocks the maneuver instead of quietly letting it through.
  */
 export function maneuverRequirementSatisfied(
   requirement: string,
@@ -184,7 +190,7 @@ export function maneuverRequirementSatisfied(
   vocabulary: ClinicalStateVocabulary,
 ): boolean {
   const entry = vocabulary.byAbbreviatedName.get(requirement);
-  if (!entry || !entry.category) return false;
+  if (!entry) return false;
 
   switch (entry.category) {
     case "Phase":
@@ -235,7 +241,7 @@ export function buildNewStateContextForRequirements(
 
   for (const requirement of requirements) {
     const entry = vocabulary.byAbbreviatedName.get(requirement);
-    if (!entry || !entry.category) continue;
+    if (!entry) continue;
 
     switch (entry.category) {
       case "Phase":

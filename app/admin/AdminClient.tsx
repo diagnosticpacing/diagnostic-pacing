@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AdminTabs from "./components/AdminTabs";
+import ClinicalStateWorkspace from "./components/ClinicalStateWorkspace";
 import ManeuverWorkspace from "./components/ManeuverWorkspace";
 import SpreadsheetTable from "./components/SpreadsheetTable";
 import { exportKnowledgeWorkbook } from "./workbookExport";
 import {
+  clinicalStateSheets,
   initialData,
   sheetDefinitions,
+  type ClinicalStateSheetId,
   type ManeuverSheetId,
   type SheetId,
   type SpreadsheetRow,
@@ -20,6 +23,10 @@ const maneuverSheetIds = new Set<SheetId>([
   "maneuverResponseFields",
   "maneuverResponseOptions",
 ]);
+
+const clinicalStateSheetIds = new Set<SheetId>(
+  clinicalStateSheets.map((sheet) => sheet.id),
+);
 
 const copyInitialData = () =>
   structuredClone(initialData) as Record<SheetId, SpreadsheetRow[]>;
@@ -33,6 +40,9 @@ export default function AdminPage() {
 
   const [activeManeuverSheet, setActiveManeuverSheet] =
     useState<ManeuverSheetId>("maneuverDefinitions");
+
+  const [activeClinicalStateSheet, setActiveClinicalStateSheet] =
+    useState<ClinicalStateSheetId>("clinicalStatePhases");
 
   const [data, setData] =
     useState<Record<SheetId, SpreadsheetRow[]>>(copyInitialData);
@@ -72,9 +82,12 @@ export default function AdminPage() {
     if (activeTab === "maneuvers") {
       return activeManeuverSheet;
     }
+    if (activeTab === "clinicalStates") {
+      return activeClinicalStateSheet;
+    }
 
     return activeTab;
-  }, [activeManeuverSheet, activeTab]);
+  }, [activeClinicalStateSheet, activeManeuverSheet, activeTab]);
 
   const activeDefinition = sheetDefinitions[activeSheetId];
   const activeRows = data[activeSheetId];
@@ -141,6 +154,9 @@ export default function AdminPage() {
     if (maneuverSheetIds.has(sheetId)) {
       setActiveTab("maneuvers");
       setActiveManeuverSheet(sheetId as ManeuverSheetId);
+    } else if (clinicalStateSheetIds.has(sheetId)) {
+      setActiveTab("clinicalStates");
+      setActiveClinicalStateSheet(sheetId as ClinicalStateSheetId);
     } else {
       setActiveTab(sheetId as TopLevelTabId);
     }
@@ -316,6 +332,13 @@ export default function AdminPage() {
           />
         )}
 
+        {activeTab === "clinicalStates" && (
+          <ClinicalStateWorkspace
+            activeSheet={activeClinicalStateSheet}
+            onChange={setActiveClinicalStateSheet}
+          />
+        )}
+
         {/* One consolidated line where there used to be two separate
             bars: a sheet-description heading, and a Toolbar row below it
             for row count / save state (plus the Add Row/Save/Download
@@ -326,11 +349,18 @@ export default function AdminPage() {
             description together on its own button, so repeating that
             same sentence here would be the exact duplicate description
             Murph flagged ("Response Fields" showing the same text
-            twice). Every other tab has no subnav, so its description
-            still needs to be stated somewhere, and this is that
-            somewhere. See ADMIN-CONSOLIDATE-SHEET-META-2026-08-11. */}
+            twice). Same reasoning applies to Clinical States now that it
+            has its own ClinicalStateWorkspace subnav — see
+            CLINICAL-STATES-SUB-SHEETS-2026-08-14. Every other tab has no
+            subnav, so its description still needs to be stated
+            somewhere, and this is that somewhere. See
+            ADMIN-CONSOLIDATE-SHEET-META-2026-08-11. */}
         <div className="adminSheetMeta">
-          <p>{activeTab === "maneuvers" ? "" : activeDefinition.description}</p>
+          <p>
+            {activeTab === "maneuvers" || activeTab === "clinicalStates"
+              ? ""
+              : activeDefinition.description}
+          </p>
 
           <div className="adminSheetStatus" aria-live="polite">
             <span>

@@ -17,7 +17,10 @@ export class WorkbookValidationError extends Error {
 
 const idColumn: Partial<Record<SheetId, string>> = {
   clinicalTerms: "termId",
-  clinicalStates: "stateId",
+  clinicalStatePhases: "stateId",
+  clinicalStateRhythms: "stateId",
+  clinicalStateSedations: "stateId",
+  clinicalStateMedications: "stateId",
   diagnoses: "diagnosisId",
   maneuverDefinitions: "maneuverId",
   maneuverResponseFields: "fieldId",
@@ -123,7 +126,20 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   const maneuverIds = new Set(safe("maneuverDefinitions").map((r) => n(r.maneuverId).toUpperCase()));
   const diagnosisAbbreviations = new Set(safe("diagnoses").map((r) => n(r.abbreviatedName).toUpperCase()));
   const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
-  const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
+  // Clinical States is four separate sheets (Phase/Rhythm/Sedation/
+  // Medication) as of CLINICAL-STATES-SUB-SHEETS-2026-08-14 — a Required
+  // States/Required Clinical State reference can point at any of them, so
+  // the allowed-abbreviation set is their union.
+  const clinicalStateAbbreviations = new Set(
+    (
+      [
+        "clinicalStatePhases",
+        "clinicalStateRhythms",
+        "clinicalStateSedations",
+        "clinicalStateMedications",
+      ] as SheetId[]
+    ).flatMap((sheetId) => safe(sheetId).map((r) => n(r.abbreviatedName).toUpperCase())),
+  );
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
   const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
   const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
@@ -284,7 +300,20 @@ export function validateRow(
   const maneuverIds = new Set(safe("maneuverDefinitions").map((r) => n(r.maneuverId).toUpperCase()));
   const diagnosisAbbreviations = new Set(safe("diagnoses").map((r) => n(r.abbreviatedName).toUpperCase()));
   const diagnosisIds = new Set(safe("diagnoses").map((r) => n(r.diagnosisId).toUpperCase()));
-  const clinicalStateAbbreviations = new Set(safe("clinicalStates").map((r) => n(r.abbreviatedName).toUpperCase()));
+  // Clinical States is four separate sheets (Phase/Rhythm/Sedation/
+  // Medication) as of CLINICAL-STATES-SUB-SHEETS-2026-08-14 — a Required
+  // States/Required Clinical State reference can point at any of them, so
+  // the allowed-abbreviation set is their union.
+  const clinicalStateAbbreviations = new Set(
+    (
+      [
+        "clinicalStatePhases",
+        "clinicalStateRhythms",
+        "clinicalStateSedations",
+        "clinicalStateMedications",
+      ] as SheetId[]
+    ).flatMap((sheetId) => safe(sheetId).map((r) => n(r.abbreviatedName).toUpperCase())),
+  );
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
   const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
   const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
