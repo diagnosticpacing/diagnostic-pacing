@@ -4925,6 +4925,25 @@ button.adminTableHeader.isSorted {
   font-weight: 500;
 }
 
+/*
+ * The comparison-operator dropdown that precedes every numeric field's
+ * value box(es) — "=" / ">" / "<" — see
+ * MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md. Much
+ * narrower than the generic ".maneuverField select" sizing above
+ * (128px, meant for Single Select Dropdown/Text Field(s)), since this
+ * one only ever holds a single symbol. The two-class selector (rather
+ * than ".maneuverFieldOperatorSelect" alone) is deliberate: a bare
+ * single-class rule has lower specificity than ".maneuverField select"
+ * above and would lose the width override.
+ */
+.maneuverField .maneuverFieldOperatorSelect {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 7px 4px;
+  text-align: center;
+  text-align-last: center;
+}
+
 /* No explicit width/flex here — as a flex item of the now-row-laid-out
  * .maneuverField, this sizes to its own content (the fixed-width input
  * below, plus the units span and padding) instead of stretching, so it

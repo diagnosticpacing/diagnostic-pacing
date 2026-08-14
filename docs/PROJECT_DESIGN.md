@@ -473,6 +473,14 @@ section further down — this is an index, not a replacement.
   multi-value control/key convention reused by both cases (RP fields
   unaffected — identical storage keys as before). See
   `MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12`.
+- Every numeric maneuver-card entry (plain Number Field, multi-box
+  Number Field, and Refractory Period triplet fields alike) is now
+  preceded by a comparison-operator dropdown ("=" default, or
+  ">"/"<" from that field's Available Terms column), one selector per
+  field regardless of how many value boxes it has. Reflected in the
+  card's findings summary, the Refractory Periods panel, and the case
+  report, always prefixed only when set to something other than the
+  default "=". See `MANEUVER-FIELD-OPERATOR-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -4966,3 +4974,26 @@ Murph: "I'd like to control how many number fields are provided for a given resp
 The ordinary single-box Number Field case (the overwhelming majority of fields) is untouched — `FieldControl`'s existing "number field" branch still handles it exactly as before; the new multi-box path only engages when Number of Fields is set above 1.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields to 2+ on a real row and confirming two boxes render/save/restore correctly) — the change is understood and traced through the full read/render/save path, but hasn't been visually confirmed.
+
+<!-- MANEUVER-FIELD-OPERATOR-2026-08-14 -->
+## Numeric Response Fields: Comparison-Operator Dropdown, Sourced From Available Terms (implemented 2026-08-14)
+
+Murph: "on all pacing maneuver card results entry fields that have a numeric entry field, that field needs to be proceeded by a multiple choice selection box populated by the options in the 'available terms' column of the response field spreadsheet for the corresponding field ID. The default term is '='." Confirmed scope with Murph via AskUserQuestion: applies to every numeric entry — plain Number Field responses, multi-box Number Field responses, and Refractory Period triplet fields alike — and one dropdown per field (not one per individual value box, even when a field renders more than one box).
+
+**What "Available Terms" already was.** The Available Terms column on Maneuver Response Fields (`app/admin/model.ts`) has existed since early on — `required: true`, `multiSelect: true`, options `["n/a", "=", ">", "<"]` — documented as filtering Clinical Reasoning's Operator choices, but never actually read anywhere in the app until now (confirmed via a full-repo search before starting). This feature is its first real use.
+
+**Storage.** A single new key per field, `numericFieldOperatorKey(fieldId)` → `` `${fieldId}.operator` `` (added to `app/maneuvers/knowledge.ts`, alongside a `DEFAULT_NUMERIC_OPERATOR = "="` constant), sibling to the field's own value key(s) — not a suffix on `numericComponentKey`'s per-box keys (`.2`, `.3`, …), since the operator applies to the whole field regardless of how many boxes it has.
+
+**Rendering.** A new `OperatorSelect` component in `ManeuverCard.tsx` renders a `<select>` whose options are the field's `availableTerms` with `"n/a"` filtered out, plus `"="` always included even if the admin hasn't explicitly listed it (so every numeric field can always fall back to the default, per Murph's "default term is =" instruction) — deduped via `Array.from(new Set([...]))`. It's wired into both existing numeric-entry paths:
+- `FieldControl`'s "number field" branch (plain single-box responses) now renders `<OperatorSelect>` immediately before the existing `.maneuverFieldUnitInput` box, via a new `operatorValue`/`onOperatorChange` prop pair.
+- `MultiValueControl` (the shared Refractory-Period/multi-box control from `MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12`) renders one `<OperatorSelect>` as the first item in `.maneuverFieldMultiValueGroupRow`, before the boxes — one selector for the whole group, per the confirmed granularity decision.
+
+A new `isNumericField(field, count)` helper in `ManeuverCard.tsx` centralizes "does this field get an operator" (true when it renders more than one box, or when its Input Type is Number Field) so `summarizePerformance` and the render paths agree on the same rule.
+
+**Findings/summary display.** `summarizePerformance` (the Maneuver Card's front-face findings line) now prefixes a field's value with its selected operator — e.g. "AVN ERP: >300" — but only when the operator is set to something other than the default "=", so the overwhelmingly common case renders exactly as it always did, with no redundant equals sign.
+
+**Refractory Periods panel and case report.** Since Refractory Period fields are in scope, `formatRefractoryPeriodValue` (`app/refractoryPeriods/knowledge.ts`) was also updated to read the same `numericFieldOperatorKey` and prefix it onto the slash-joined triplet value under the same "only if not '='" rule — this keeps the standalone Refractory Periods panel and the generated case report (both downstream of `formatRefractoryPeriodValue` via `collectRefractoryPeriodFindings`) consistent with what the maneuver card itself shows, rather than silently dropping the operator once the value leaves `ManeuverCard.tsx`.
+
+**CSS.** New `.maneuverField .maneuverFieldOperatorSelect` rule in `app/globals.css` — narrow (40px) fixed width, since the dropdown only ever holds a one-character symbol. Written as a two-class descendant selector (not the bare class alone) so its specificity reliably beats the generic `.maneuverField select` rule (128px, meant for Single Select Dropdown/Text Field(s)) regardless of source order.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (confirming the dropdown renders/saves/restores correctly for a plain Number Field, a multi-box Number Field, and a Refractory Period triplet, and that the Refractory Periods panel/report reflect a non-default operator) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.

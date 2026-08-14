@@ -1,9 +1,11 @@
 import type { ClinicalState } from "@/app/clinical/model";
 import { findPerformance, formatClinicalStateTag } from "@/app/clinical/model";
-import type {
-  ManeuverCatalogEntry,
-  ManeuverCatalogField,
-  RefractoryPeriodDirection,
+import {
+  DEFAULT_NUMERIC_OPERATOR,
+  numericFieldOperatorKey,
+  type ManeuverCatalogEntry,
+  type ManeuverCatalogField,
+  type RefractoryPeriodDirection,
 } from "@/app/maneuvers/knowledge";
 
 /**
@@ -94,7 +96,13 @@ export function buildRefractoryPeriodCatalog(
  * slash-joined components with trailing blanks dropped (so entering
  * only one or two of the three boxes never trails a stray "/"). Returns
  * "" if the maneuver hasn't been performed under this state at all, or
- * if no value has been entered yet.
+ * if no value has been entered yet. Prefixed with the field's selected
+ * comparison operator (e.g. ">400") whenever it's set to something
+ * other than the default "=" — the same operator ManeuverCard.tsx's
+ * entry side and Maneuver Card findings show, read from the same
+ * numericFieldOperatorKey so a Refractory Period result reads
+ * identically everywhere it's shown. See
+ * MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
  */
 export function formatRefractoryPeriodValue(
   definition: RefractoryPeriodDefinition,
@@ -113,7 +121,12 @@ export function formatRefractoryPeriodValue(
     values.pop();
   }
 
-  return values.join("/");
+  if (values.length === 0) return "";
+
+  const operator = performance.values[numericFieldOperatorKey(definition.fieldId)]?.trim();
+  const prefix = operator && operator !== DEFAULT_NUMERIC_OPERATOR ? operator : "";
+
+  return `${prefix}${values.join("/")}`;
 }
 
 /**

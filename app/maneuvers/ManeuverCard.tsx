@@ -7,7 +7,9 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
+  DEFAULT_NUMERIC_OPERATOR,
   numericComponentKey,
+  numericFieldOperatorKey,
   type ManeuverCatalogEntry,
   type ManeuverCatalogField,
 } from "./knowledge";
@@ -36,6 +38,66 @@ function multiValueCount(field: ManeuverCatalogField): number {
     return field.numberOfFields;
   }
   return 1;
+}
+
+/**
+ * Whether a field renders as one or more plain numeric boxes — a
+ * Refractory Period field, or any Number Field response (single-box or
+ * multi-box) — and so gets a comparison-operator selector alongside its
+ * value(s). Every other Input Type (Checkbox, dropdowns, Yes/No
+ * Buttons, Text Field(s)) has no numeric comparison to make. See
+ * MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
+ */
+function isNumericField(field: ManeuverCatalogField, count: number): boolean {
+  return count > 1 || field.inputType.toLowerCase() === "number field";
+}
+
+/**
+ * The comparison operators selectable for one numeric field: its own
+ * Available Terms (admin/model.ts's maneuverResponseFields sheet), with
+ * "n/a" filtered out since that's not a real comparison, plus the
+ * default "=" always included even if the admin hasn't explicitly
+ * listed it — every numeric field can always fall back to a plain
+ * equals comparison. See MANEUVER-FIELD-OPERATOR-2026-08-14.
+ */
+function operatorOptions(field: ManeuverCatalogField): string[] {
+  const fromAvailableTerms = field.availableTerms.filter((term) => term !== "n/a");
+  return Array.from(new Set([DEFAULT_NUMERIC_OPERATOR, ...fromAvailableTerms]));
+}
+
+/**
+ * The comparison-operator dropdown that precedes every numeric field's
+ * value box(es) — "=" by default, or ">"/"<" (or whatever else the
+ * field's Available Terms allow) once the clinician picks one. One
+ * selector applies to the whole field regardless of how many value
+ * boxes it renders — a Refractory Period triplet's three boxes, or a
+ * multi-box Number Field response, still share a single operator,
+ * stored under numericFieldOperatorKey rather than per-box. See
+ * MANEUVER-FIELD-OPERATOR-2026-08-14.
+ */
+function OperatorSelect({
+  field,
+  value,
+  onChange,
+}: {
+  field: ManeuverCatalogField;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <select
+      aria-label={`${field.prompt} — comparison`}
+      className="maneuverFieldOperatorSelect"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {operatorOptions(field).map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 /** One Clinical State this maneuver has actually been performed under,
@@ -100,6 +162,16 @@ function summarizePerformance(
   const parts = entry.fields
     .map((field) => {
       const count = multiValueCount(field);
+      // A numeric field's selected comparison operator is shown as a
+      // prefix on its value (e.g. "AVN ERP: >300") only when it's set to
+      // something other than the default "=" — the common case stays
+      // exactly as before, uncluttered by a redundant equals sign. See
+      // MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
+      const operator = isNumericField(field, count)
+        ? performance.values[numericFieldOperatorKey(field.fieldId)]?.trim()
+        : undefined;
+      const operatorPrefix = operator && operator !== DEFAULT_NUMERIC_OPERATOR ? operator : "";
+
       if (count > 1) {
         const values: string[] = [];
         for (let component = 1; component <= count; component += 1) {
@@ -108,11 +180,13 @@ function summarizePerformance(
           );
         }
         while (values.length > 0 && values[values.length - 1] === "") values.pop();
-        return values.length > 0 ? `${field.prompt}: ${values.join("/")}` : null;
+        return values.length > 0
+          ? `${field.prompt}: ${operatorPrefix}${values.join("/")}`
+          : null;
       }
 
       const value = (performance.values[field.fieldId] ?? "").trim();
-      return value ? `${field.prompt}: ${value}` : null;
+      return value ? `${field.prompt}: ${operatorPrefix}${value}` : null;
     })
     .filter((part): part is string => part !== null);
 
@@ -123,10 +197,18 @@ function FieldControl({
   field,
   value,
   onChange,
+  operatorValue,
+  onOperatorChange,
 }: {
   field: ManeuverCatalogEntry["fields"][number];
   value: string;
   onChange: (next: string) => void;
+  /** Only read by the "number field" branch below — see
+   * MANEUVER-FIELD-OPERATOR-2026-08-14. Always supplied by the one call
+   * site (renderFieldControl), which has draftValues on hand regardless
+   * of this field's Input Type. */
+  operatorValue: string;
+  onOperatorChange: (next: string) => void;
 }) {
   const inputType = field.inputType.toLowerCase();
 
@@ -231,15 +313,18 @@ function FieldControl({
 
   if (inputType === "number field") {
     return (
-      <div className="maneuverFieldUnitInput">
-        <input
-          aria-label={field.prompt}
-          inputMode="decimal"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        {field.units && field.units !== "n/a" && <span>{field.units}</span>}
-      </div>
+      <>
+        <OperatorSelect field={field} value={operatorValue} onChange={onOperatorChange} />
+        <div className="maneuverFieldUnitInput">
+          <input
+            aria-label={field.prompt}
+            inputMode="decimal"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          />
+          {field.units && field.units !== "n/a" && <span>{field.units}</span>}
+        </div>
+      </>
     );
   }
 
@@ -264,7 +349,10 @@ function FieldControl({
  * paired baseline/post value — see
  * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12). In both cases every
  * box beyond the first is optional, left blank if unused. `count` is
- * resolved by the caller via multiValueCount above.
+ * resolved by the caller via multiValueCount above. Also renders one
+ * comparison-operator selector for the whole field — shared across
+ * however many boxes it has, not one per box — see
+ * MANEUVER-FIELD-OPERATOR-2026-08-14.
  */
 function MultiValueControl({
   field,
@@ -280,11 +368,17 @@ function MultiValueControl({
   const keys = Array.from({ length: count }, (_, index) =>
     numericComponentKey(field.fieldId, index + 1),
   );
+  const operatorKey = numericFieldOperatorKey(field.fieldId);
 
   return (
     <div className="maneuverField maneuverFieldMultiValueGroup">
       <label>{field.prompt}</label>
       <div className="maneuverFieldMultiValueGroupRow">
+        <OperatorSelect
+          field={field}
+          value={values[operatorKey] ?? DEFAULT_NUMERIC_OPERATOR}
+          onChange={(next) => onChange(operatorKey, next)}
+        />
         {keys.map((key, index) => (
           <div key={key} className="maneuverFieldMultiValueGroupItem">
             {index > 0 && <span aria-hidden="true">/</span>}
@@ -478,6 +572,15 @@ export default function ManeuverCard({
             setDraftValues((current) => ({
               ...current,
               [field.fieldId]: next,
+            }))
+          }
+          operatorValue={
+            draftValues[numericFieldOperatorKey(field.fieldId)] ?? DEFAULT_NUMERIC_OPERATOR
+          }
+          onOperatorChange={(next) =>
+            setDraftValues((current) => ({
+              ...current,
+              [numericFieldOperatorKey(field.fieldId)]: next,
             }))
           }
         />

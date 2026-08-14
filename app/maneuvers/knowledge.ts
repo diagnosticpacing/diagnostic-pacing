@@ -179,6 +179,30 @@ export function numericComponentKey(fieldId: string, component: number): string 
   return component <= 1 ? fieldId : `${fieldId}.${component}`;
 }
 
+/**
+ * The default comparison operator every numeric field starts on, before
+ * the clinician picks something else from its Available Terms options
+ * (">"/"<"). See MANEUVER-FIELD-OPERATOR-2026-08-14 in
+ * docs/PROJECT_DESIGN.md.
+ */
+export const DEFAULT_NUMERIC_OPERATOR = "=" as const;
+
+/**
+ * The storage key for a numeric field's selected comparison operator
+ * (e.g. "=", ">", "<") within a ManeuverPerformance's `values` map. A
+ * single operator applies to the whole field regardless of how many
+ * value boxes it renders — so this is a sibling key to the field's own
+ * value key(s) (numericComponentKey's `${fieldId}` / `${fieldId}.2` /
+ * etc.), not a suffix layered onto any of them. Shared by both
+ * ManeuverCard.tsx's entry UI and the Refractory Periods panel/report
+ * (app/refractoryPeriods/knowledge.ts), so a Refractory Period field's
+ * operator reads back consistently everywhere its value is shown. See
+ * MANEUVER-FIELD-OPERATOR-2026-08-14.
+ */
+export function numericFieldOperatorKey(fieldId: string): string {
+  return `${fieldId}.operator`;
+}
+
 function parseManeuverDefinition(row: SpreadsheetRow): ManeuverDefinition | null {
   const maneuverId = trimmed(row.maneuverId);
   if (!maneuverId) return null;
