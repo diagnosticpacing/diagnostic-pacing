@@ -19,37 +19,38 @@ import {
   type ManeuverPerformance,
 } from "../clinical/model";
 import ClinicalStateTagText from "../clinical/ClinicalStateTagText";
-import { REFRACTORY_PERIOD_COMPONENT_COUNT } from "../refractoryPeriods/knowledge";
 import { evaluateOperator } from "../shared/operatorEvaluation";
 
 /**
- * How many value boxes a field renders/stores as, for both of the two
- * cases that use more than one: a Refractory Period field always uses
- * the fixed REFRACTORY_PERIOD_COMPONENT_COUNT (3), and a plain Number
- * Field response uses its own configured numberOfFields when greater
- * than 1. Every other field is a single box. Centralized here so
- * summarizePerformance and the rendered controls agree on exactly the
- * same rule. See MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 in
- * docs/PROJECT_DESIGN.md.
+ * How many value boxes a field renders/stores as — driven solely by the
+ * field's own Number of Fields column (blank, 1, or unparseable all
+ * mean a single box; see toNumberOfFields in ./knowledge). No other
+ * signal implies a count anymore: an earlier version forced every
+ * Refractory Period-tagged field to a fixed 3 boxes regardless of what
+ * Number of Fields actually said, silently overriding the admin's own
+ * configuration — removed in
+ * MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14 in
+ * docs/PROJECT_DESIGN.md. See isNumericEntry below for the separate
+ * question of whether a field is numeric at all in the first place.
  */
 function multiValueCount(field: ManeuverCatalogField): number {
-  if (field.refractoryPeriod) return REFRACTORY_PERIOD_COMPONENT_COUNT;
-  if (field.inputType.toLowerCase() === "number field" && field.numberOfFields > 1) {
-    return field.numberOfFields;
-  }
-  return 1;
+  return field.numberOfFields > 1 ? field.numberOfFields : 1;
 }
 
 /**
- * Whether a field renders as one or more plain numeric boxes — a
- * Refractory Period field, or any Number Field response (single-box or
- * multi-box) — and so gets a comparison-operator selector alongside its
- * value(s). Every other Input Type (Checkbox, dropdowns, Yes/No
- * Buttons, Text Field(s)) has no numeric comparison to make. See
- * MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
+ * Whether a field is a numeric entry at all — a Refractory Period
+ * field (regardless of whatever its own Input Type column happens to
+ * say, since a Refractory Period result is inherently numeric), or any
+ * field whose Input Type is Number Field. Governs both which control
+ * renders (the shared multi-box MultiValueControl vs. FieldControl's
+ * other branches) and whether a comparison-operator selector applies —
+ * kept separate from multiValueCount above so "is this numeric" and
+ * "how many boxes" stay two independent questions, not the same check
+ * doing double duty. See MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14
+ * and MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
  */
-function isNumericField(field: ManeuverCatalogField, count: number): boolean {
-  return count > 1 || field.inputType.toLowerCase() === "number field";
+function isNumericEntry(field: ManeuverCatalogField): boolean {
+  return field.refractoryPeriod !== null || field.inputType.toLowerCase() === "number field";
 }
 
 /**
@@ -70,10 +71,10 @@ function operatorOptions(field: ManeuverCatalogField): string[] {
  * value box(es) — "=" by default, or ">"/"<" (or whatever else the
  * field's Available Terms allow) once the clinician picks one. One
  * selector applies to the whole field regardless of how many value
- * boxes it renders — a Refractory Period triplet's three boxes, or a
- * multi-box Number Field response, still share a single operator,
- * stored under numericFieldOperatorKey rather than per-box. See
- * MANEUVER-FIELD-OPERATOR-2026-08-14.
+ * boxes it renders (per its own Number of Fields column, whether it's
+ * a Refractory Period field or a plain Number Field response) — they
+ * all share a single operator, stored under numericFieldOperatorKey
+ * rather than per-box. See MANEUVER-FIELD-OPERATOR-2026-08-14.
  */
 function OperatorSelect({
   field,
@@ -162,17 +163,18 @@ function summarizePerformance(
   const parts = entry.fields
     .map((field) => {
       const count = multiValueCount(field);
+      const numeric = isNumericEntry(field);
       // A numeric field's selected comparison operator is shown as a
       // prefix on its value (e.g. "AVN ERP: >300") only when it's set to
       // something other than the default "=" — the common case stays
       // exactly as before, uncluttered by a redundant equals sign. See
       // MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
-      const operator = isNumericField(field, count)
+      const operator = numeric
         ? performance.values[numericFieldOperatorKey(field.fieldId)]?.trim()
         : undefined;
       const operatorPrefix = operator && operator !== DEFAULT_NUMERIC_OPERATOR ? operator : "";
 
-      if (count > 1) {
+      if (numeric && count > 1) {
         const values: string[] = [];
         for (let component = 1; component <= count; component += 1) {
           values.push(
@@ -203,7 +205,7 @@ function FieldControl({
   field: ManeuverCatalogEntry["fields"][number];
   value: string;
   onChange: (next: string) => void;
-  /** Only read by the "number field" branch below — see
+  /** Only read by the numeric-entry branch below — see
    * MANEUVER-FIELD-OPERATOR-2026-08-14. Always supplied by the one call
    * site (renderFieldControl), which has draftValues on hand regardless
    * of this field's Input Type. */
@@ -211,6 +213,30 @@ function FieldControl({
   onOperatorChange: (next: string) => void;
 }) {
   const inputType = field.inputType.toLowerCase();
+
+  // Checked first, ahead of every inputType-string branch below: a
+  // Refractory Period-tagged field is always a numeric entry regardless
+  // of whatever its own Input Type column happens to say (the field is
+  // only routed here at all — rather than to MultiValueControl — when
+  // its box count resolves to 1; see renderFieldControl/isNumericEntry).
+  // See MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14 and
+  // MANEUVER-FIELD-OPERATOR-2026-08-14 in docs/PROJECT_DESIGN.md.
+  if (isNumericEntry(field)) {
+    return (
+      <>
+        <OperatorSelect field={field} value={operatorValue} onChange={onOperatorChange} />
+        <div className="maneuverFieldUnitInput">
+          <input
+            aria-label={field.prompt}
+            inputMode="decimal"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          />
+          {field.units && field.units !== "n/a" && <span>{field.units}</span>}
+        </div>
+      </>
+    );
+  }
 
   if (inputType === "checkbox") {
     return (
@@ -311,23 +337,6 @@ function FieldControl({
     );
   }
 
-  if (inputType === "number field") {
-    return (
-      <>
-        <OperatorSelect field={field} value={operatorValue} onChange={onOperatorChange} />
-        <div className="maneuverFieldUnitInput">
-          <input
-            aria-label={field.prompt}
-            inputMode="decimal"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-          />
-          {field.units && field.units !== "n/a" && <span>{field.units}</span>}
-        </div>
-      </>
-    );
-  }
-
   return (
     <input
       aria-label={field.prompt}
@@ -342,17 +351,18 @@ function FieldControl({
  * single input — the field is still one Field ID / one row in the
  * knowledge base; only the GUI presentation and the underlying storage
  * keys are split. Shared by two cases: a Refractory Period field
- * (matching how the original ERP card presented a 600/400/300 result;
- * label is the field's own Maneuver Response Prompt, not a composed
- * string — see REFRACTORY-PERIODS-SIMPLIFY-2026-08-06), and a plain
- * Number Field response configured with Number of Fields > 1 (e.g. a
- * paired baseline/post value — see
- * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12). In both cases every
- * box beyond the first is optional, left blank if unused. `count` is
- * resolved by the caller via multiValueCount above. Also renders one
- * comparison-operator selector for the whole field — shared across
- * however many boxes it has, not one per box — see
- * MANEUVER-FIELD-OPERATOR-2026-08-14.
+ * (matching how the original ERP card used to present a 600/400/300
+ * result; label is the field's own Maneuver Response Prompt, not a
+ * composed string — see REFRACTORY-PERIODS-SIMPLIFY-2026-08-06), and a
+ * plain Number Field response — either way, `count` (resolved by the
+ * caller via multiValueCount above) always comes from the field's own
+ * Number of Fields column, with no other rule involved anymore. See
+ * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 and
+ * MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14 in
+ * docs/PROJECT_DESIGN.md. Every box beyond the first is optional, left
+ * blank if unused. Also renders one comparison-operator selector for
+ * the whole field — shared across however many boxes it has, not one
+ * per box — see MANEUVER-FIELD-OPERATOR-2026-08-14.
  */
 function MultiValueControl({
   field,
@@ -535,15 +545,15 @@ export default function ManeuverCard({
   }
 
   /** Renders one field's prompt and entry control together — the same
-   * RP-triplet-vs-plain branch summarizePerformance uses to read a
-   * saved performance back, just building the live editable form
+   * isNumericEntry-plus-count branch summarizePerformance uses to read
+   * a saved performance back, just building the live editable form
    * instead. Called once per visible field, all of them stacked
    * together in .maneuverFieldList — see
    * MANEUVER-CARD-FIELDS-INLINE-2026-08-11 for why there's no more
    * picker/single-field-editor step in between. */
   function renderFieldControl(field: ManeuverCatalogField) {
     const count = multiValueCount(field);
-    if (count > 1) {
+    if (isNumericEntry(field) && count > 1) {
       return (
         <MultiValueControl
           key={field.fieldId}

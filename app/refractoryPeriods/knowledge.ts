@@ -11,10 +11,17 @@ import {
 /**
  * One named refractory period result — a single tagged Response Field IS
  * the whole result now, not a group of separately-tagged sibling fields.
- * Always has up to three value slots (a second and third extrastimulus
- * are optional, left blank if not performed) — see
- * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06 for why this is now a fixed
- * constant rather than a per-field Type-driven choice. `label` is the
+ * How many value slots it has (a second and third extrastimulus, etc.)
+ * comes entirely from the field's own Number of Fields column on
+ * Maneuver Response Fields — the same column and mechanism any other
+ * multi-box Number Field response uses (see
+ * MANEUVER-RESPONSE-NUMBER-OF-FIELDS-2026-08-12 in
+ * docs/PROJECT_DESIGN.md). Tagging a field with a Refractory Period
+ * Direction no longer implies anything about box count on its own — an
+ * earlier version fixed every Refractory Period field at exactly 3
+ * boxes regardless of what Number of Fields said, which silently
+ * overrode the admin's actual configuration; removed in
+ * MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14. `label` is the
  * field's own Response Prompt text, not a composed string — the admin
  * is expected to write the full clinician-facing name directly (e.g.
  * "AVN ERP"), since the Refractory Periods panel already groups by
@@ -29,16 +36,10 @@ export type RefractoryPeriodDefinition = {
   prompt: string;
   maneuverId: string;
   maneuverName: string;
-  /** Always 3 — see the module doc comment above. */
-  componentCount: 3;
+  /** From the field's own Number of Fields column — see the module doc
+   * comment above. No longer a fixed constant. */
+  componentCount: number;
 };
-
-/** Every refractory period field always renders/stores up to three
- * value boxes now (the Functional-vs-Effective 1-vs-3 distinction was
- * dropped along with the Type column). Kept as a named constant, not
- * inlined, so every call site still reads "how many boxes" rather
- * than a bare magic number. */
-export const REFRACTORY_PERIOD_COMPONENT_COUNT = 3 as const;
 
 /**
  * The storage key for one value slot of a refractory period field within a
@@ -66,7 +67,7 @@ function toDefinition(
     prompt: field.prompt,
     maneuverId: entry.definition.maneuverId,
     maneuverName: entry.definition.maneuverName,
-    componentCount: REFRACTORY_PERIOD_COMPONENT_COUNT,
+    componentCount: field.numberOfFields,
   };
 }
 
@@ -93,9 +94,10 @@ export function buildRefractoryPeriodCatalog(
 /**
  * Reads a refractory period's current recorded value for a given Clinical
  * State, formatted the same way the original ERP card always did:
- * slash-joined components with trailing blanks dropped (so entering
- * only one or two of the three boxes never trails a stray "/"). Returns
- * "" if the maneuver hasn't been performed under this state at all, or
+ * slash-joined components with trailing blanks dropped (so leaving any
+ * trailing box blank — out of however many Number of Fields configures
+ * — never trails a stray "/"). Returns "" if the maneuver hasn't been
+ * performed under this state at all, or
  * if no value has been entered yet. Prefixed with the field's selected
  * comparison operator (e.g. ">400") whenever it's set to something
  * other than the default "=" — the same operator ManeuverCard.tsx's

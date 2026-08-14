@@ -15,12 +15,14 @@ export type ManeuverDefinition = {
  * and never produces a RefractoryPeriodTag in the first place. See
  * REFRACTORY-PERIODS-SIMPLIFY-2026-08-06 in PROJECT_DESIGN.md: Type
  * and Structure were dropped from the schema (the display label now
- * comes straight from the field's own Response Prompt, and every
- * refractory-period field always renders as up to three optional
- * value boxes — the Functional/Effective distinction that used to
- * pick 1-vs-3 boxes is gone), leaving Direction as the sole remaining
- * signal for both "which row of the Refractory Periods panel" and "is
- * this field a refractory period result at all."
+ * comes straight from the field's own Response Prompt), leaving
+ * Direction as the sole remaining signal for "which row of the
+ * Refractory Periods panel" and "is this field a refractory period
+ * result at all." Direction no longer implies anything about how many
+ * value boxes the field renders — see
+ * MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14: that's driven
+ * solely by the field's own Number of Fields column now, same as any
+ * other numeric response field.
  */
 export type RefractoryPeriodDirection = "Antegrade" | "Retrograde";
 
@@ -28,9 +30,12 @@ export type RefractoryPeriodDirection = "Antegrade" | "Retrograde";
  * A Response Field tagged as a refractory period result in its
  * entirety (see the Refractory Period Direction column on Maneuver
  * Response Fields) — one field IS one named refractory period, not
- * one component of one. Always renders/stores as up to three value
- * boxes (a second and third extrastimulus are optional, left blank if
- * not performed).
+ * one component of one. How many value boxes it renders/stores (a
+ * second and third extrastimulus, etc.) comes entirely from the
+ * field's own Number of Fields column — tagging a field as a
+ * Refractory Period no longer implies a fixed box count on its own.
+ * See MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14 in
+ * docs/PROJECT_DESIGN.md.
  */
 export type RefractoryPeriodTag = {
   direction: RefractoryPeriodDirection;

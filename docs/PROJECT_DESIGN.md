@@ -481,6 +481,14 @@ section further down — this is an index, not a replacement.
   card's findings summary, the Refractory Periods panel, and the case
   report, always prefixed only when set to something other than the
   default "=". See `MANEUVER-FIELD-OPERATOR-2026-08-14`.
+- **Bug fix:** Refractory Period Direction was silently overriding
+  Number of Fields — any RP-tagged field was forced to a fixed 3
+  boxes no matter what Number of Fields said. Box count now comes
+  from exactly one place, always: the field's own Number of Fields
+  column, RP-tagged or not. Existing RP rows that relied on the old
+  hardcoded-3 behavior need Number of Fields set explicitly (e.g. to
+  3) to keep showing multiple boxes — it no longer defaults to 3 on
+  its own. See `MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -4997,3 +5005,21 @@ A new `isNumericField(field, count)` helper in `ManeuverCard.tsx` centralizes "d
 **CSS.** New `.maneuverField .maneuverFieldOperatorSelect` rule in `app/globals.css` — narrow (40px) fixed width, since the dropdown only ever holds a one-character symbol. Written as a two-class descendant selector (not the bare class alone) so its specificity reliably beats the generic `.maneuverField select` rule (128px, meant for Single Select Dropdown/Text Field(s)) regardless of source order.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (confirming the dropdown renders/saves/restores correctly for a plain Number Field, a multi-box Number Field, and a Refractory Period triplet, and that the Refractory Periods panel/report reflect a non-default operator) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.
+
+<!-- MANEUVER-FIELD-COUNT-FROM-COLUMN-ONLY-2026-08-14 -->
+## Bug Fix: Refractory Period Direction Was Silently Overriding Number of Fields (fixed 2026-08-14)
+
+Murph reported that the Number of Fields column wasn't being honored on the pacing maneuver cards. Root cause, found together: `multiValueCount` in `ManeuverCard.tsx` checked `field.refractoryPeriod` *before* looking at `field.numberOfFields` — any field with a Refractory Period Direction set (Antegrade/Retrograde) was unconditionally forced to `REFRACTORY_PERIOD_COMPONENT_COUNT` (a fixed 3), regardless of whatever the admin had actually entered in Number of Fields. The column worked correctly for ordinary Number Field responses; it was silently ignored specifically on Refractory-Period-tagged fields, which is exactly where Murph was testing it.
+
+Murph's fix direction: "remove the assumption that a direction entered implies a certain number of fields... remove all rules about how many number fields are to be made available, and instead use only the number of fields column to determine this." Implemented literally — box count now has exactly one source, everywhere:
+
+- **`multiValueCount(field)`** (`ManeuverCard.tsx`) is now just `field.numberOfFields > 1 ? field.numberOfFields : 1` — no Refractory Period special case, no Input Type check baked in. It answers only "how many," nothing else.
+- **A new, separate `isNumericEntry(field)`** answers the different question "is this field numeric at all" — true for a Refractory Period-tagged field (regardless of whatever its own Input Type column says, since a Refractory Period result is inherently numeric) or any field whose Input Type is Number Field. Splitting this out from `multiValueCount` was necessary once Refractory Period fields could resolve to a count of 1 (e.g. Number of Fields left blank) — without a separate "is it numeric" check, such a field would fall through to whatever `FieldControl` branch its literal Input Type string happened to match (a dropdown, a checkbox, plain text), rather than rendering as the numeric entry it actually is.
+- **`FieldControl`**'s numeric-entry branch is now checked first, ahead of every other Input Type branch, using `isNumericEntry(field)` instead of a literal `inputType === "number field"` string check — so a Refractory Period field with Number of Fields resolving to 1 still renders correctly as a single numeric box (with its operator dropdown), not whatever its Input Type column happens to say.
+- **`renderFieldControl`** now routes to the shared `MultiValueControl` only when `isNumericEntry(field) && count > 1` (previously just `count > 1`, back when a bare Refractory Period tag alone could make `count` resolve to 3 without this extra check).
+- **`summarizePerformance`**'s multi-value-join branch is gated the same way (`numeric && count > 1`), so the findings summary line agrees with what the entry side actually rendered.
+- **`app/refractoryPeriods/knowledge.ts`**: `RefractoryPeriodDefinition.componentCount` changed from the literal type `3` to `number`, and `toDefinition()` now sets it from `field.numberOfFields` instead of the removed `REFRACTORY_PERIOD_COMPONENT_COUNT` constant (deleted — no longer referenced anywhere). This keeps the Refractory Periods panel and case report (both downstream of `componentCount` via `formatRefractoryPeriodValue`) in sync with whatever `ManeuverCard.tsx` actually rendered and saved.
+
+**Migration note, called out explicitly rather than silently absorbed:** every existing Refractory Period-tagged row that relied on the old hardcoded 3-box behavior needs its Number of Fields column set explicitly now (to 3, to keep the familiar triplet) — it no longer defaults to 3 on its own. A row left blank now renders and stores as a single box. This is the direct, intended consequence of removing the "Direction implies a count" rule; Murph will need to visit existing Refractory Period rows in the admin Maneuver Response Fields sheet and set Number of Fields explicitly wherever more than one box is still wanted.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually exercised end-to-end in a live browser (setting Number of Fields on a Refractory-Period-tagged row and confirming the maneuver card renders exactly that many boxes, and that a row left blank now renders as one box instead of three) — the change is understood and traced through the full read/render/save/display path, but hasn't been visually confirmed.
