@@ -509,6 +509,14 @@ section further down — this is an index, not a replacement.
   validation at once — a bulk failure the old 8-issue cap made painful
   to work through. The full list now shows. See
   `CLINICAL-STATES-VALIDATION-ALERT-2026-08-14`.
+- **References is now a grouped tab: Publications + Citations.** Same
+  pattern as Maneuvers and Clinical States. Publications is the
+  original per-source sheet, renamed but otherwise unchanged. Citations
+  is new — specific excerpted claims and quoted passages drawn from a
+  Publication, each tied to the exact clinical assertion it supports.
+  Not yet consumed anywhere in the clinical engine or report generator;
+  purely a knowledge-base sourcing structure for now. See
+  `REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -5129,3 +5137,22 @@ Medication's prefix was initially set to `MID-`, which collides with Maneuver De
 **Migration note for Murph:** this only relabels new entries going forward — it doesn't touch existing data. Any rows already entered on the Phase/Rhythm/Medication sub-sheets under the old `SID-` prefix (or, briefly, `MID-` for Medication) will now fail save/lock validation with "`<Sheet>`: `<ID column>` must begin with `\"<new prefix>\"`." (the same alert that now lists every issue at once, per `CLINICAL-STATES-VALIDATION-ALERT-2026-08-14`). The fix is a one-line text edit per row — renaming e.g. `SID-004` to `PID-004`, or `MID-004` to `MEDID-004`, in that row's ID cell — not a recreation of the row; nothing else about the row needs to change, and nothing that already references it by Abbreviated Name breaks, since those references were never ID-based to begin with (see `CLINICAL-STATES-SUB-SHEETS-2026-08-14`). Sedation entries are unaffected (`SID-` didn't change).
 
 Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually confirmed in the browser against any of Murph's real data.
+
+<!-- REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14 -->
+## References Tab Split Into Publications + Citations Sub-Sheets (implemented 2026-08-14)
+
+Murph asked for References to gain sub-sheets the same way Maneuvers and Clinical States already have: "the current references list is great, we just need to add Citations, which is more detailed and specific claims from various publication and excerpted text used to support the clinical engine." Rather than folding Citations into the existing References sheet as extra columns, this follows the same grouped-tab pattern established by `CLINICAL-STATES-SUB-SHEETS-2026-08-14`: References becomes a group tab over two real, independently-editable sub-sheets.
+
+**`app/admin/model.ts`.** `references` is no longer a `SheetId` — it stays a `TopLevelTabId` (the group tab), unchanged in that role. Two sheets take its place: `referencePublications` (the original sheet, renamed — same columns, same keys: `referenceId`/`referenceTitle`/`abbreviatedAuthor`/`completeAuthorList`/`link`/`pmidDoi`/`notes`, `REFID-` prefix unchanged) and the new `referenceCitations`. New `ReferenceSheetId` type and `referenceSheets` array (label + description per sub-sheet, for the sub-nav), directly mirroring `ManeuverSheetId`/`maneuverSheets` and `ClinicalStateSheetId`/`clinicalStateSheets`. `emptyData()` updated to the two new keys.
+
+**`referenceCitations` schema.** Citation ID (`CITID-` prefix) · Reference Title (a live dropdown lookup against `referencePublications`, `populatesColumn: "referenceId"` — exactly the same pick-a-publication-by-title pattern Clinical Reasoning's own Reference Title column already used) · Reference ID (auto-filled, same lookup) · Excerpted Text (multiline, required — the exact quoted passage) · Claim Supported (multiline, required — the specific clinical assertion the excerpt backs) · Page / Location (optional) · Notes (optional). Because Reference Title/Reference ID are lookup-driven `<select>` columns rather than free text, a Citation can only ever be tied to a Publication that actually exists — no separate migration or backfill concern the way the Clinical States split had (that one broke *existing* free-text references; here everything is new).
+
+**`knowledge/validation.ts`.** `idColumn` gained `referencePublications: "referenceId"` (replacing the old `references` entry) and `referenceCitations: "citationId"`. Every `safe("references")` read (`referenceIds`/`referenceTitles` sets, used to check Clinical Reasoning's own Reference Title/Reference ID columns) now reads `safe("referencePublications")` instead — same sets, same checks, just renamed. New: both `validateWorkbook` and `validateRow` gained a `referenceCitations` block checking a Citation's `referenceId`/`referenceTitle` against those same Publications sets, mirroring the existing Clinical Reasoning check — belt-and-suspenders alongside the dropdown's own selection constraint, and consistent with how every other cross-sheet reference in this workbook is validated.
+
+**`app/admin/components/ReferenceWorkspace.tsx`** (new), a direct copy of `ManeuverWorkspace.tsx`/`ClinicalStateWorkspace.tsx`'s shape (a sub-nav of label+description buttons) against `referenceSheets`. Wired into both `app/admin/AdminClient.tsx` and the public `app/knowledge/KnowledgeClient.tsx` the same way Clinical States was: an `activeReferenceSheet` state, a `referenceSheetIds` set for `handleNavigateToReference`'s routing, and the `activeTab === "references"` branch added everywhere `"clinicalStates"` already was (the `activeSheetId` computation, the sheet-description blanking so the sub-nav's own descriptions aren't repeated, the KnowledgeClient read-only viewer's equivalent description line).
+
+**`app/admin/workbookExport.ts`.** `sheetOrder` and `worksheetNames` updated: the one `references` entry ("References") is now two — `referencePublications` ("References - Publications") and `referenceCitations` ("References - Citations") — matching the "Clinical States - `<Category>`" naming convention already used there.
+
+**Not wired into the clinical engine's reasoning display yet:** Citations exist as a knowledge-base sheet, cross-referenceable from Publications, but nothing in Clinical Reasoning or the report generator reads from `referenceCitations` yet — it's purely an editorial/sourcing structure for now, the same way Diagnoses or Intervals can exist without every row being consumed by every feature. If Murph wants a Citation surfaced somewhere in the clinical workspace or case report (e.g. alongside a Clinical Reasoning row's existing Reference Title), that's a separate follow-up.
+
+Verification: `npx tsc --noEmit` and `npx eslint app/ knowledge/` both clean. Not yet manually exercised end-to-end in a live browser (confirming both References sub-sheets render and save correctly in the admin editor and the public `/knowledge` viewer, confirming Citations' Reference Title dropdown pulls from Publications and auto-fills Reference ID, confirming Excel export produces two separate References tabs, confirming Clinical Reasoning's own Reference Title/Reference ID lookup still resolves correctly against the renamed `referencePublications` sheet).

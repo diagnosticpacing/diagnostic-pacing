@@ -127,6 +127,15 @@ export type ClinicalStateSheetId =
   | "clinicalStateSedations"
   | "clinicalStateMedications";
 
+// The References tab is a group of two real sub-sheets — same grouped-
+// tab pattern as Maneuvers and Clinical States above. Publications holds
+// the original per-source bibliographic entries (title/authors/link/
+// DOI); Citations holds finer-grained, specific excerpted claims and
+// quoted passages drawn from a Publication, each tied back to the
+// Publication it came from. See
+// REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.
+export type ReferenceSheetId = "referencePublications" | "referenceCitations";
+
 export type SheetId =
   | "clinicalTerms"
   | "clinicalStatePhases"
@@ -138,7 +147,8 @@ export type SheetId =
   | "maneuverResponseFields"
   | "maneuverResponseOptions"
   | "clinicalReasoning"
-  | "references";
+  | "referencePublications"
+  | "referenceCitations";
 
 export const topLevelTabs: {
   id: TopLevelTabId;
@@ -205,6 +215,25 @@ export const clinicalStateSheets: {
     label: "Medication",
     description:
       "Medication states (Iso On, Iso Off, Adenosine Administered, and similar) — not a workspace dropdown; only selectable as a Required States/Required Clinical State value, matched against the workspace's free-text Isoproterenol/Adenosine dose fields.",
+  },
+];
+
+export const referenceSheets: {
+  id: ReferenceSheetId;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "referencePublications",
+    label: "Publications",
+    description:
+      "Journal articles and other publications supporting maneuver definitions and clinical reasoning.",
+  },
+  {
+    id: "referenceCitations",
+    label: "Citations",
+    description:
+      "Specific excerpted claims and quoted passages drawn from a Publication, each tied to the exact clinical assertion it supports — more detailed than a Publication entry alone.",
   },
 ];
 
@@ -893,17 +922,17 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       {
         key: "referenceTitle",
         label: "Reference Title",
-        modelUse: "Reference supporting this explanation.",
+        modelUse: "Publication supporting this explanation.",
         width: "220px",
-        lookup: { sheet: "references", column: "referenceTitle" },
+        lookup: { sheet: "referencePublications", column: "referenceTitle" },
         populatesColumn: "referenceId",
       },
       {
         key: "referenceId",
         label: "Reference ID",
-        modelUse: "Reference supporting this explanation. Auto-fills from Reference Title.",
+        modelUse: "Publication supporting this explanation. Auto-fills from Reference Title.",
         width: "160px",
-        lookup: { sheet: "references", column: "referenceId" },
+        lookup: { sheet: "referencePublications", column: "referenceId" },
       },
       {
         key: "ruleGroupId",
@@ -944,15 +973,16 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
     ],
   },
 
-  references: {
-    id: "references",
-    label: "References",
-    description: "Publications and other evidence supporting maneuver definitions and clinical reasoning.",
+  referencePublications: {
+    id: "referencePublications",
+    label: "Publications",
+    description:
+      "Publications and other evidence supporting maneuver definitions and clinical reasoning. See REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
     columns: [
       {
         key: "referenceId",
         label: "Reference ID",
-        modelUse: "Stable ID linking this publication to maneuvers and reasoning statements.",
+        modelUse: "Stable ID linking this publication to maneuvers, reasoning statements, and Citations.",
         width: "180px",
         required: true,
         idPrefix: "REFID-",
@@ -1002,6 +1032,68 @@ export const sheetDefinitions: Record<SheetId, SheetDefinition> = {
       },
     ],
   },
+
+  referenceCitations: {
+    id: "referenceCitations",
+    label: "Citations",
+    description:
+      "Specific excerpted claims and quoted passages drawn from a Publication, each tied to the exact clinical assertion it supports. See REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14 in PROJECT_DESIGN.md.",
+    columns: [
+      {
+        key: "citationId",
+        label: "Citation ID",
+        modelUse: "Stable ID for this specific excerpt, e.g. CITID-001.",
+        width: "170px",
+        required: true,
+        idPrefix: "CITID-",
+      },
+      {
+        key: "referenceTitle",
+        label: "Reference Title",
+        modelUse: "The Publication this excerpt is drawn from.",
+        width: "260px",
+        required: true,
+        lookup: { sheet: "referencePublications", column: "referenceTitle" },
+        populatesColumn: "referenceId",
+      },
+      {
+        key: "referenceId",
+        label: "Reference ID",
+        modelUse: "Publication this excerpt is drawn from. Auto-fills from Reference Title.",
+        width: "160px",
+        lookup: { sheet: "referencePublications", column: "referenceId" },
+      },
+      {
+        key: "excerptedText",
+        label: "Excerpted Text",
+        modelUse: "The exact quoted passage from the source.",
+        width: "minmax(360px, 1.1fr)",
+        multiline: true,
+        required: true,
+      },
+      {
+        key: "claimSupported",
+        label: "Claim Supported",
+        modelUse: "The specific clinical assertion this excerpt supports.",
+        width: "minmax(300px, 0.9fr)",
+        multiline: true,
+        required: true,
+      },
+      {
+        key: "pageLocation",
+        label: "Page / Location",
+        modelUse: "Page number, section, figure, or table where this excerpt appears.",
+        width: "170px",
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        modelUse: "Optional caveats or context about this excerpt.",
+        width: "minmax(240px, 0.7fr)",
+        multiline: true,
+      },
+    ],
+  },
 };
 
 export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
@@ -1015,7 +1107,8 @@ export const emptyData = (): Record<SheetId, SpreadsheetRow[]> => ({
   maneuverResponseFields: [],
   maneuverResponseOptions: [],
   clinicalReasoning: [],
-  references: [],
+  referencePublications: [],
+  referenceCitations: [],
 });
 
 // The knowledge base starts empty — all content is entered through the

@@ -5,14 +5,17 @@ import Link from "next/link";
 import AdminTabs from "./components/AdminTabs";
 import ClinicalStateWorkspace from "./components/ClinicalStateWorkspace";
 import ManeuverWorkspace from "./components/ManeuverWorkspace";
+import ReferenceWorkspace from "./components/ReferenceWorkspace";
 import SpreadsheetTable from "./components/SpreadsheetTable";
 import { exportKnowledgeWorkbook } from "./workbookExport";
 import {
   clinicalStateSheets,
   initialData,
+  referenceSheets,
   sheetDefinitions,
   type ClinicalStateSheetId,
   type ManeuverSheetId,
+  type ReferenceSheetId,
   type SheetId,
   type SpreadsheetRow,
   type TopLevelTabId,
@@ -26,6 +29,10 @@ const maneuverSheetIds = new Set<SheetId>([
 
 const clinicalStateSheetIds = new Set<SheetId>(
   clinicalStateSheets.map((sheet) => sheet.id),
+);
+
+const referenceSheetIds = new Set<SheetId>(
+  referenceSheets.map((sheet) => sheet.id),
 );
 
 const copyInitialData = () =>
@@ -43,6 +50,9 @@ export default function AdminPage() {
 
   const [activeClinicalStateSheet, setActiveClinicalStateSheet] =
     useState<ClinicalStateSheetId>("clinicalStatePhases");
+
+  const [activeReferenceSheet, setActiveReferenceSheet] =
+    useState<ReferenceSheetId>("referencePublications");
 
   const [data, setData] =
     useState<Record<SheetId, SpreadsheetRow[]>>(copyInitialData);
@@ -85,9 +95,12 @@ export default function AdminPage() {
     if (activeTab === "clinicalStates") {
       return activeClinicalStateSheet;
     }
+    if (activeTab === "references") {
+      return activeReferenceSheet;
+    }
 
     return activeTab;
-  }, [activeClinicalStateSheet, activeManeuverSheet, activeTab]);
+  }, [activeClinicalStateSheet, activeManeuverSheet, activeReferenceSheet, activeTab]);
 
   const activeDefinition = sheetDefinitions[activeSheetId];
   const activeRows = data[activeSheetId];
@@ -157,6 +170,9 @@ export default function AdminPage() {
     } else if (clinicalStateSheetIds.has(sheetId)) {
       setActiveTab("clinicalStates");
       setActiveClinicalStateSheet(sheetId as ClinicalStateSheetId);
+    } else if (referenceSheetIds.has(sheetId)) {
+      setActiveTab("references");
+      setActiveReferenceSheet(sheetId as ReferenceSheetId);
     } else {
       setActiveTab(sheetId as TopLevelTabId);
     }
@@ -348,6 +364,13 @@ export default function AdminPage() {
           />
         )}
 
+        {activeTab === "references" && (
+          <ReferenceWorkspace
+            activeSheet={activeReferenceSheet}
+            onChange={setActiveReferenceSheet}
+          />
+        )}
+
         {/* One consolidated line where there used to be two separate
             bars: a sheet-description heading, and a Toolbar row below it
             for row count / save state (plus the Add Row/Save/Download
@@ -358,15 +381,19 @@ export default function AdminPage() {
             description together on its own button, so repeating that
             same sentence here would be the exact duplicate description
             Murph flagged ("Response Fields" showing the same text
-            twice). Same reasoning applies to Clinical States now that it
-            has its own ClinicalStateWorkspace subnav — see
-            CLINICAL-STATES-SUB-SHEETS-2026-08-14. Every other tab has no
-            subnav, so its description still needs to be stated
+            twice). Same reasoning applies to Clinical States and
+            References now that each has its own subnav (
+            ClinicalStateWorkspace/ReferenceWorkspace) — see
+            CLINICAL-STATES-SUB-SHEETS-2026-08-14 and
+            REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14. Every other tab
+            has no subnav, so its description still needs to be stated
             somewhere, and this is that somewhere. See
             ADMIN-CONSOLIDATE-SHEET-META-2026-08-11. */}
         <div className="adminSheetMeta">
           <p>
-            {activeTab === "maneuvers" || activeTab === "clinicalStates"
+            {activeTab === "maneuvers" ||
+            activeTab === "clinicalStates" ||
+            activeTab === "references"
               ? ""
               : activeDefinition.description}
           </p>

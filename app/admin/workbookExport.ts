@@ -18,7 +18,8 @@ const sheetOrder: SheetId[] = [
   "maneuverResponseFields",
   "maneuverResponseOptions",
   "clinicalReasoning",
-  "references",
+  "referencePublications",
+  "referenceCitations",
 ];
 
 const worksheetNames: Record<SheetId, string> = {
@@ -32,7 +33,8 @@ const worksheetNames: Record<SheetId, string> = {
   maneuverResponseFields: "Response Fields",
   maneuverResponseOptions: "Response Options",
   clinicalReasoning: "Clinical Reasoning",
-  references: "References",
+  referencePublications: "References - Publications",
+  referenceCitations: "References - Citations",
 };
 
 const getColumnWidth = (

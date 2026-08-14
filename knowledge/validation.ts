@@ -26,7 +26,8 @@ const idColumn: Partial<Record<SheetId, string>> = {
   maneuverResponseFields: "fieldId",
   maneuverResponseOptions: "optionId",
   clinicalReasoning: "reasoningId",
-  references: "referenceId",
+  referencePublications: "referenceId",
+  referenceCitations: "citationId",
 };
 
 const n = (value?: string) => (value ?? "").trim();
@@ -142,8 +143,8 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
   );
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
   const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
-  const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
-  const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
+  const referenceIds = new Set(safe("referencePublications").map((r) => n(r.referenceId).toUpperCase()));
+  const referenceTitles = new Set(safe("referencePublications").map((r) => n(r.referenceTitle).toUpperCase()));
 
   for (const row of safe("maneuverDefinitions")) {
     for (const abbr of splitList(row.relevantDiagnoses)) {
@@ -216,6 +217,20 @@ export function validateWorkbook(workbook: KnowledgeWorkbook): ValidationIssue[]
     }
     if (n(row.requiredClinicalState) && !clinicalStateAbbreviations.has(n(row.requiredClinicalState).toUpperCase())) {
       issue(issues, "clinicalReasoning", row, "requiredClinicalState", `Unknown clinical state "${row.requiredClinicalState}".`);
+    }
+  }
+
+  // References is two real sub-sheets as of
+  // REFERENCES-CITATIONS-SUB-SHEETS-2026-08-14 — a Citation's Reference
+  // ID/Title must point at a real Publications row, mirroring the same
+  // check Clinical Reasoning's referenceId/referenceTitle already gets
+  // above.
+  for (const row of safe("referenceCitations")) {
+    if (n(row.referenceId) && !referenceIds.has(n(row.referenceId).toUpperCase())) {
+      issue(issues, "referenceCitations", row, "referenceId", `Unknown reference ID "${row.referenceId}".`);
+    }
+    if (n(row.referenceTitle) && !referenceTitles.has(n(row.referenceTitle).toUpperCase())) {
+      issue(issues, "referenceCitations", row, "referenceTitle", `Unknown reference title "${row.referenceTitle}".`);
     }
   }
 
@@ -316,8 +331,8 @@ export function validateRow(
   );
   const fieldIds = new Set(safe("maneuverResponseFields").map((r) => n(r.fieldId).toUpperCase()));
   const intervalNames = new Set(safe("clinicalTerms").map((r) => n(r.name).toUpperCase()));
-  const referenceIds = new Set(safe("references").map((r) => n(r.referenceId).toUpperCase()));
-  const referenceTitles = new Set(safe("references").map((r) => n(r.referenceTitle).toUpperCase()));
+  const referenceIds = new Set(safe("referencePublications").map((r) => n(r.referenceId).toUpperCase()));
+  const referenceTitles = new Set(safe("referencePublications").map((r) => n(r.referenceTitle).toUpperCase()));
 
   if (sheetId === "maneuverDefinitions") {
     for (const abbr of splitList(row.relevantDiagnoses)) {
@@ -390,6 +405,15 @@ export function validateRow(
     }
     if (n(row.requiredClinicalState) && !clinicalStateAbbreviations.has(n(row.requiredClinicalState).toUpperCase())) {
       issue(issues, sheetId, row, "requiredClinicalState", `Unknown clinical state "${row.requiredClinicalState}".`);
+    }
+  }
+
+  if (sheetId === "referenceCitations") {
+    if (n(row.referenceId) && !referenceIds.has(n(row.referenceId).toUpperCase())) {
+      issue(issues, sheetId, row, "referenceId", `Unknown reference ID "${row.referenceId}".`);
+    }
+    if (n(row.referenceTitle) && !referenceTitles.has(n(row.referenceTitle).toUpperCase())) {
+      issue(issues, sheetId, row, "referenceTitle", `Unknown reference title "${row.referenceTitle}".`);
     }
   }
 
