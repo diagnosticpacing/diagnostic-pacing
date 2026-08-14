@@ -503,6 +503,12 @@ section further down — this is an index, not a replacement.
   `MANEUVER-REQUIRED-STATE-CHECK-2026-08-14` and, superseding its
   original single-sheet-plus-Category-column approach,
   `CLINICAL-STATES-SUB-SHEETS-2026-08-14`.
+- **Admin save-error alert no longer caps at 8 issues.** The four-sheet
+  split above left the Clinical States sub-sheets empty, so every
+  pre-existing Required States/Required Clinical State reference failed
+  validation at once — a bulk failure the old 8-issue cap made painful
+  to work through. The full list now shows. See
+  `CLINICAL-STATES-VALIDATION-ALERT-2026-08-14`.
 
 **Still open / intentionally deferred:**
 
@@ -5088,3 +5094,14 @@ The category-column approach above shipped, deployed, and Murph immediately flag
 **Migration note for Murph:** the four sub-sheets start empty — nothing carries over automatically from whatever was entered on the old single `clinicalStates` sheet (that data still exists in past knowledge-base revisions if it's needed for reference, but this app has no cross-sheet "move rows" tool). Each old row needs to be re-entered once, by hand, on whichever of the four new sheets matches its intended category. The same load-bearing-exact-string caveat from the section above still applies: the Post-ablation/Post-ablation 2 Phase entries and the Tachycardia Rhythm entry must use Abbreviated Names that exactly match those literal strings, since `clinicalStateAblationTag`/`tachycardiaCycleLengthMs` in `app/clinical/model.ts` still compare against them directly.
 
 Verification: `npx tsc --noEmit` and `npx eslint app/ knowledge/` both clean. Not yet manually exercised end-to-end in a live browser (confirming all four Clinical States sub-sheets render and save correctly in both the admin editor and the public `/knowledge` viewer, confirming Required States/Required Clinical State dropdowns pull options from all four sheets and their reference chips jump to the right sub-sheet, confirming Excel export produces four separate Clinical States tabs, confirming the dropdown/gating behavior described in the section above still works end-to-end against the new sheet shape) — the change is understood and traced through the full schema/lookup/UI path, but hasn't been visually confirmed.
+
+<!-- CLINICAL-STATES-VALIDATION-ALERT-2026-08-14 -->
+## Admin Save-Error Alert: No Cap on Validation Issues Listed (fixed 2026-08-14)
+
+Direct fallout of `CLINICAL-STATES-SUB-SHEETS-2026-08-14` immediately above: the four Clinical State sub-sheets start empty, and Required States/Required Clinical State are stored as plain Abbreviated Name text on the referencing rows (Maneuver Definitions, Clinical Reasoning) rather than as stable IDs — so the moment the split shipped, every previously-valid reference anywhere in the workbook failed the `"Unknown clinical state"` check in `knowledge/validation.ts`. `validateWorkbook` validates the entire workbook on every save, so a single stale reference blocks the save outright, and with the sub-sheets freshly empty there could be many at once — not one.
+
+The blocker itself needs no code change: because Required States is text-matched rather than ID-matched, re-adding an entry to the correct one of the four Clinical State sheets with the same Abbreviated Name text automatically "reconnects" every row that referenced it — the referencing rows in Maneuver Definitions/Clinical Reasoning don't need to be touched.
+
+What did need fixing was UX: `app/admin/AdminClient.tsx`'s `handleSave` rendered the validation failure via `window.alert`, capped at the first 8 issues (`result.issues.slice(0, 8)`). Against a bulk-migration failure like this one, that cap forced fixing 8 issues, reloading, re-saving, and repeating — rather than seeing the whole to-do list at once. The cap is removed; the alert now lists every issue (a plain `window.alert` scrolls, so there's no length concern), with a count in the header line (`Validation failed — N issues.`).
+
+Verification: `npx tsc --noEmit` and `npx eslint app/` both clean. Not yet manually confirmed against a real bulk-failure save in the browser — the fix is a straightforward removal of a `.slice(0, 8)` cap with no logic change, so this is considered low-risk, but worth a look next time a validation failure actually occurs.

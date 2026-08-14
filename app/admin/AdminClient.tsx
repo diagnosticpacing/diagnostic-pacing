@@ -211,11 +211,20 @@ export default function AdminPage() {
 
       if (!response.ok) {
         if (result.error === "validation_failed") {
-          const details = (result.issues ?? [])
-            .slice(0, 8)
-            .map((item: { message: string }) => `• ${item.message}`)
+          // No cap on how many issues are listed — this used to stop at
+          // 8, which meant a bulk schema change (like splitting Clinical
+          // States into four sheets) could only be fixed 8 issues at a
+          // time, reloading and re-saving repeatedly to see the next
+          // batch. A plain window.alert can scroll, so showing every
+          // issue at once is strictly more useful. See
+          // CLINICAL-STATES-VALIDATION-ALERT-2026-08-14.
+          const issues: { message: string }[] = result.issues ?? [];
+          const details = issues
+            .map((item) => `• ${item.message}`)
             .join("\n");
-          throw new Error(`Validation failed.\n\n${details}`);
+          throw new Error(
+            `Validation failed — ${issues.length} issue${issues.length === 1 ? "" : "s"}.\n\n${details}`,
+          );
         }
         if (result.error === "revision_conflict") {
           throw new Error(`The workbook changed elsewhere. Live revision: ${result.currentRevision}. Reload before editing.`);
